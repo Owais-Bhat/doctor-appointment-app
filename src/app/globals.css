@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  /* Xtract Aesthetic Palette */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-surface-100: var(--surface-100);
+  --color-surface-200: var(--surface-200);
+  --color-surface-300: var(--surface-300);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Custom Animations for Motion 3 feel */
+  --animate-fade-in: fade-in 0.5s ease-out;
+  --animate-slide-up: slide-up 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+:root {
+  /* Light Mode - Paper White */
+  --background: #fcfcfc;
+  --foreground: #0a0a0a;
+  --brand-primary: #007AFF;
+  --brand-secondary: #5856d6;
+  --surface-100: rgba(255, 255, 255, 0.7);
+  --surface-200: rgba(240, 240, 240, 0.8);
+  --surface-300: rgba(220, 220, 220, 0.9);
+  --border-color: rgba(0, 0, 0, 0.1);
+}
+
+.dark {
+  /* Dark Mode - Deep Space */
+  --background: #050505;
+  --foreground: #f5f5f5;
+  --brand-primary: #2997ff;
+  --brand-secondary: #5e5ce6;
+  --surface-100: rgba(20, 20, 20, 0.6);
+  --surface-200: rgba(30, 30, 30, 0.7);
+  --surface-300: rgba(45, 45, 45, 0.8);
+  --border-color: rgba(255, 255, 255, 0.1);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Glassmorphism Utility */
+.glass {
+  background: var(--surface-100);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dark .glass {
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
