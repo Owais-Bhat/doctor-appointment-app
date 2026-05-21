@@ -1,223 +1,162 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { createClient } from '@/lib/supabase';
-import { Search, User, FileText, Save, History, Calendar } from 'lucide-react';
-import { toast } from 'react-hot-toast';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { Activity, FileText, HeartPulse, MessageCircle, Search, ShieldCheck, Stethoscope, TrendingUp } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { patients } from "@/lib/medflow-data";
+import { cn } from "@/lib/utils";
 
 export default function PatientsPage() {
-  const { user } = useAuth();
-  const [patients, setPatients] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [clinicalNote, setClinicalNote] = useState('');
-
-  useEffect(() => {
-    async function fetchPatients() {
-      if (!user) return;
-      setIsLoading(true);
-      try {
-        const supabase = createClient();
-        const { data: docProfile } = await supabase
-          .from('doctor_profiles')
-          .select('id')
-          .eq('profile_id', user.uid)
-          .single();
-
-        if (!docProfile) return;
-
-        // Fetch unique patients who have booked with this doctor
-        const { data: appointments } = await supabase
-          .from('appointments')
-          .select('patient_id, profiles(*)')
-          .eq('doctor_id', docProfile.id);
-
-        // Deduplicate patients
-        const uniquePatients = Array.from(
-          new Map(appointments?.map(app => [app.patient_id, app.profiles]).values())
-        );
-
-        setPatients(uniquePatients);
-      } catch (err) {
-        console.error("Error fetching patients:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchPatients();
-  }, [user]);
-
-  const selectPatient = async (patientId: string) => {
-    const supabase = createClient();
-    const { data: patient } = await supabase.from('profiles').select('*').eq('id', patientId).single();
-
-    const { data: history } = await supabase
-      .from('appointments')
-      .select('*, doctor_profiles(*)')
-      .eq('patient_id', patientId)
-      .order('appointment_date', { ascending: false });
-
-    setSelectedPatient({ ...patient, history });
-  };
-
-  const saveNote = async (appointmentId: string) => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('appointments')
-      .update({ notes: clinicalNote })
-      .eq('id', appointmentId);
-
-    if (error) {
-      toast.error("Failed to save note");
-    } else {
-      toast.success("Medical note saved");
-      setClinicalNote('');
-    }
-  };
-
-  const filteredPatients = patients.filter(p =>
-    p.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  const [selected, setSelected] = useState(patients[0]);
+  const [query, setQuery] = useState("");
+  const filtered = patients.filter((patient) =>
+    `${patient.name} ${patient.condition} ${patient.payer}`.toLowerCase().includes(query.toLowerCase())
   );
 
-  if (isLoading) return <div className="p-6 text-gray-500">Loading patient records...</div>;
-
   return (
-    <div className="flex h-full gap-6">
-      {/* Patient List Table */}
-      <div className="flex-1 space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Patient Records</h1>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-3 text-gray-400" size={16} />
-            <input
-              type="text"
-              placeholder="Search patients..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-surface-100 border border-surface-300 outline-none focus:ring-2 focus:ring-brand-primary text-sm"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
+    <div className="space-y-5">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <p className="text-sm font-semibold text-blue-700">Longitudinal care</p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-950 md:text-3xl">Patient command record</h1>
+          <p className="mt-2 text-sm text-slate-600">Clinical timeline, outcomes, care gaps, insurance, and engagement in one record.</p>
         </div>
+        <div className="flex w-full rounded-md border border-slate-200 bg-white lg:w-96">
+          <Search className="ml-3 mt-3 text-slate-400" size={18} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search patients"
+            className="min-w-0 flex-1 rounded-md border-0 px-3 py-2.5 text-sm outline-none"
+          />
+        </div>
+      </div>
 
-        <div className="bg-surface-100 rounded-3xl border border-surface-300 overflow-hidden shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-surface-200 text-gray-500 font-bold uppercase text-[10px]">
+      <section className="grid gap-5 xl:grid-cols-[1fr_420px]">
+        <div className="med-card overflow-hidden">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-6 py-4">Patient</th>
-                <th className="px-6 py-4">Blood Type</th>
-                <th className="px-6 py-4">Last Visit</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-5 py-3">Patient</th>
+                <th className="px-5 py-3">Condition</th>
+                <th className="px-5 py-3">Risk</th>
+                <th className="px-5 py-3">Payer</th>
+                <th className="px-5 py-3">Next action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-surface-300">
-              {filteredPatients.map(p => (
+            <tbody className="divide-y divide-slate-200">
+              {filtered.map((patient) => (
                 <tr
-                  key={p.id}
-                  className={cn(
-                    "cursor-pointer transition-colors hover:bg-brand-primary/5",
-                    selectedPatient?.id === p.id ? "bg-brand-primary/10" : ""
-                  )}
-                  onClick={() => selectPatient(p.id)}
+                  key={patient.name}
+                  onClick={() => setSelected(patient)}
+                  className={cn("cursor-pointer bg-white hover:bg-blue-50/50", selected.name === patient.name && "bg-blue-50")}
                 >
-                  <td className="px-6 py-4">
+                  <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-surface-200 flex items-center justify-center font-bold text-xs">
-                        {p.full_name?.[0]}
+                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-900 text-sm font-bold text-white">
+                        {patient.name.split(" ").map((part) => part[0]).join("")}
                       </div>
-                      <span className="font-semibold">{p.full_name}</span>
+                      <div>
+                        <p className="font-semibold text-slate-950">{patient.name}</p>
+                        <p className="text-xs text-slate-500">{patient.age} years old, last visit {patient.lastVisit}</p>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">{p.blood_type || 'N/A'}</td>
-                  <td className="px-6 py-4 text-gray-500">---</td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-brand-primary font-bold hover:underline">View File</button>
+                  <td className="px-5 py-4 text-slate-700">{patient.condition}</td>
+                  <td className="px-5 py-4">
+                    <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-bold text-amber-800">{patient.risk}</span>
                   </td>
+                  <td className="px-5 py-4 text-slate-600">{patient.payer}</td>
+                  <td className="px-5 py-4 font-semibold text-blue-700">{patient.next}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Patient Detail Panel */}
-      {selectedPatient && (
-        <div className="w-96 p-6 bg-surface-100 rounded-3xl border border-surface-300 shadow-xl space-y-6 animate-in slide-in-from-right-4">
-          <div className="text-center space-y-2">
-            <div className="w-20 h-20 rounded-full bg-surface-200 mx-auto mb-2 overflow-hidden border-4 border-white">
-              {selectedPatient.avatar_url ? <img src={selectedPatient.avatar_url} alt="Avatar" /> : <User size={40} className="m-3 text-gray-400" />}
+        <aside className="space-y-5">
+          <div className="med-card p-5">
+            <div className="flex items-start gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-md bg-blue-600 text-lg font-bold text-white">
+                {selected.name.split(" ").map((part) => part[0]).join("")}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-950">{selected.name}</h2>
+                <p className="text-sm text-slate-500">{selected.condition}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">{selected.payer}</span>
+                  <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Consent active</span>
+                </div>
+              </div>
             </div>
-            <h2 className="text-xl font-bold">{selectedPatient.full_name}</h2>
-            <p className="text-sm text-gray-500">{selectedPatient.email}</p>
-          </div>
 
-          <div className="p-4 bg-surface-200 rounded-2xl space-y-3">
-            <h3 className="text-xs font-bold uppercase text-gray-400 flex items-center gap-2">
-              <Activity size={12} /> Health Vitals
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="p-2 bg-white rounded-lg border border-surface-300">
-                <p className="text-[10px] text-gray-500">Blood Type</p>
-                <p className="text-sm font-bold">{selectedPatient.blood_type || 'N/A'}</p>
-              </div>
-              <div className="p-2 bg-white rounded-lg border border-surface-300">
-                <p className="text-xs text-gray-500">Gender</p>
-                <p className="text-sm font-bold">{selectedPatient.gender || 'N/A'}</p>
-              </div>
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              <Metric label="BP" value="128/82" />
+              <Metric label="A1C" value="6.8" />
+              <Metric label="Risk" value={selected.risk} />
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase text-gray-400 flex items-center gap-2">
-              <History size={12} /> Visit History
-            </h3>
-            <div className="space-y-3 overflow-y-auto max-h-64 pr-2">
-              {selectedPatient.history?.map((app: any) => (
-                <div key={app.id} className="p-3 bg-white border border-surface-300 rounded-xl space-y-2 group">
-                  <div className="flex justify-between items-center">
-                    <p className="text-xs font-bold">{format(new Date(app.appointment_date), 'MMM dd, yyyy')}</p>
-                    <span className="text-[10px] px-2 py-0.5 bg-surface-200 rounded-full font-medium">{app.status}</span>
+          <div className="med-card p-5">
+            <h3 className="text-lg font-bold text-slate-950">Clinical timeline</h3>
+            <div className="mt-4 space-y-3">
+              {[
+                ["Today", selected.next, "AI prepared documentation and care gap checklist."],
+                ["May 12", "Medication reconciliation", "Two prescriptions renewed and sent to pharmacy."],
+                ["Apr 28", "Outcome update", "Patient-reported symptoms improved from moderate to mild."],
+              ].map(([date, title, detail]) => (
+                <div key={date} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-slate-900">{title}</p>
+                    <span className="text-xs font-bold text-slate-500">{date}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <FileText size={12} className="text-gray-400" />
-                    <textarea
-                      className="w-full text-xs p-2 bg-surface-200 border-transparent rounded-lg outline-none focus:ring-1 focus:ring-brand-primary"
-                      placeholder="Add clinical note..."
-                      value={app.notes || ''}
-                      onChange={(e) => {
-                        const newNotes = e.target.value;
-                        // Update local state for the specific appointment in the list
-                        const updatedHistory = selectedPatient.history.map((h: any) =>
-                          h.id === app.id ? { ...h, notes: newNotes } : h
-                        );
-                        setSelectedPatient({ ...selectedPatient, history: updatedHistory });
-                        setClinicalNote(newNotes); // for the save button (simplified logic)
-                      }}
-                    />
-                  </div>
-                  <button
-                    onClick={() => saveNote(app.id)}
-                    className="w-full py-1.5 bg-brand-primary text-white rounded-lg text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    Save Note
-                  </button>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">{detail}</p>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Action icon={MessageCircle} label="Message" />
+            <Action icon={FileText} label="Note" />
+            <Action icon={ShieldCheck} label="Eligibility" />
+            <Action icon={Stethoscope} label="Refer" />
+          </div>
+        </aside>
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <Program icon={HeartPulse} title="Outcome tracking" detail="PROMIS score, disease registry, and CQM evidence are captured." />
+        <Program icon={Activity} title="Remote monitoring" detail="Wearable and home-device readings sync into patient risk." />
+        <Program icon={TrendingUp} title="Engagement AI" detail="Personalized reminders reduce no-show risk and close care gaps." />
+      </section>
     </div>
   );
 }
 
-function Activity({ size }: { size: number }) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-    </svg>
+    <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-center">
+      <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
+      <p className="mt-1 text-lg font-bold text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function Action({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  return (
+    <button className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50">
+      <Icon size={16} /> {label}
+    </button>
+  );
+}
+
+function Program({ icon: Icon, title, detail }: { icon: LucideIcon; title: string; detail: string }) {
+  return (
+    <div className="med-card p-4">
+      <Icon size={18} className="text-blue-700" />
+      <p className="mt-3 font-bold text-slate-950">{title}</p>
+      <p className="mt-1 text-sm leading-6 text-slate-600">{detail}</p>
+    </div>
   );
 }

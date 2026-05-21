@@ -1,172 +1,144 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { Calendar, Users, DollarSign, Star, TrendingUp } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { createClient } from '@/lib/supabase';
-import { format } from 'date-fns';
+import { ChevronRight, Filter, MapPin, Phone, Plus, Sparkles, TrendingUp, Video } from "lucide-react";
+import { MedFlowVoiceAssistant } from "@/components/MedFlowVoiceAssistant";
+
+const kpis = [
+  { label: "Today's appointments", value: "18", detail: "+3 vs avg" },
+  { label: "Patient satisfaction", value: "4.9", detail: "NPS 72" },
+  { label: "Avg. wait time", value: "8m", detail: "-2m" },
+  { label: "Revenue MTD", value: "$24.8k", detail: "+12%" },
+];
+
+const todaySched = [
+  { time: "09:00", patient: "Maya Rivera", reason: "Follow-up · Echo", duration: 30, mode: "In-person", status: "done" },
+  { time: "09:30", patient: "David Klein", reason: "New patient · Chest pain", duration: 45, mode: "In-person", status: "done" },
+  { time: "10:15", patient: "Priya Shah", reason: "Lab review", duration: 30, mode: "Voice", status: "now" },
+  { time: "11:00", patient: "James Okonkwo", reason: "Pre-op consult", duration: 30, mode: "Video", status: "next" },
+  { time: "13:30", patient: "Sara Anders", reason: "Follow-up · 6mo", duration: 30, mode: "In-person", status: "upcoming" },
+  { time: "14:30", patient: "Alex Rivera", reason: "New patient · Palpitations", duration: 45, mode: "Voice", status: "upcoming" },
+  { time: "15:30", patient: "Maria Conte", reason: "Refill · Atorvastatin", duration: 15, mode: "Voice", status: "upcoming" },
+];
 
 export default function DoctorDashboard() {
-  const { user } = useAuth();
-  const [stats, setStats] = useState({
-    todayAppointments: 0,
-    monthlyRevenue: 0,
-    avgRating: 0,
-    totalPatients: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchDoctorStats() {
-      if (!user) return;
-      setIsLoading(true);
-      try {
-        const supabase = createClient();
-
-        // 1. Get the doctor_profile_id for the current user
-        const { data: docProfile } = await supabase
-          .from('doctor_profiles')
-          .select('id, consultation_fee')
-          .eq('profile_id', user.uid)
-          .single();
-
-        if (!docProfile) return;
-
-        const doctorId = docProfile.id;
-
-        // 2. Today's Appointments
-        const today = format(new Date(), 'yyyy-MM-dd');
-        const { count: todayCount } = await supabase
-          .from('appointments')
-          .select('*', { count: 'exact', head: true })
-          .eq('doctor_id', doctorId)
-          .eq('appointment_date', today);
-
-        // 3. Monthly Revenue (Confirmed + Completed appointments * fee)
-        const startOfMonth = format(new Date(new Date().setDate(1)), 'yyyy-MM-dd');
-        const { data: monthlyApps } = await supabase
-          .from('appointments')
-          .select('status')
-          .eq('doctor_id', doctorId)
-          .gte('appointment_date', startOfMonth);
-
-        const completedCount = monthlyApps?.filter(app =>
-          ['confirmed', 'completed'].includes(app.status)
-        ).length || 0;
-        const revenue = completedCount * (docProfile.consultation_fee || 0);
-
-        // 4. Average Rating
-        const { data: reviews } = await supabase
-          .from('reviews')
-          .select('rating')
-          .eq('doctor_id', doctorId);
-
-        const avgRating = reviews && reviews.length > 0
-          ? reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length
-          : 0;
-
-        // 5. Total Patients
-        const { count: patientCount } = await supabase
-          .from('appointments')
-          .select('patient_id', { count: 'exact', head: true })
-          .eq('doctor_id', doctorId);
-
-        setStats({
-          todayAppointments: todayCount || 0,
-          monthlyRevenue: revenue,
-          avgRating: parseFloat(avgRating.toFixed(1)),
-          totalPatients: patientCount || 0,
-        });
-      } catch (error) {
-        console.error("Error fetching doctor stats:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchDoctorStats();
-  }, [user]);
-
-  if (isLoading) return <div className="p-6 text-gray-500">Loading clinic statistics...</div>;
-
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-bold">Clinic Overview</h1>
-          <p className="text-gray-500">Welcome back, Dr. {user?.displayName?.split(' ')[0] || 'Specialist'}</p>
+    <div className="fade-enter col gap-7">
+      <div className="row between wrap gap-4">
+        <div className="col" style={{ gap: 6 }}>
+          <div className="eyebrow">Doctor&apos;s view</div>
+          <h1 className="h-1">
+            Good morning, <span className="hero-italic" style={{ color: "var(--accent)" }}>Dr. Jenkins</span>.
+          </h1>
+          <p className="body">7 appointments left today. Your next patient joins in 12 minutes.</p>
         </div>
-        <div className="text-sm font-medium text-gray-400">
-          {format(new Date(), 'EEEE, MMMM dd')}
+        <div className="row gap-3">
+          <button className="btn btn-ghost"><Filter size={14} /> Filter</button>
+          <button className="btn btn-primary"><Plus size={14} /> Add slot</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard
-          title="Today's Patients"
-          value={stats.todayAppointments}
-          icon={Calendar}
-          color="text-brand-primary"
-          bg="bg-brand-primary/10"
-        />
-        <KPICard
-          title="Monthly Revenue"
-          value={`$${stats.monthlyRevenue.toLocaleString()}`}
-          icon={DollarSign}
-          color="text-green-600"
-          bg="bg-green-100"
-        />
-        <KPICard
-          title="Avg. Patient Rating"
-          value={`${stats.avgRating} ★`}
-          icon={Star}
-          color="text-yellow-500"
-          bg="bg-yellow-100"
-        />
-        <KPICard
-          title="Total Patients"
-          value={stats.totalPatients}
-          icon={Users}
-          color="text-blue-600"
-          bg="bg-blue-100"
-        />
+      <div className="bento" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+        {kpis.map((kpi, index) => (
+          <div key={kpi.label} className="glass cell stat">
+            <div className="eyebrow" style={{ marginBottom: 10 }}>{kpi.label}</div>
+            <div className="row between" style={{ alignItems: "baseline" }}>
+              <div className="val tnum">{kpi.value}</div>
+              <span className="delta up"><TrendingUp size={13} />{kpi.detail}</span>
+            </div>
+            <Spark index={index} />
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 p-6 bg-surface-100 rounded-3xl border border-surface-300 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold">Recent Activity</h3>
-            <button className="text-sm text-brand-primary font-semibold hover:underline">View All Appointments</button>
+      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1.45fr .9fr", gap: 20, alignItems: "start" }}>
+        <div className="glass" style={{ padding: 24 }}>
+          <div className="row between" style={{ marginBottom: 18 }}>
+            <div className="col" style={{ gap: 4 }}>
+              <div className="eyebrow">Schedule</div>
+              <div className="h-3">Tuesday, May 19</div>
+            </div>
+            <div className="tabs">
+              <button className="tab active">Today</button>
+              <button className="tab">Tomorrow</button>
+              <button className="tab">Week</button>
+            </div>
           </div>
-          <div className="text-center py-12 text-gray-400 border-2 border-dashed border-surface-300 rounded-2xl">
-            <p>Appointment pipeline will be displayed here.</p>
-            <p className="text-xs mt-1">Currently implementing Kanban board...</p>
+
+          <div className="col gap-2">
+            {todaySched.map((item, index) => (
+              <div
+                key={`${item.time}-${item.patient}`}
+                className="row gap-4"
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  background: item.status === "now" ? "color-mix(in oklab, var(--accent) 10%, transparent)" : "transparent",
+                  border: item.status === "now" ? "1px solid color-mix(in oklab, var(--accent) 24%, transparent)" : "1px solid var(--line)",
+                  alignItems: "center",
+                }}
+              >
+                <div className="col" style={{ gap: 2, minWidth: 60 }}>
+                  <div className="tnum" style={{ fontWeight: 700, fontSize: 15 }}>{item.time}</div>
+                  <div className="tiny">{item.duration}m</div>
+                </div>
+                <div className="vr" />
+                <Headshot name={item.patient} hue={(index * 55 + 30) % 360} size={36} />
+                <div className="grow col" style={{ gap: 2 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{item.patient}</div>
+                  <div className="tiny">{item.reason}</div>
+                </div>
+                <span className="pill">
+                  {item.mode === "Video" ? <Video size={11} /> : item.mode === "Voice" ? <Phone size={11} /> : <MapPin size={11} />}
+                  {item.mode}
+                </span>
+                {item.status === "done" && <span className="pill good">Done</span>}
+                {item.status === "now" && <button className="btn btn-primary btn-sm"><Phone size={13} /> Join</button>}
+                {item.status === "next" && <span className="pill warn">Next</span>}
+                {item.status === "upcoming" && <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />}
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="p-6 bg-surface-100 rounded-3xl border border-surface-300 shadow-sm space-y-4">
-          <h3 className="text-xl font-bold mb-4">Clinic Health</h3>
-          <div className="p-4 bg-surface-200 rounded-2xl space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">Patient Retention</span>
-              <span className="text-sm font-bold">84%</span>
-            </div>
-            <div className="w-full bg-gray-300 h-2 rounded-full overflow-hidden">
-              <div className="bg-brand-primary h-full" style={{ width: '84%' }} />
+        <div className="col gap-4">
+          <MedFlowVoiceAssistant />
+
+          <div className="glass" style={{ padding: 22 }}>
+            <div className="eyebrow" style={{ marginBottom: 14 }}>Patient messages</div>
+            <div className="col gap-3">
+              {[
+                ["Maya R.", "Quick question about the new dose", "2m", true],
+                ["David K.", "Lab results are uploaded", "14m", true],
+                ["Priya S.", "Confirming tomorrow at 1pm", "1h", false],
+              ].map(([name, message, time, unread], index) => (
+                <div key={String(name)} className="row gap-3">
+                  <Headshot name={String(name)} hue={(index * 70 + 20) % 360} size={36} />
+                  <div className="grow col" style={{ gap: 2 }}>
+                    <div className="row between">
+                      <b style={{ fontSize: 14 }}>{name}</b>
+                      <span className="tiny">{time}</span>
+                    </div>
+                    <div className="small" style={{ fontSize: 13, opacity: unread ? 1 : 0.6 }}>{message}</div>
+                  </div>
+                  {unread && <span className="dot" style={{ background: "var(--accent)", width: 8, height: 8 }} />}
+                </div>
+              ))}
             </div>
           </div>
-          <div className="p-4 bg-surface-200 rounded-2xl space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">Average Visit Duration</span>
-              <span className="text-sm font-bold">28 min</span>
+
+          <div className="glass" style={{ padding: 22 }}>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>AI suggestions</div>
+            <div className="row gap-3">
+              <div style={{ color: "var(--accent)" }}><Sparkles size={20} /></div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Two follow-ups pending</div>
+                <div className="small" style={{ fontSize: 13 }}>Maya R. and Sara A. haven&apos;t booked their 3-month checks. Want me to draft outreach?</div>
+                <div className="row gap-2" style={{ marginTop: 10 }}>
+                  <button className="btn btn-primary btn-sm">Draft</button>
+                  <button className="btn btn-ghost btn-sm">Later</button>
+                </div>
+              </div>
             </div>
-            <div className="w-full bg-gray-300 h-2 rounded-full overflow-hidden">
-              <div className="bg-green-500 h-full" style={{ width: '70%' }} />
-            </div>
-          </div>
-          <div className="flex items-center gap-3 p-4 bg-brand-primary/5 rounded-2xl border border-brand-primary/20">
-            <TrendingUp size={20} className="text-brand-primary" />
-            <p className="text-xs text-gray-600">Revenue is up 12% compared to last month.</p>
           </div>
         </div>
       </div>
@@ -174,16 +146,43 @@ export default function DoctorDashboard() {
   );
 }
 
-function KPICard({ title, value, icon: Icon, color, bg }: any) {
+function Headshot({ name, hue, size }: { name: string; hue: number; size: number }) {
+  const initials = name.split(" ").map((part) => part[0]).slice(0, 2).join("");
   return (
-    <div className="p-6 bg-surface-100 rounded-3xl border border-surface-300 shadow-sm transition-transform hover:scale-105">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 ${bg} ${color} rounded-2xl`}>
-          <Icon size={24} />
-        </div>
-      </div>
-      <p className="text-gray-500 text-sm font-medium">{title}</p>
-      <h3 className="text-3xl font-bold mt-1">{value}</h3>
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: `linear-gradient(135deg, hsl(${hue} 65% 65%), hsl(${(hue + 40) % 360} 60% 40%))`,
+        display: "grid",
+        placeItems: "center",
+        color: "#fff",
+        fontWeight: 600,
+        fontSize: size * 0.32,
+        boxShadow: "inset 0 -10px 30px rgba(0,0,0,.18), inset 0 6px 14px rgba(255,255,255,.18)",
+        flexShrink: 0,
+      }}
+    >
+      {initials}
     </div>
+  );
+}
+
+function Spark({ index }: { index: number }) {
+  const data = [3, 4, 3, 5, 4, 6, 5, 7, 6, 8].map((x) => x + index);
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const points = data.map((value, i) => {
+    const x = (i / (data.length - 1)) * 100;
+    const y = 32 - 6 - ((value - min) / (max - min || 1)) * 20;
+    return [x, y];
+  });
+  const path = points.map((point, i) => `${i ? "L" : "M"}${point[0].toFixed(1)},${point[1].toFixed(1)}`).join(" ");
+  return (
+    <svg className="chart" viewBox="0 0 100 32" preserveAspectRatio="none" style={{ height: 32 }}>
+      <path d={`${path} L100,32 L0,32 Z`} fill="var(--accent)" opacity="0.14" />
+      <path d={path} fill="none" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
   );
 }

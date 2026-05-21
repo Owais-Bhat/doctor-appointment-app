@@ -1,159 +1,130 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { createClient } from '@/lib/supabase';
-import { GripVertical, User, Calendar, Clock, MoreVertical } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { toast } from 'react-hot-toast';
+import { useState } from "react";
+import { CheckCircle2, Clock3, FileText, MessageSquare, PhoneCall, Search, ShieldCheck, Video } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { MedFlowVoiceAssistant } from "@/components/MedFlowVoiceAssistant";
+import { appointmentQueue } from "@/lib/medflow-data";
+import { cn } from "@/lib/utils";
 
-type Column = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
-
-const COLUMNS: { id: Column; label: string; color: string }[] = [
-  { id: 'pending', label: 'Pending', color: 'bg-yellow-500' },
-  { id: 'confirmed', label: 'Confirmed', color: 'bg-blue-500' },
-  { id: 'in_progress', label: 'In Progress', color: 'bg-purple-500' },
-  { id: 'completed', label: 'Completed', color: 'bg-green-500' },
-  { id: 'cancelled', label: 'Cancelled', color: 'bg-red-500' },
-];
+const stages = ["Pending intake", "Checked in", "Room 3", "Ready", "Completed"];
 
 export default function AppointmentKanban() {
-  const { user } = useAuth();
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchAppointments() {
-      if (!user) return;
-      setIsLoading(true);
-      try {
-        const supabase = createClient();
-        const { data: docProfile } = await supabase
-          .from('doctor_profiles')
-          .select('id')
-          .eq('profile_id', user.uid)
-          .single();
-
-        if (!docProfile) return;
-
-        const { data } = await supabase
-          .from('appointments')
-          .select('*, profiles(*)')
-          .eq('doctor_id', docProfile.id)
-          .order('appointment_date', { ascending: true });
-
-        setAppointments(data || []);
-      } catch (err) {
-        console.error("Error fetching appointments:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchAppointments();
-  }, [user]);
-
-  const updateStatus = async (id: string, newStatus: string) => {
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('appointments')
-        .update({ status: newStatus })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setAppointments(prev => prev.map(app => app.id === id ? { ...app, status: newStatus } : app));
-      toast.success(`Appointment marked as ${newStatus}`);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update status');
-    }
-  };
-
-  if (isLoading) return <div className="p-6 text-gray-500">Loading appointment pipeline...</div>;
+  const [selected, setSelected] = useState(appointmentQueue[0]);
+  const [query, setQuery] = useState("");
+  const filtered = appointmentQueue.filter((item) =>
+    `${item.patient} ${item.reason} ${item.payer}`.toLowerCase().includes(query.toLowerCase())
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-5">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <h1 className="text-3xl font-bold">Appointment Pipeline</h1>
-          <p className="text-gray-500">Drag and drop to manage patient flow</p>
+          <p className="text-sm font-semibold text-blue-700">Appointment operations</p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-950 md:text-3xl">AI-assisted visit pipeline</h1>
+          <p className="mt-2 text-sm text-slate-600">Voice booking, intake status, eligibility, and clinician preparation in one place.</p>
+        </div>
+        <div className="flex w-full rounded-md border border-slate-200 bg-white lg:w-96">
+          <Search className="ml-3 mt-3 text-slate-400" size={18} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search queue"
+            className="min-w-0 flex-1 rounded-md border-0 px-3 py-2.5 text-sm outline-none"
+          />
         </div>
       </div>
 
-      <div className="flex gap-6 overflow-x-auto pb-6 no-scrollbar h-[calc(100vh-200px)]">
-        {COLUMNS.map(col => (
-          <div key={col.id} className="flex-shrink-0 w-80 flex flex-col">
-            <div className="flex items-center gap-2 mb-4 px-2">
-              <div className={cn("w-3 h-3 rounded-full", col.color)} />
-              <h3 className="font-bold text-foreground">{col.label}</h3>
-              <span className="ml-auto text-xs font-bold text-gray-400 bg-surface-200 px-2 py-1 rounded-full">
-                {appointments.filter(a => a.status === col.id).length}
-              </span>
-            </div>
-
-            <div className="flex-1 space-y-4 p-2 bg-surface-200/50 rounded-3xl border-2 border-dashed border-surface-300 overflow-y-auto">
-              {appointments
-                .filter(app => app.status === col.id)
-                .map(app => (
-                  <AppointmentCard
-                    key={app.id}
-                    app={app}
-                    onStatusChange={updateStatus}
-                  />
-                ))}
-              {appointments.filter(a => a.status === col.id).length === 0 && (
-                <div className="p-8 text-center text-gray-400 text-sm">
-                  No appointments in this stage
+      <section className="grid gap-5 xl:grid-cols-[1fr_380px]">
+        <div className="med-card overflow-hidden">
+          <div className="grid min-w-[900px] grid-cols-5 border-b border-slate-200 bg-slate-50">
+            {stages.map((stage) => (
+              <div key={stage} className="border-r border-slate-200 px-4 py-3 last:border-r-0">
+                <p className="text-xs font-bold uppercase text-slate-500">{stage}</p>
+                <p className="text-xs text-slate-400">{filtered.filter((item) => item.status === stage).length} visits</p>
+              </div>
+            ))}
+          </div>
+          <div className="overflow-x-auto">
+            <div className="grid min-w-[900px] grid-cols-5 gap-0">
+              {stages.map((stage) => (
+                <div key={stage} className="min-h-[560px] space-y-3 border-r border-slate-200 bg-white p-3 last:border-r-0">
+                  {filtered
+                    .filter((item) => item.status === stage)
+                    .map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelected(item)}
+                        className={cn(
+                          "w-full rounded-md border p-4 text-left transition hover:border-blue-300 hover:bg-blue-50",
+                          selected.id === item.id ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-slate-950">{item.patient}</p>
+                            <p className="mt-1 text-xs text-slate-500">{item.id}</p>
+                          </div>
+                          <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">{item.time}</span>
+                        </div>
+                        <p className="mt-3 text-xs leading-5 text-slate-600">{item.reason}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600">
+                            {item.type === "Video" ? <Video size={12} /> : <PhoneCall size={12} />}
+                            {item.type}
+                          </span>
+                          <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-800">{item.risk}</span>
+                        </div>
+                      </button>
+                    ))}
                 </div>
-              )}
+              ))}
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+
+        <aside className="space-y-5">
+          <MedFlowVoiceAssistant />
+
+          <div className="med-card p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase text-slate-500">Selected visit</p>
+                <h2 className="mt-1 text-xl font-bold text-slate-950">{selected.patient}</h2>
+                <p className="text-sm text-slate-500">{selected.reason}</p>
+              </div>
+              <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">{selected.status}</span>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              <Detail icon={Clock3} label="Time" value={`${selected.time}, today`} />
+              <Detail icon={ShieldCheck} label="Eligibility" value={`${selected.payer} verified`} />
+              <Detail icon={FileText} label="Clinical prep" value={selected.ai} />
+              <Detail icon={MessageSquare} label="Engagement" value="SMS, email, and portal reminders queued" />
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-900 px-3 text-sm font-semibold text-white">
+                <Video size={16} /> Start
+              </button>
+              <button className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">
+                <CheckCircle2 size={16} /> Complete
+              </button>
+            </div>
+          </div>
+        </aside>
+      </section>
     </div>
   );
 }
 
-function AppointmentCard({ app, onStatusChange }: { app: any, onStatusChange: (id: string, status: string) => void }) {
+function Detail({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
-    <div className="p-4 bg-surface-100 rounded-2xl border border-surface-300 shadow-sm hover:shadow-md transition-all group">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold">
-            {app.profiles?.full_name?.[0] || 'P'}
-          </div>
-          <div>
-            <p className="font-bold text-sm">{app.profiles?.full_name || 'Patient'}</p>
-            <p className="text-xs text-gray-500">ID: {app.id.slice(0, 8)}</p>
-          </div>
-        </div>
-        <button className="p-1 hover:bg-surface-200 rounded-lg text-gray-400">
-          <MoreVertical size={14} />
-        </button>
+    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+      <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
+        <Icon size={14} /> {label}
       </div>
-
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <Calendar size={12} />
-          <span>{app.appointment_date}</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <Clock size={12} />
-          <span>{app.appointment_time}</span>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <select
-          value={app.status}
-          onChange={(e) => onStatusChange(app.id, e.target.value)}
-          className="w-full p-2 text-xs font-semibold bg-surface-200 border-transparent rounded-lg outline-none focus:ring-2 focus:ring-brand-primary"
-        >
-          {COLUMNS.map(col => (
-            <option key={col.id} value={col.id}>{col.label}</option>
-          ))}
-        </select>
-      </div>
+      <p className="text-sm leading-5 text-slate-700">{value}</p>
     </div>
   );
 }

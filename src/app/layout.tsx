@@ -15,7 +15,7 @@ export default function RootLayout({
       lang="en"
       className="h-full antialiased"
     >
-      <body className="min-h-full flex flex-col">
+      <body className="mood-clinical density-regular min-h-full">
         <ErrorBoundary>
           <AuthProvider>
             <RealtimeStatusProvider>

@@ -1,103 +1,151 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Calendar,
-  Users,
-  Settings,
-  Bell,
-  User,
+  Activity,
+  CalendarDays,
+  CreditCard,
+  FileText,
+  Globe2,
+  Home,
   LogOut,
-  ChevronLeft,
-  ChevronRight,
+  MessageCircle,
   Search,
-  UserCircle,
-  FileText
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+  Settings,
+  ShieldCheck,
+  Stethoscope,
+  Users,
+  Video,
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { cn } from "@/lib/utils";
 
-type NavItem = {
-  title: string;
-  href: string;
-  icon: React.ElementType;
-};
+const doctorNav = [
+  { label: "Today", href: "/admin/dashboard", icon: Home },
+  { label: "Calendar", href: "/admin/schedule", icon: CalendarDays },
+  { label: "Patients", href: "/admin/patients", icon: Users, count: "412" },
+  { label: "Messages", href: "/admin/appointments", icon: MessageCircle, badge: "3" },
+  { label: "Records", href: "/admin/profile", icon: FileText },
+  { label: "Earnings", href: "/admin/analytics", icon: Activity },
+  { label: "Settings", href: "/admin/profile", icon: Settings },
+];
 
-const NAVIGATION: Record<string, NavItem[]> = {
-  patient: [
-    { title: 'Dashboard', href: '/client/dashboard', icon: LayoutDashboard },
-    { title: 'Book Appointment', href: '/client/book', icon: Calendar },
-    { title: 'My Appointments', href: '/client/appointments', icon: Calendar },
-    { title: 'Doctors', href: '/client/doctors', icon: Users },
-    { title: 'Profile', href: '/client/profile', icon: User },
-    { title: 'Notifications', href: '/client/notifications', icon: Bell },
-  ],
-  doctor: [
-    { title: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { title: 'Appointments', href: '/admin/appointments', icon: Calendar },
-    { title: 'Schedule', href: '/admin/schedule', icon: Settings },
-    { title: 'Patients', href: '/admin/patients', icon: Users },
-    { title: 'Analytics', href: '/admin/analytics', icon: LayoutDashboard },
-    { title: 'Profile', href: '/admin/profile', icon: User },
-  ],
-  super_admin: [
-    { title: 'Command Center', href: '/super-admin/dashboard', icon: LayoutDashboard },
-  ],
-};
+const patientNav = [
+  { label: "Dashboard", href: "/client/dashboard", icon: Home },
+  { label: "Book", href: "/client/book", icon: CalendarDays },
+  { label: "Appointments", href: "/client/appointments", icon: MessageCircle, badge: "2" },
+  { label: "Doctors", href: "/client/doctors", icon: Stethoscope },
+  { label: "Records", href: "/client/profile", icon: FileText },
+  { label: "Notifications", href: "/client/notifications", icon: Activity },
+];
+
+const adminNav = [
+  { label: "Overview", href: "/super-admin/dashboard", icon: Home },
+  { label: "Clinics", href: "/super-admin/doctors", icon: BuildingIcon, count: "142" },
+  { label: "Users", href: "/super-admin/users", icon: Users },
+  { label: "Analytics", href: "/super-admin/analytics", icon: Activity },
+  { label: "Audit", href: "/super-admin/audit-logs", icon: ShieldIcon },
+  { label: "Plans", href: "/super-admin/settings", icon: CreditCard },
+];
+
+function BuildingIcon(props: React.ComponentProps<typeof Globe2>) {
+  return <Globe2 {...props} />;
+}
+
+function ShieldIcon(props: React.ComponentProps<typeof ShieldCheck>) {
+  return <ShieldCheck {...props} />;
+}
 
 export function Sidebar() {
-  const { role, user, signOut } = useAuth();
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-
-  if (!role) return null;
-
-  const navItems = NAVIGATION[role] || [];
+  const { signOut } = useAuth();
+  const area = pathname.startsWith("/client") ? "PATIENT" : pathname.startsWith("/super-admin") ? "SAAS" : "DOCTOR";
+  const nav = area === "PATIENT" ? patientNav : area === "SAAS" ? adminNav : doctorNav;
+  const person = area === "PATIENT" ? "Maya Rivera" : area === "SAAS" ? "Avery Ops" : "Dr. Sarah Jenkins";
+  const sub = area === "PATIENT" ? "Patient · Active" : area === "SAAS" ? "Operator · Online" : "Cardiology · Online";
 
   return (
-    <aside className={cn(
-      "fixed left-0 top-0 h-screen bg-surface-100 border-r border-surface-300 transition-all duration-300 z-50",
-      collapsed ? "w-20" : "w-64"
-    )}>
-      <div className="flex items-center justify-between p-6 h-16 border-b border-surface-300">
-        {!collapsed && <span className="font-bold text-xl text-brand-primary">MediFlow</span>}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-2 rounded-lg hover:bg-surface-200 transition-colors"
-        >
-          {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-        </button>
+    <aside className="sidebar" data-screen-label="doctor sidebar">
+      <div className="row gap-2" style={{ padding: "4px 8px" }}>
+        <Link href="/admin/dashboard" className="logo">
+          <span className="mark">
+            <Stethoscope size={18} />
+          </span>
+          <span>
+            Med<span style={{ color: "var(--accent)" }}>Flow</span>
+          </span>
+        </Link>
+        <span className="pill accent" style={{ fontSize: 9.5, padding: "2px 7px", letterSpacing: ".08em" }}>
+          {area}
+        </span>
       </div>
 
-      <nav className="p-4 space-y-2">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center p-3 rounded-xl transition-all duration-200 group",
-              pathname === item.href
-                ? "bg-brand-primary text-white shadow-md"
-                : "text-gray-500 hover:bg-surface-200 hover:text-brand-primary"
-            )}
-          >
-            <item.icon size={22} className={cn("shrink-0", !collapsed && "mr-3")} />
-            {!collapsed && <span className="font-medium">{item.title}</span>}
-          </Link>
-        ))}
-      </nav>
+      <div className="col gap-2" style={{ marginTop: 8 }}>
+        <div className="search" style={{ padding: "8px 12px 8px 14px" }}>
+          <Search size={14} style={{ color: "var(--ink-3)" }} />
+          <input placeholder="Search patients, notes..." style={{ fontSize: 13 }} />
+          <span className="kbd">K</span>
+        </div>
 
-      <div className="absolute bottom-0 left-0 w-full p-4 border-t border-surface-300">
-        <button
-          onClick={signOut}
-          className="flex items-center w-full p-3 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
-        >
-          <LogOut size={22} className={cn("shrink-0", !collapsed && "mr-3")} />
-          {!collapsed && <span className="font-medium">Logout</span>}
-        </button>
+        <div className="nav-section" style={{ marginTop: 12 }}>
+          {area === "SAAS" ? "Platform" : area === "PATIENT" ? "Care" : "Clinic"}
+        </div>
+        {nav.map((item) => {
+          const Icon = item.icon;
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <Link key={`${item.href}-${item.label}`} href={item.href} className={cn("nav-item", active && "active")}>
+              <span
+                className="dot"
+                style={{
+                  background: active ? "var(--accent)" : "var(--ink-3)",
+                  width: 6,
+                  height: 6,
+                }}
+              />
+              <Icon size={16} />
+              <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
+              {item.count && <span className="tiny tnum">{item.count}</span>}
+              {item.badge && (
+                <span className="pill accent" style={{ fontSize: 10, padding: "1px 7px" }}>
+                  {item.badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: "auto" }}>
+        <div className="glass-strong" style={{ padding: 14, marginBottom: 10 }}>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>{area === "PATIENT" ? "Next appointment · 14:30" : area === "SAAS" ? "Phase 4 · Scale" : "Next patient · 11:00"}</div>
+          <div className="row gap-3" style={{ marginBottom: 10 }}>
+            <div className="avatar" style={{ width: 36, height: 36, fontSize: 12 }}>
+              JO
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>{area === "SAAS" ? "Global rollout" : area === "PATIENT" ? "Dr. Sarah Jenkins" : "James Okonkwo"}</div>
+              <div className="tiny">{area === "SAAS" ? "FHIR, SSO, regions" : area === "PATIENT" ? "Video consult · 30m" : "Pre-op consult · 30m"}</div>
+            </div>
+          </div>
+          <Link href={area === "PATIENT" ? "/client/appointments" : area === "SAAS" ? "/super-admin/dashboard" : "/admin/appointments"} className="btn btn-primary btn-sm" style={{ width: "100%" }}>
+            <Video size={13} /> {area === "SAAS" ? "Open roadmap" : "Join in 12 min"}
+          </Link>
+        </div>
+
+        <div className="row gap-3" style={{ padding: "8px 6px" }}>
+          <div className="avatar" style={{ width: 32, height: 32, fontSize: 11 }}>
+            {area === "PATIENT" ? "MR" : area === "SAAS" ? "AO" : "SJ"}
+          </div>
+          <div className="grow col" style={{ gap: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{person}</div>
+            <div className="tiny">{sub}</div>
+          </div>
+          <button className="icon-btn" onClick={signOut} aria-label="Sign out">
+            <LogOut size={14} />
+          </button>
+        </div>
       </div>
     </aside>
   );

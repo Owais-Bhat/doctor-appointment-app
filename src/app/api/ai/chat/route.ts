@@ -2,10 +2,6 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { createAppointment, getPatientProfile } from '@/app/actions';
 import { NextResponse } from 'next/server';
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY!,
-});
-
 export async function POST(request: Request) {
   try {
     const { message, userId, doctorId } = await request.json();
@@ -17,6 +13,16 @@ export async function POST(request: Request) {
     if (!userId) {
       return NextResponse.json({ error: 'User must be logged in to use the assistant.' }, { status: 401 });
     }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({
+        reply: "AI booking is configured in demo mode. Add GEMINI_API_KEY to enable live Gemini appointment orchestration."
+      });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+    });
 
     const systemPrompt = `
       You are the Medical Assistant specifically dedicated to Doctor with ID: ${doctorId || 'General Clinic'}.
