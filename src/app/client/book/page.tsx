@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Brain, CalendarDays, CheckCircle2, HeartPulse, Mic, Phone, Search, Sparkles, Stethoscope, Video, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { MedFlowVoiceAssistant } from "@/components/MedFlowVoiceAssistant";
 import { Headshot } from "@/components/medflow/Prototype";
 import { useAuth } from "@/context/AuthContext";
@@ -118,8 +119,8 @@ export default function BookPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Booking failed");
       setBookingDone(true);
-    } catch (err: any) {
-      setBookingError(err.message ?? "Something went wrong.");
+    } catch (err: unknown) {
+      setBookingError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setBookingLoading(false);
     }
@@ -148,7 +149,7 @@ export default function BookPage() {
           </div>
         </div>
 
-        <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: ".85fr 1.15fr", gap: 20, alignItems: "start" }}>
+        <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20, alignItems: "start" }}>
           <div className="col gap-4">
             <MedFlowVoiceAssistant />
             <div className="glass" style={{ padding: 22 }}>
@@ -201,7 +202,7 @@ export default function BookPage() {
                   const name = doc.profiles?.full_name ?? "Doctor";
                   const hue = nameHue(name);
                   return (
-                    <div key={doc.id} className="row gap-4" style={{ padding: 16, borderRadius: 18, border: "1px solid var(--line)" }}>
+                    <div key={doc.id} className="dashboard-list-row row gap-4" style={{ padding: 16, borderRadius: 18, border: "1px solid var(--line)" }}>
                       <Headshot name={name} hue={hue} size={56} />
                       <div className="grow col" style={{ gap: 3 }}>
                         <div style={{ fontWeight: 800 }}>{name}</div>
@@ -294,7 +295,7 @@ export default function BookPage() {
                   ) : slots.length === 0 ? (
                     <div className="small" style={{ color: "var(--ink-3)" }}>No available slots for this date.</div>
                   ) : (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                    <div className="modal-slot-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(70px, 1fr))", gap: 8 }}>
                       {slots.map(slot => (
                         <button
                           key={slot}
@@ -317,7 +318,7 @@ export default function BookPage() {
                       ["video", "Video", Video],
                       ["phone", "Phone", Phone],
                       ["in_person", "In-person", Stethoscope],
-                    ] as [ConsultationType, string, any][]).map(([val, label, Icon]) => (
+                    ] as [ConsultationType, string, LucideIcon][]).map(([val, label, Icon]) => (
                       <button
                         key={val}
                         onClick={() => setConsultationType(val)}
@@ -338,7 +339,8 @@ export default function BookPage() {
                     onChange={e => setChiefComplaint(e.target.value)}
                     placeholder="Briefly describe your symptoms or reason…"
                     rows={3}
-                    style={{ width: "100%", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--line)", background: "var(--surface-2)", fontSize: 13, color: "var(--ink-1)", resize: "vertical", fontFamily: "inherit" }}
+                    className="input"
+                    style={{ resize: "vertical", fontFamily: "inherit" }}
                   />
                 </div>
 

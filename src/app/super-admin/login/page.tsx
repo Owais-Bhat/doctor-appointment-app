@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { signInWithEmail, registerWithEmail } from '@/lib/firebase';
-import { Lock, ShieldAlert } from 'lucide-react';
+import { Lock, ShieldAlert, Mail } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SuperAdminLogin() {
   const [email, setEmail] = useState('admin@cybermilo.com'); // Defaults to user request
@@ -52,56 +53,81 @@ export default function SuperAdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-surface-100 p-8 rounded-3xl border border-surface-300 shadow-2xl">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-4 text-red-500">
-            <ShieldAlert size={32} />
-          </div>
-          <h1 className="text-3xl font-bold text-center">System Admin</h1>
-          <p className="text-gray-500 text-sm mt-2">Restricted Access Portal</p>
-        </div>
-
-        {errorMSG && (
-          <div className="p-4 mb-6 bg-red-50 text-red-600 rounded-xl text-sm border border-red-200">
-            {errorMSG}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 bg-white border border-surface-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Passkey</label>
-            <div className="relative">
-              <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 p-3 bg-white border border-surface-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none"
-                required
-              />
+    <div className="min-h-screen flex items-center justify-center p-6 relative bg-[var(--bg-2)] overflow-hidden">
+      <div className="atmos" aria-hidden="true" />
+      
+      <div className="glass-strong max-w-md w-full p-8 relative z-10 transition-all duration-300">
+        <div className="col gap-6" style={{ alignItems: "stretch" }}>
+          
+          {/* Header */}
+          <div className="col gap-3" style={{ alignItems: "center" }}>
+            <div className="avatar lg" style={{ background: "linear-gradient(135deg, var(--bad), var(--accent-2))" }}>
+              <ShieldAlert size={28} />
+            </div>
+            <div className="col gap-1" style={{ alignItems: "center" }}>
+              <h1 className="h-3 grad-text" style={{ fontWeight: 800 }}>Command Center</h1>
+              <p className="eyebrow" style={{ fontSize: 10 }}>Restricted Access Portal</p>
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full py-4 mt-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all disabled:opacity-50"
-          >
-            {loading ? 'Authenticating...' : 'Authorize Access'}
-          </button>
-        </form>
+          <div className="hr" />
+
+          {errorMSG && (
+            <div className="pill bad solid font-medium" style={{ display: "flex", width: "100%", justifyContent: "center", padding: "12px" }}>
+              {errorMSG}
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleLogin} className="col gap-4">
+            <div className="col gap-2">
+              <label className="eyebrow" style={{ fontSize: 9 }}>Admin Email</label>
+              <div className="search" style={{ padding: "10px 14px 10px 18px" }}>
+                <Mail size={16} style={{ color: "var(--ink-3)" }} />
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@cybermilo.com"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="col gap-2">
+              <label className="eyebrow" style={{ fontSize: 9 }}>Passkey</label>
+              <div className="search" style={{ padding: "10px 14px 10px 18px" }}>
+                <Lock size={16} style={{ color: "var(--ink-3)" }} />
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter passkey"
+                  required
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="btn btn-primary"
+              style={{ width: "100%", marginTop: 8 }}
+            >
+              {loading ? 'Authorizing...' : 'Authorize Access'}
+            </button>
+          </form>
+
+          <div className="hr" />
+
+          <div className="row center">
+            <Link href="/" className="btn btn-glass btn-sm">
+              Back to Patient Portal
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+

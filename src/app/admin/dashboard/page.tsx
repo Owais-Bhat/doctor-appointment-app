@@ -98,7 +98,7 @@ export default function DoctorDashboard() {
         </div>
       </div>
 
-      <div className="bento" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+      <div className="bento" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
         {kpis.map((kpi, index) => (
           <div key={kpi.label} className="glass cell stat">
             <div className="eyebrow" style={{ marginBottom: 10 }}>{kpi.label}</div>
@@ -110,7 +110,7 @@ export default function DoctorDashboard() {
         ))}
       </div>
 
-      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1.45fr .9fr", gap: 20, alignItems: "start" }}>
+      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20, alignItems: "start" }}>
         <div className="glass" style={{ padding: 24 }}>
           <div className="row between" style={{ marginBottom: 18 }}>
             <div className="col" style={{ gap: 4 }}>
@@ -137,7 +137,7 @@ export default function DoctorDashboard() {
               {schedule.map((item, index) => {
                 const patientName = item.profiles?.full_name ?? "Patient";
                 return (
-                  <div key={item.id} className="row gap-4" style={{
+                  <div key={item.id} className="dashboard-list-row row gap-4" style={{
                     padding: "12px 14px", borderRadius: 14,
                     background: item.status === "confirmed" && index === 0 ? "color-mix(in oklab, var(--accent) 10%, transparent)" : "transparent",
                     border: item.status === "confirmed" && index === 0 ? "1px solid color-mix(in oklab, var(--accent) 24%, transparent)" : "1px solid var(--line)",

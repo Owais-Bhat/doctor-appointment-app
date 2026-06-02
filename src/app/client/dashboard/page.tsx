@@ -65,7 +65,7 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-      <div className="bento" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+      <div className="bento" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
         {[
           { label: "Upcoming visits", value: loading ? "—" : String(appointments.length) },
           { label: "Health score", value: "—" },
@@ -79,7 +79,7 @@ export default function ClientDashboard() {
         ))}
       </div>
 
-      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 20 }}>
+      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
         <div className="glass" style={{ padding: 24 }}>
           <div className="row between" style={{ marginBottom: 18 }}>
             <div>
@@ -103,7 +103,7 @@ export default function ClientDashboard() {
               {appointments.map(appt => {
                 const doctorName = appt.doctor_profiles?.profiles?.full_name ?? "Doctor";
                 return (
-                  <div key={appt.id} className="row gap-4" style={{ padding: 14, borderRadius: 14, border: "1px solid var(--line)" }}>
+                  <div key={appt.id} className="dashboard-list-row row gap-4" style={{ padding: 14, borderRadius: 14, border: "1px solid var(--line)" }}>
                     <div className="pill accent tnum">{formatDate(appt.appointment_date)}</div>
                     <div className="grow">
                       <div style={{ fontWeight: 700 }}>{doctorName}</div>

@@ -1,0 +1,128 @@
+{
+  "profiles": [
+    {
+      "id": "super-admin-uid-001",
+      "email": "admin@medflow.com",
+      "full_name": "MedFlow Admin",
+      "role": "super_admin",
+      "phone": "+1-555-0100",
+      "avatar_url": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "doctor-uid-001",
+      "email": "dr.sarah@medflow.com",
+      "full_name": "Dr. Sarah Johnson",
+      "role": "doctor",
+      "phone": "+1-555-0101",
+      "avatar_url": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "doctor-uid-002",
+      "email": "dr.john@medflow.com",
+      "full_name": "Dr. John Smith",
+      "role": "doctor",
+      "phone": "+1-555-0102",
+      "avatar_url": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "patient-uid-001",
+      "email": "patient@example.com",
+      "full_name": "John Doe",
+      "role": "patient",
+      "phone": "+1-555-0201",
+      "avatar_url": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "patient-uid-002",
+      "email": "jane@example.com",
+      "full_name": "Jane Wilson",
+      "role": "patient",
+      "phone": "+1-555-0202",
+      "avatar_url": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "ZEEkeIrS0YZf1nGX7lAfMvdsSAh2",
+      "full_name": "Owais Bhat",
+      "email": "owais.bhat2612@gmail.com",
+      "role": "patient",
+      "phone": "+1-555-0203",
+      "avatar_url": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "doctor_profiles": [
+    {
+      "id": "doc-prof-001",
+      "profile_id": "doctor-uid-001",
+      "specialty": "Cardiology",
+      "bio": "Experienced cardiologist with 12 years of practice",
+      "qualifications": "MD, Board Certified",
+      "experience_years": 12,
+      "consultation_fee": 150,
+      "rating": 4.8,
+      "total_reviews": 45,
+      "is_verified": true,
+      "clinic_name": "Heart Care Clinic",
+      "languages": "English, Spanish",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "doc-prof-002",
+      "profile_id": "doctor-uid-002",
+      "specialty": "General Practice",
+      "bio": "Dedicated general practitioner focused on preventive care",
+      "qualifications": "MD, MRCGP",
+      "experience_years": 8,
+      "consultation_fee": 100,
+      "rating": 4.6,
+      "total_reviews": 32,
+      "is_verified": true,
+      "clinic_name": "Primary Health Center",
+      "languages": "English, French",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "appt-001",
+      "patient_id": "patient-uid-001",
+      "doctor_id": "doc-prof-001",
+      "appointment_date": "2024-12-15",
+      "appointment_time": "10:00",
+      "status": "confirmed",
+      "consultation_type": "video",
+      "chief_complaint": "Regular checkup",
+      "notes": null,
+      "created_at": "2024-12-10T00:00:00Z",
+      "updated_at": "2024-12-10T00:00:00Z"
+    },
+    {
+      "id": "appt-002",
+      "patient_id": "patient-uid-002",
+      "doctor_id": "doc-prof-002",
+      "appointment_date": "2024-12-16",
+      "appointment_time": "14:00",
+      "status": "pending",
+      "consultation_type": "in-person",
+      "chief_complaint": "Flu symptoms",
+      "notes": null,
+      "created_at": "2024-12-11T00:00:00Z",
+      "updated_at": "2024-12-11T00:00:00Z"
+    }
+  ],
+  "notifications": [],
+  "audit_logs": []
+}

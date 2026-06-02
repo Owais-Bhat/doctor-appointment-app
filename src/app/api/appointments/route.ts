@@ -7,10 +7,33 @@ export async function POST(request: Request) {
   if (!uid) return unauthorized()
 
   try {
-    const { doctorId, date, time, consultationType, chiefComplaint } = await request.json()
+    const body = await request.json()
+    const { doctorId, date, time, consultationType, chiefComplaint } = body
 
     if (!doctorId || !date || !time) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+      return NextResponse.json({ error: 'Missing required fields: doctorId, date, and time' }, { status: 400 })
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD' }, { status: 400 })
+    }
+
+    // Validate time format (HH:MM or HH:MM:SS)
+    if (!/^\d{2}:\d{2}(:\d{2})?$/.test(time)) {
+      return NextResponse.json({ error: 'Invalid time format. Use HH:MM' }, { status: 400 })
+    }
+
+    // Validate consultation type
+    const validTypes = ['video', 'phone', 'in_person']
+    if (consultationType && !validTypes.includes(consultationType)) {
+      return NextResponse.json({ error: 'Invalid consultation type' }, { status: 400 })
+    }
+
+    // Ensure date is not in the past
+    const appointmentDate = new Date(date + 'T' + time)
+    if (appointmentDate < new Date()) {
+      return NextResponse.json({ error: 'Cannot book appointments in the past' }, { status: 400 })
     }
 
     // Check for double-booking
@@ -57,10 +80,16 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
-    const doctorName = (doctor?.profiles as any)?.full_name ?? 'your doctor'
+    // Safely extract doctor and patient names with null checks
+    const doctorProfile = doctor?.profiles
+    const doctorName = typeof doctorProfile === 'object' && doctorProfile !== null && 'full_name' in doctorProfile
+      ? (doctorProfile as { full_name: string }).full_name
+      : 'your doctor'
     const patientName = patient?.full_name ?? 'A patient'
+    const doctorUserId = doctor?.profile_id
 
-    await supabaseAdmin.from('notifications').insert([
+    // Only create notifications if user IDs are valid
+    const notificationsToInsert = [
       {
         user_id: uid,
         title: 'Appointment Requested',
@@ -68,14 +97,21 @@ export async function POST(request: Request) {
         type: 'info',
         related_appointment_id: data.id,
       },
-      {
-        user_id: doctor?.profile_id,
+    ]
+
+    if (doctorUserId) {
+      notificationsToInsert.push({
+        user_id: doctorUserId,
         title: 'New Appointment Request',
         message: `${patientName} requested an appointment on ${date} at ${time}.`,
         type: 'info',
         related_appointment_id: data.id,
-      },
-    ])
+      })
+    }
+
+    await supabaseAdmin.from('notifications').insert(notificationsToInsert).catch(err => {
+      console.error('Error creating notifications:', err)
+    })
 
     return NextResponse.json({ success: true, appointment: data })
   } catch (error: any) {

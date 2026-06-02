@@ -27,18 +27,22 @@ const labels: Record<string, string> = {
 export function TopBar() {
   const pathname = usePathname();
   const label = labels[pathname] || "today";
+  const platformName = pathname.startsWith("/super-admin") ? "MedFlow SaaS" : pathname.startsWith("/client") ? "MedFlow Patient" : "MedFlow Clinic";
 
   return (
-    <div className="row between" style={{ marginBottom: 24, alignItems: "center" }}>
-      <div className="row gap-2 tiny" style={{ color: "var(--ink-3)" }}>
+    <div className="topbar row between wrap" style={{ marginBottom: 24, gap: "var(--gap-4)" }}>
+      <div className="row gap-2 tiny" style={{ color: "var(--ink-3)", minWidth: 0, flex: "1 1 auto" }}>
         <Home size={12} />
-        <span>{pathname.startsWith("/super-admin") ? "MedFlow SaaS" : pathname.startsWith("/client") ? "MedFlow Patient" : "Jenkins Cardiology"}</span>
+        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {platformName}
+        </span>
         <ChevronRight size={11} />
-        <span style={{ textTransform: "capitalize" }}>{label}</span>
+        <span style={{ textTransform: "capitalize", whiteSpace: "nowrap" }}>{label}</span>
       </div>
-      <div className="row gap-2">
-        <span className="pill good">
+      <div className="row gap-2 topbar-actions" style={{ flexShrink: 0 }}>
+        <span className="pill good" style={{ whiteSpace: "nowrap" }}>
           <span className="dot" style={{ background: "var(--good)" }} />
+          <span style={{ display: "none" }}>●</span>
           Accepting voice & video
         </span>
         <button className="icon-btn" aria-label="Notifications">

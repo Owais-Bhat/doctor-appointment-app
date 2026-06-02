@@ -44,61 +44,65 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-200">
-      <div className="bg-surface-100 p-8 rounded-3xl shadow-xl border border-surface-300 w-full max-w-md text-center">
-        <h1 className="text-3xl font-bold text-brand-primary mb-2">Welcome back</h1>
-        <p className="text-gray-500 mb-6">Sign in to manage your health journey</p>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 16 }}>
+      <div className="glass" style={{ width: "100%", maxWidth: 420, padding: 32, borderRadius: 24, textAlign: "center" }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 className="h-2" style={{ marginBottom: 8 }}>Welcome back</h1>
+          <p className="body" style={{ color: "var(--ink-3)" }}>Sign in to manage your health journey</p>
+        </div>
 
         {errorMSG && (
-          <div className="p-3 mb-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-200">
+          <div style={{ padding: 12, marginBottom: 18, borderRadius: 12, background: "color-mix(in oklab, red 8%, transparent)", border: "1px solid color-mix(in oklab, red 20%, transparent)", fontSize: 13, color: "var(--bad)" }}>
             {errorMSG}
           </div>
         )}
 
-        <form onSubmit={handleEmailSignIn} className="space-y-4 mb-6">
-          <input 
-            type="email" 
+        <form onSubmit={handleEmailSignIn} className="col gap-3" style={{ marginBottom: 20 }}>
+          <input
+            type="email"
             placeholder="Official Email Address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 bg-surface-200 border border-surface-300 rounded-xl focus:ring-2 focus:ring-brand-primary focus:outline-none"
+            className="input"
             required
           />
-          <input 
-            type="password" 
+          <input
+            type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 bg-surface-200 border border-surface-300 rounded-xl focus:ring-2 focus:ring-brand-primary focus:outline-none"
+            className="input"
             required
           />
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isLoggingIn || isLoading}
-            className="w-full py-3 bg-brand-primary hover:bg-brand-primary/90 text-white font-bold rounded-xl transition-all shadow disabled:opacity-50"
+            className="btn btn-primary"
+            style={{ width: "100%", justifyContent: "center" }}
           >
             {isLoggingIn ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
 
-        <div className="flex items-center gap-4 mb-6">
-          <div className="h-px bg-surface-300 flex-1"></div>
-          <span className="text-sm text-gray-400">or</span>
-          <div className="h-px bg-surface-300 flex-1"></div>
+        <div className="row gap-3" style={{ marginBottom: 20, alignItems: "center" }}>
+          <div style={{ height: 1, background: "var(--line)", flex: 1 }} />
+          <span className="small" style={{ color: "var(--ink-3)" }}>or</span>
+          <div style={{ height: 1, background: "var(--line)", flex: 1 }} />
         </div>
 
         <button
           onClick={handleGoogleSignIn}
           type="button"
           disabled={isLoading || isLoggingIn}
-          className="w-full flex items-center justify-center gap-3 bg-white border border-surface-300 p-3 rounded-xl hover:bg-surface-200 transition-all font-medium"
+          className="btn btn-glass"
+          style={{ width: "100%", justifyContent: "center", gap: 8 }}
         >
-          <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+          <img src="https://www.google.com/favicon.ico" alt="Google" style={{ width: 16, height: 16 }} />
           Continue with Google
         </button>
 
-        <div className="mt-6 text-sm text-gray-500">
-          New Patient? <a href="/auth/register" className="text-brand-primary font-semibold">Register here</a>
+        <div className="small" style={{ marginTop: 20, color: "var(--ink-3)" }}>
+          New Patient? <a href="/auth/register" style={{ color: "var(--accent)" }}>Register here</a>
         </div>
       </div>
     </div>

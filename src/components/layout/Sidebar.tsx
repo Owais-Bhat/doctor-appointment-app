@@ -60,33 +60,37 @@ function ShieldIcon(props: React.ComponentProps<typeof ShieldCheck>) {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const area = pathname.startsWith("/client") ? "PATIENT" : pathname.startsWith("/super-admin") ? "SAAS" : "DOCTOR";
   const nav = area === "PATIENT" ? patientNav : area === "SAAS" ? adminNav : doctorNav;
-  const person = area === "PATIENT" ? "Maya Rivera" : area === "SAAS" ? "Avery Ops" : "Dr. Sarah Jenkins";
-  const sub = area === "PATIENT" ? "Patient · Active" : area === "SAAS" ? "Operator · Online" : "Cardiology · Online";
+  const person = user?.displayName || (area === "PATIENT" ? "Patient" : area === "SAAS" ? "Admin" : "Doctor");
+  const sub = area === "PATIENT" ? "Patient · Active" : area === "SAAS" ? "Operator · Online" : "Clinic · Online";
 
   return (
     <aside className="sidebar" data-screen-label="doctor sidebar">
-      <div className="row gap-2" style={{ padding: "4px 8px" }}>
-        <Link href="/admin/dashboard" className="logo">
+      <div className="row gap-2 wrap" style={{ padding: "4px 8px", alignItems: "center" }}>
+        <Link href="/admin/dashboard" className="logo" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <span className="mark">
             <Stethoscope size={18} />
           </span>
-          <span>
+          <span style={{ whiteSpace: "nowrap" }}>
             Med<span style={{ color: "var(--accent)" }}>Flow</span>
           </span>
         </Link>
-        <span className="pill accent" style={{ fontSize: 9.5, padding: "2px 7px", letterSpacing: ".08em" }}>
+        <span className="pill accent" style={{ fontSize: 9.5, padding: "2px 7px", letterSpacing: ".08em", whiteSpace: "nowrap" }}>
           {area}
         </span>
       </div>
 
       <div className="col gap-2" style={{ marginTop: 8 }}>
-        <div className="search" style={{ padding: "8px 12px 8px 14px" }}>
-          <Search size={14} style={{ color: "var(--ink-3)" }} />
-          <input placeholder="Search patients, notes..." style={{ fontSize: 13 }} />
-          <span className="kbd">K</span>
+        <div className="search" style={{ padding: "8px 12px 8px 14px", minWidth: 0, gap: "10px" }}>
+          <Search size={14} style={{ color: "var(--ink-3)", flexShrink: 0 }} />
+          <input
+            placeholder="Search patients, notes..."
+            style={{ fontSize: 13, minWidth: 0 }}
+            aria-label="Search"
+          />
+          <span className="kbd" style={{ flexShrink: 0 }}>K</span>
         </div>
 
         <div className="nav-section" style={{ marginTop: 12 }}>
@@ -118,32 +122,42 @@ export function Sidebar() {
         })}
       </div>
 
-      <div style={{ marginTop: "auto" }}>
-        <div className="glass-strong" style={{ padding: 14, marginBottom: 10 }}>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>{area === "PATIENT" ? "Next appointment · 14:30" : area === "SAAS" ? "Phase 4 · Scale" : "Next patient · 11:00"}</div>
-          <div className="row gap-3" style={{ marginBottom: 10 }}>
+      <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "var(--gap-3)", minWidth: 0 }}>
+        <div className="glass-strong" style={{ padding: 14, marginBottom: 6 }}>
+          <div className="eyebrow" style={{ marginBottom: 8, textAlign: "center" }}>
+            {area === "PATIENT" ? "Next appointment" : area === "SAAS" ? "System Status" : "Next patient"}
+          </div>
+          <div className="col gap-3" style={{ marginBottom: 10, alignItems: "center" }}>
             <div className="avatar" style={{ width: 36, height: 36, fontSize: 12 }}>
-              JO
+              {person.substring(0, 2).toUpperCase()}
             </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{area === "SAAS" ? "Global rollout" : area === "PATIENT" ? "Dr. Sarah Jenkins" : "James Okonkwo"}</div>
-              <div className="tiny">{area === "SAAS" ? "FHIR, SSO, regions" : area === "PATIENT" ? "Video consult · 30m" : "Pre-op consult · 30m"}</div>
+            <div style={{ textAlign: "center", minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>
+                {area === "SAAS" ? "System Healthy" : person}
+              </div>
+              <div className="tiny" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {area === "SAAS" ? "All services online" : "View details"}
+              </div>
             </div>
           </div>
-          <Link href={area === "PATIENT" ? "/client/appointments" : area === "SAAS" ? "/super-admin/dashboard" : "/admin/appointments"} className="btn btn-primary btn-sm" style={{ width: "100%" }}>
-            <Video size={13} /> {area === "SAAS" ? "Open roadmap" : "Join in 12 min"}
+          <Link href={area === "PATIENT" ? "/client/appointments" : area === "SAAS" ? "/super-admin/dashboard" : "/admin/appointments"} className="btn btn-primary btn-sm" style={{ width: "100%", justifyContent: "center" }}>
+            <Video size={13} /> {area === "SAAS" ? "Dashboard" : "View"}
           </Link>
         </div>
 
-        <div className="row gap-3" style={{ padding: "8px 6px" }}>
-          <div className="avatar" style={{ width: 32, height: 32, fontSize: 11 }}>
+        <div className="row gap-3" style={{ padding: "8px 6px", alignItems: "center", minWidth: 0 }}>
+          <div className="avatar" style={{ width: 32, height: 32, fontSize: 11, flexShrink: 0 }}>
             {area === "PATIENT" ? "MR" : area === "SAAS" ? "AO" : "SJ"}
           </div>
-          <div className="grow col" style={{ gap: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>{person}</div>
-            <div className="tiny">{sub}</div>
+          <div className="grow col" style={{ gap: 0, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {person}
+            </div>
+            <div className="tiny" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {sub}
+            </div>
           </div>
-          <button className="icon-btn" onClick={signOut} aria-label="Sign out">
+          <button className="icon-btn" onClick={signOut} aria-label="Sign out" style={{ flexShrink: 0 }}>
             <LogOut size={14} />
           </button>
         </div>

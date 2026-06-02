@@ -85,7 +85,7 @@ export function Spark({ index = 0, data: dataProp, color = "var(--accent)", heig
 
 export function StatGrid({ items }: { items: Array<{ label: string; value: string; detail: string }> }) {
   return (
-    <div className="bento" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+    <div className="bento" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
       {items.map((item, index) => (
         <div key={item.label} className="glass cell stat">
           <div className="eyebrow" style={{ marginBottom: 10 }}>{item.label}</div>
@@ -163,7 +163,7 @@ export function PatientTable({ title = "Patients" }: { title?: string }) {
 
 export function PhaseReadiness() {
   return (
-    <div className="bento" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+    <div className="bento" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
       {phaseCards.map((card) => {
         const Icon = card.icon;
         return (
@@ -202,7 +202,7 @@ export function EnterpriseGrid() {
     { icon: Globe2, title: "Global scale", detail: "Regional compliance, SSO/SAML, FHIR connectors, disaster recovery." },
   ];
   return (
-    <div className="bento" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+    <div className="bento" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
       {modules.map((module) => (
         <PrototypePanel key={module.title} icon={module.icon} eyebrow="Module" title={module.title}>
           <p className="small">{module.detail}</p>

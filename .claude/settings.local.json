@@ -17,7 +17,8 @@
       "Bash(npx next *)",
       "Bash(npm install *)",
       "Bash(New-Item -ItemType Directory -Path \"E:\\\\work\\\\doctor-appointment-app\\\\src\\\\app\\\\api\\\\auth\\\\session\" -Force)",
-      "Bash(Out-Null)"
+      "Bash(Out-Null)",
+      "Bash(git add *)"
     ]
   }
 }

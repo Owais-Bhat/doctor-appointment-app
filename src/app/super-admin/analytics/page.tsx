@@ -68,7 +68,7 @@ export default function SuperAdminAnalytics() {
         <p className="body">Platform-wide revenue, user growth, specialties, and operational benchmarks.</p>
       </div>
 
-      <div className="bento" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+      <div className="bento" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
         {kpis.map(kpi => (
           <div key={kpi.label} className="glass cell stat">
             <div className="eyebrow" style={{ marginBottom: 10 }}>{kpi.label}</div>
@@ -80,7 +80,7 @@ export default function SuperAdminAnalytics() {
         ))}
       </div>
 
-      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
         <div className="glass" style={{ padding: 24 }}>
           <div className="eyebrow" style={{ marginBottom: 4 }}>Monthly appointments</div>
           <div className="h-3" style={{ marginBottom: 18 }}>Platform visit volume</div>
@@ -126,7 +126,7 @@ export default function SuperAdminAnalytics() {
         </div>
       </div>
 
-      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
         <div className="glass" style={{ padding: 24 }}>
           <div className="eyebrow" style={{ marginBottom: 4 }}>Specialty distribution</div>
           <div className="h-3" style={{ marginBottom: 18 }}>Doctors by specialty</div>

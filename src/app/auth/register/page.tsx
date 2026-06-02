@@ -63,25 +63,27 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-200">
-      <div className="bg-surface-100 p-8 rounded-3xl shadow-xl border border-surface-300 w-full max-w-md text-center">
-        <h1 className="text-3xl font-bold text-brand-primary mb-2">Create Account</h1>
-        <p className="text-gray-500 mb-8">Join MedFlow for better healthcare</p>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 16 }}>
+      <div className="glass" style={{ width: "100%", maxWidth: 420, padding: 32, borderRadius: 24, textAlign: "center" }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 className="h-2" style={{ marginBottom: 8 }}>Create Account</h1>
+          <p className="body" style={{ color: "var(--ink-3)" }}>Join MedFlow for better healthcare</p>
+        </div>
 
         {error && (
-          <div className="p-3 mb-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-200">
+          <div style={{ padding: 12, marginBottom: 18, borderRadius: 12, background: "color-mix(in oklab, red 8%, transparent)", border: "1px solid color-mix(in oklab, red 20%, transparent)", fontSize: 13, color: "var(--bad)" }}>
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="col gap-3" style={{ marginBottom: 20 }}>
           <input
             type="text"
             placeholder="Full Name"
             value={fullName}
             onChange={e => setFullName(e.target.value)}
             required
-            className="w-full p-3 rounded-xl bg-surface-200 border border-surface-300 focus:ring-2 focus:ring-brand-primary outline-none"
+            className="input"
           />
           <input
             type="email"
@@ -89,7 +91,7 @@ export default function RegisterPage() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
-            className="w-full p-3 rounded-xl bg-surface-200 border border-surface-300 focus:ring-2 focus:ring-brand-primary outline-none"
+            className="input"
           />
           <input
             type="password"
@@ -97,20 +99,21 @@ export default function RegisterPage() {
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            className="w-full p-3 rounded-xl bg-surface-200 border border-surface-300 focus:ring-2 focus:ring-brand-primary outline-none"
+            className="input"
           />
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-brand-primary text-white p-3 rounded-xl font-semibold hover:opacity-90 transition-all disabled:opacity-50"
+            className="btn btn-primary"
+            style={{ width: "100%", justifyContent: "center" }}
           >
             {loading ? "Creating account…" : "Sign Up"}
           </button>
         </form>
 
-        <div className="mt-6 text-sm text-gray-500">
+        <div className="small" style={{ color: "var(--ink-3)" }}>
           Already have an account?{" "}
-          <a href="/auth/login" className="text-brand-primary font-semibold">Login here</a>
+          <a href="/auth/login" style={{ color: "var(--accent)" }}>Login here</a>
         </div>
       </div>
     </div>

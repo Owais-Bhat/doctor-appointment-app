@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Bot, User, Sparkles } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { createClient } from '@/lib/supabase';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
@@ -54,7 +53,7 @@ export function AIBot() {
       if (!response.ok) throw new Error(data.error || 'AI failed to respond');
 
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
-    } catch (err: any) {
+    } catch {
       toast.error("AI Assistant is currently unavailable.");
       setMessages(prev => [...prev, { role: 'assistant', content: "I'm sorry, I'm having trouble connecting. Please try again later." }]);
     } finally {
@@ -63,11 +62,11 @@ export function AIBot() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="chat-widget fixed bottom-6 right-6 z-50 flex flex-col items-end">
       {isOpen && (
-        <div className="mb-4 w-96 h-[500px] bg-surface-100 rounded-3xl border border-surface-300 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300">
+        <div className="chat-panel glass-strong mb-4 w-96 h-[500px] flex flex-col overflow-hidden fade-enter">
           {/* Header */}
-          <div className="p-4 bg-brand-primary text-white flex items-center justify-between">
+          <div className="p-4 flex items-center justify-between" style={{ background: "var(--accent)", color: "var(--accent-ink)" }}>
             <div className="flex items-center gap-2">
               <Bot size={24} />
               <div>
@@ -75,7 +74,7 @@ export function AIBot() {
                 <p className="text-[10px] opacity-80">Powered by Gemini</p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
+            <button onClick={() => setIsOpen(false)} className="icon-btn" style={{ color: "inherit", background: "rgba(255,255,255,.12)" }} aria-label="Close AI assistant">
               <X size={20} />
             </button>
           </div>
@@ -89,26 +88,37 @@ export function AIBot() {
               )}>
                 <div className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                  msg.role === 'user' ? "bg-brand-primary text-white" : "bg-surface-200 text-brand-primary"
-                )}>
+                  msg.role === 'user' ? "text-white" : ""
+                )}
+                  style={{
+                    background: msg.role === 'user' ? "var(--accent)" : "var(--glass)",
+                    color: msg.role === 'user' ? "var(--accent-ink)" : "var(--accent)",
+                  }}
+                >
                   {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                 </div>
                 <div className={cn(
                   "p-3 rounded-2xl text-sm leading-relaxed",
                   msg.role === 'user'
-                    ? "bg-brand-primary text-white rounded-tr-none"
-                    : "bg-surface-200 text-foreground rounded-tl-none border border-surface-300"
-                )}>
+                    ? "text-white rounded-tr-none"
+                    : "rounded-tl-none"
+                )}
+                  style={{
+                    background: msg.role === 'user' ? "var(--accent)" : "var(--glass)",
+                    color: msg.role === 'user' ? "var(--accent-ink)" : "var(--ink)",
+                    border: msg.role === 'user' ? "1px solid transparent" : "1px solid var(--line)",
+                  }}
+                >
                   {msg.content}
                 </div>
               </div>
             ))}
             {isTyping && (
               <div className="flex gap-3 max-w-[80%] animate-pulse">
-                <div className="w-8 h-8 rounded-full bg-surface-200 text-brand-primary flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--glass)", color: "var(--accent)" }}>
                   <Bot size={14} />
                 </div>
-                <div className="p-3 bg-surface-200 rounded-2xl rounded-tl-none border border-surface-300">
+                <div className="p-3 rounded-2xl rounded-tl-none" style={{ background: "var(--glass)", border: "1px solid var(--line)" }}>
                   <div className="flex gap-1">
                     <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
                     <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
@@ -120,18 +130,19 @@ export function AIBot() {
           </div>
 
           {/* Input Area */}
-          <form onSubmit={handleSend} className="p-4 border-t border-surface-300 bg-white flex gap-2">
+          <form onSubmit={handleSend} className="p-4 flex gap-2" style={{ borderTop: "1px solid var(--line)", background: "var(--glass)" }}>
             <input
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="Describe your symptoms..."
-              className="flex-1 p-3 bg-surface-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary transition-all"
+              className="input"
             />
             <button
               type="submit"
               disabled={!input.trim() || isTyping}
-              className="p-3 bg-brand-primary text-white rounded-xl hover:bg-brand-primary/90 transition-all disabled:opacity-50"
+              className="btn btn-primary btn-icon disabled:opacity-50"
+              aria-label="Send message"
             >
               <Send size={18} />
             </button>
@@ -142,7 +153,8 @@ export function AIBot() {
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 bg-brand-primary text-white rounded-full shadow-xl flex items-center justify-center hover:scale-110 transition-all active:scale-95 group relative"
+        className="chat-toggle btn btn-primary btn-icon shadow-xl active:scale-95 group relative"
+        aria-label={isOpen ? "Close AI assistant" : "Open AI assistant"}
       >
         {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
         {!isOpen && (
