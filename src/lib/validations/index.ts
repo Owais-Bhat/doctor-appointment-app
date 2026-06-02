@@ -609,6 +609,159 @@ export const KPISchema = z.object({
   lastUpdated: z.coerce.date().optional(),
 });
 
+// ============================================
+// REST API & Mobile (Week 10)
+// ============================================
+
+export const OAuthScopeSchema = z.enum([
+  'appointments:read',
+  'appointments:write',
+  'appointments:cancel',
+  'patients:read',
+  'patients:write',
+  'medical_records:read',
+  'medical_records:write',
+  'prescriptions:read',
+  'prescriptions:write',
+  'claims:read',
+  'claims:write',
+  'insurance:read',
+  'insurance:write',
+  'analytics:read',
+  'payments:read',
+  'payments:write',
+  'referrals:read',
+  'referrals:write',
+]);
+
+export const ThirdPartyAppSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1).max(255),
+  description: z.string().max(1000).optional(),
+  organizationId: z.string(),
+  clientId: z.string().optional(),
+  clientSecret: z.string().optional(),
+  redirectUris: z.array(z.string().url()).min(1),
+  scopes: z.array(OAuthScopeSchema),
+  logoUrl: z.string().url().optional(),
+  websiteUrl: z.string().url(),
+  contactEmail: z.string().email(),
+  isActive: z.boolean().default(true),
+  rateLimit: z.number().default(1000),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const APIKeySchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string(),
+  appId: z.string(),
+  keyPrefix: z.string().optional(),
+  hashedKey: z.string(),
+  name: z.string().max(255),
+  scopes: z.array(OAuthScopeSchema),
+  rateLimit: z.number(),
+  lastUsed: z.coerce.date().optional(),
+  expiresAt: z.coerce.date().optional(),
+  isActive: z.boolean().default(true),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const WebhookEventTypeSchema = z.enum([
+  'appointment.created',
+  'appointment.updated',
+  'appointment.cancelled',
+  'appointment.completed',
+  'patient.created',
+  'patient.updated',
+  'claim.created',
+  'claim.submitted',
+  'claim.paid',
+  'claim.denied',
+  'insurance.verified',
+  'prescription.created',
+  'prescription.filled',
+  'payment.processed',
+  'referral.created',
+  'referral.accepted',
+  'referral.completed',
+]);
+
+export const WebhookConfigSchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string(),
+  appId: z.string(),
+  url: z.string().url(),
+  events: z.array(WebhookEventTypeSchema).min(1),
+  secret: z.string().optional(),
+  isActive: z.boolean().default(true),
+  retryPolicy: z.object({
+    maxRetries: z.number().default(5),
+    backoffSeconds: z.number().default(60),
+  }).optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const WebhookEventSchema = z.object({
+  id: z.string().optional(),
+  webhookId: z.string(),
+  organizationType: WebhookEventTypeSchema,
+  resourceId: z.string(),
+  resourceType: z.string(),
+  timestamp: z.coerce.date(),
+  data: z.record(z.any()),
+  retryCount: z.number().default(0),
+  lastError: z.string().optional(),
+  deliveredAt: z.coerce.date().optional(),
+  nextRetryAt: z.coerce.date().optional(),
+  status: z.enum(['pending', 'delivered', 'failed', 'archived']).default('pending'),
+});
+
+export const MobileSDKConfigSchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string(),
+  appVersion: z.string(),
+  platformVersion: z.object({
+    ios: z.string().optional(),
+    android: z.string().optional(),
+  }),
+  features: z.object({
+    appointments: z.boolean(),
+    medicalRecords: z.boolean(),
+    prescriptions: z.boolean(),
+    payments: z.boolean(),
+    messaging: z.boolean(),
+    offline: z.boolean(),
+    pushNotifications: z.boolean(),
+  }),
+  cachePolicy: z.object({
+    enabled: z.boolean(),
+    ttl: z.number(),
+    maxSize: z.number(),
+  }).optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const OAuthTokenSchema = z.object({
+  accessToken: z.string(),
+  tokenType: z.literal('Bearer'),
+  expiresIn: z.number(),
+  refreshToken: z.string().optional(),
+  scope: z.string(),
+});
+
+export const APIUsageSchema = z.object({
+  id: z.string().optional(),
+  appId: z.string(),
+  date: z.coerce.date(),
+  requestCount: z.number(),
+  errorCount: z.number(),
+  averageLatency: z.number(),
+  peakQPS: z.number(),
+});
+
 export type Organization = z.infer<typeof OrganizationSchema>;
 export type Clinic = z.infer<typeof ClinicSchema>;
 export type StaffMember = z.infer<typeof StaffMemberSchema>;
@@ -630,3 +783,10 @@ export type InsuranceAnalytics = z.infer<typeof InsuranceAnalyticsSchema>;
 export type Report = z.infer<typeof ReportSchema>;
 export type Benchmark = z.infer<typeof BenchmarkSchema>;
 export type KPI = z.infer<typeof KPISchema>;
+export type ThirdPartyApp = z.infer<typeof ThirdPartyAppSchema>;
+export type APIKey = z.infer<typeof APIKeySchema>;
+export type WebhookConfig = z.infer<typeof WebhookConfigSchema>;
+export type WebhookEvent = z.infer<typeof WebhookEventSchema>;
+export type MobileSDKConfig = z.infer<typeof MobileSDKConfigSchema>;
+export type OAuthToken = z.infer<typeof OAuthTokenSchema>;
+export type APIUsage = z.infer<typeof APIUsageSchema>;
