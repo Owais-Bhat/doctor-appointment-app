@@ -490,6 +490,125 @@ export const InsuranceProviderSchema = z.object({
 // Type Exports (for TypeScript)
 // ============================================
 
+// ============================================
+// Analytics & Reporting Schemas (Phase 2 Week 9)
+// ============================================
+
+export const RevenueMetricsSchema = z.object({
+  period: z.string(), // YYYY-MM or YYYY-MM-DD
+  totalRevenue: z.number().nonnegative(),
+  insuranceRevenue: z.number().nonnegative(),
+  patientRevenue: z.number().nonnegative(),
+  averageClaimValue: z.number().nonnegative(),
+  appointmentsCount: z.number().nonnegative(),
+  claimsSubmitted: z.number().nonnegative(),
+  claimsPaid: z.number().nonnegative(),
+  claimsDenied: z.number().nonnegative(),
+  denialRate: z.number().min(0).max(100),
+});
+
+export const OperationalMetricsSchema = z.object({
+  period: z.string(),
+  appointmentsScheduled: z.number().nonnegative(),
+  appointmentsCompleted: z.number().nonnegative(),
+  appointmentsCancelled: z.number().nonnegative(),
+  noShowRate: z.number().min(0).max(100),
+  avgWaitTime: z.number().nonnegative(),
+  appointmentUtilization: z.number().min(0).max(100),
+  patientAcquisitionCost: z.number().nonnegative(),
+  patientRetentionRate: z.number().min(0).max(100),
+  doctorAvailability: z.number().min(0).max(100),
+});
+
+export const ClinicalMetricsSchema = z.object({
+  period: z.string(),
+  patientSatisfactionScore: z.number().min(0).max(5),
+  treatmentCompletionRate: z.number().min(0).max(100),
+  readmissionRate: z.number().min(0).max(100),
+  prescriptionFillRate: z.number().min(0).max(100),
+  referralCompletionRate: z.number().min(0).max(100),
+  avgOutcomeScore: z.number().min(0).max(100),
+});
+
+export const DoctorPerformanceSchema = z.object({
+  doctorId: z.string(),
+  doctorName: z.string(),
+  period: z.string(),
+  appointmentsCount: z.number().nonnegative(),
+  averageRating: z.number().min(0).max(5),
+  patientSatisfaction: z.number().min(0).max(100),
+  revenueGenerated: z.number().nonnegative(),
+  claimsDenialRate: z.number().min(0).max(100),
+  noShowRate: z.number().min(0).max(100),
+  avgConsultationTime: z.number().nonnegative(),
+});
+
+export const ClinicPerformanceSchema = z.object({
+  clinicId: z.string(),
+  clinicName: z.string(),
+  period: z.string(),
+  totalRevenue: z.number().nonnegative(),
+  appointmentsCompleted: z.number().nonnegative(),
+  patientCount: z.number().nonnegative(),
+  staffCount: z.number().nonnegative(),
+  avgPatientSatisfaction: z.number().min(0).max(100),
+  utilizationRate: z.number().min(0).max(100),
+});
+
+export const InsuranceAnalyticsSchema = z.object({
+  insuranceCompany: z.string(),
+  period: z.string(),
+  claimsSubmitted: z.number().nonnegative(),
+  claimsPaid: z.number().nonnegative(),
+  claimsDenied: z.number().nonnegative(),
+  totalClaims: z.number().nonnegative(),
+  totalAllowed: z.number().nonnegative(),
+  totalPaid: z.number().nonnegative(),
+  avgProcessingTime: z.number().nonnegative(),
+  denialRate: z.number().min(0).max(100),
+  topDenialReasons: z.array(z.string()).optional(),
+});
+
+export const ReportSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1).max(255),
+  description: z.string().max(1000).optional(),
+  reportType: z.enum(['revenue', 'operational', 'clinical', 'insurance', 'performance', 'custom']),
+  organizationId: z.string(),
+  clinicId: z.string().optional(),
+  createdBy: z.string(),
+  parameters: z.record(z.any()).optional(),
+  schedule: z.enum(['once', 'daily', 'weekly', 'monthly', 'quarterly', 'annually']).optional(),
+  emailRecipients: z.array(UserEmailSchema).optional(),
+  format: z.enum(['pdf', 'csv', 'excel', 'html']).default('pdf'),
+  createdAt: z.coerce.date().optional(),
+  lastRunAt: z.coerce.date().optional(),
+});
+
+export const BenchmarkSchema = z.object({
+  metricName: z.string(),
+  organizationId: z.string(),
+  organizationValue: z.number(),
+  industryAverage: z.number(),
+  industryMin: z.number(),
+  industryMax: z.number(),
+  percentile: z.number().min(0).max(100),
+  trend: z.enum(['up', 'down', 'stable']),
+  period: z.string(),
+});
+
+export const KPISchema = z.object({
+  id: z.string().optional(),
+  name: z.string(),
+  description: z.string().optional(),
+  metric: z.string(),
+  targetValue: z.number(),
+  currentValue: z.number(),
+  threshold: z.enum(['warning', 'critical', 'healthy']),
+  trendDirection: z.enum(['up', 'down', 'stable']),
+  lastUpdated: z.coerce.date().optional(),
+});
+
 export type Organization = z.infer<typeof OrganizationSchema>;
 export type Clinic = z.infer<typeof ClinicSchema>;
 export type StaffMember = z.infer<typeof StaffMemberSchema>;
@@ -502,3 +621,12 @@ export type Claim = z.infer<typeof ClaimSchema>;
 export type PatientResponsibility = z.infer<typeof PatientResponsibilitySchema>;
 export type DenialAppeal = z.infer<typeof DenialAppealSchema>;
 export type InsuranceProvider = z.infer<typeof InsuranceProviderSchema>;
+export type RevenueMetrics = z.infer<typeof RevenueMetricsSchema>;
+export type OperationalMetrics = z.infer<typeof OperationalMetricsSchema>;
+export type ClinicalMetrics = z.infer<typeof ClinicalMetricsSchema>;
+export type DoctorPerformance = z.infer<typeof DoctorPerformanceSchema>;
+export type ClinicPerformance = z.infer<typeof ClinicPerformanceSchema>;
+export type InsuranceAnalytics = z.infer<typeof InsuranceAnalyticsSchema>;
+export type Report = z.infer<typeof ReportSchema>;
+export type Benchmark = z.infer<typeof BenchmarkSchema>;
+export type KPI = z.infer<typeof KPISchema>;
