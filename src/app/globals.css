@@ -94,7 +94,7 @@ html, body { margin:0; padding:0; }
 body{
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Inter', 'InterVariable', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter'), 'InterVariable', system-ui, -apple-system, sans-serif;
   font-feature-settings: 'cv11','ss01','ss03';
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.005em;
@@ -146,9 +146,9 @@ body{
 .body{ font-size: 15px; line-height:1.55; color:var(--ink-2); }
 .small{ font-size: 13px; color:var(--ink-2); }
 .tiny{ font-size: 11.5px; color:var(--ink-3); letter-spacing:.02em; }
-.mono{ font-family:'JetBrains Mono', ui-monospace, monospace; font-feature-settings:'tnum','ss01'; }
+.mono{ font-family: var(--font-jetbrains-mono, 'JetBrains Mono'), ui-monospace, monospace; font-feature-settings:'tnum','ss01'; }
 .tnum{ font-variant-numeric: tabular-nums; }
-.hero-italic{ font-family:'Instrument Serif','Cormorant Garamond', Georgia, serif; font-style:italic; font-weight:400; letter-spacing:-0.02em; }
+.hero-italic{ font-family: var(--font-instrument-serif, 'Instrument Serif'), 'Cormorant Garamond', Georgia, serif; font-style:italic; font-weight:400; letter-spacing:-0.02em; }
 
 /* Generic primitives */
 .row{ display:flex; align-items:center; gap:var(--gap-4); }
@@ -180,7 +180,7 @@ body{
   appearance:none; border:0; cursor:pointer;
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
   padding: 12px 22px; border-radius: var(--radius-pill);
-  font: 600 14px/1 'Inter', system-ui, sans-serif; letter-spacing:-0.005em;
+  font: 600 14px/1 var(--font-inter, 'Inter'), system-ui, sans-serif; letter-spacing:-0.005em;
   transition: transform .15s ease, box-shadow .25s ease, background .2s ease;
   white-space:nowrap;
 }
@@ -328,7 +328,7 @@ body{
   display:flex; align-items:center; gap:10px; padding: 8px 8px 8px 18px;
   border-radius: var(--radius-pill); border:1px solid var(--line-2); background: var(--glass);
 }
-.search input{ all:unset; flex:1; min-width:0; font-size:14px; color:var(--ink); }
+.search input{ all:unset; flex:1; min-width:0; font-size:14px; font-family: var(--font-inter, 'Inter'), system-ui, sans-serif; color:var(--ink); }
 .search input::placeholder{ color: var(--ink-3); }
 
 /* Calendar mini */
@@ -362,7 +362,7 @@ svg.chart{ width:100%; height:auto; display:block; }
 
 /* Helpers */
 .dot{ width:6px; height:6px; border-radius:50%; background: var(--ink-3); display:inline-block; }
-.kbd{ font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; padding: 2px 6px; border-radius:6px; background: var(--glass); border:1px solid var(--line-2); color: var(--ink-2);}
+.kbd{ font-family: var(--font-jetbrains-mono, 'JetBrains Mono'), ui-monospace, monospace; font-size: 11px; padding: 2px 6px; border-radius:6px; background: var(--glass); border:1px solid var(--line-2); color: var(--ink-2);}
 
 /* Page transitions */
 .fade-enter{ animation: fadeUp .35s cubic-bezier(.2,.8,.2,1) both; }

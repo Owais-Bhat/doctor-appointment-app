@@ -1,71 +1,84 @@
-import { createClient } from '@/lib/supabase-server';
-import { NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
+import { NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { verifyToken, unauthorized } from '@/lib/api-auth'
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { idToken, appointmentData } = body;
+  const uid = await verifyToken(request)
+  if (!uid) return unauthorized()
 
-    // 1. Verify Firebase Token Server-Side
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    if (!decodedToken) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const { doctorId, date, time, consultationType, chiefComplaint } = await request.json()
+
+    if (!doctorId || !date || !time) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const patientId = decodedToken.uid;
-    const supabase = await createClient();
-
-    // 2. Check for double-booking (same doctor, date, and time)
-    const { data: existing } = await supabase
+    // Check for double-booking
+    const { data: existing } = await supabaseAdmin
       .from('appointments')
       .select('id')
-      .eq('doctor_id', appointmentData.doctorId)
-      .eq('appointment_date', appointmentData.date)
-      .eq('appointment_time', appointmentData.time)
-      .single();
+      .eq('doctor_id', doctorId)
+      .eq('appointment_date', date)
+      .eq('appointment_time', time)
+      .neq('status', 'cancelled')
+      .maybeSingle()
 
     if (existing) {
-      return NextResponse.json({ error: 'This time slot is already booked' }, { status: 409 });
+      return NextResponse.json({ error: 'This time slot is already booked' }, { status: 409 })
     }
 
-    // 3. Create Appointment
-    const { data, error } = await supabase
+    // Get patient name for notification
+    const { data: patient } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', uid)
+      .single()
+
+    // Get doctor profile_id for notification
+    const { data: doctor } = await supabaseAdmin
+      .from('doctor_profiles')
+      .select('profile_id, profiles!doctor_profiles_profile_id_fkey(full_name)')
+      .eq('id', doctorId)
+      .single()
+
+    const { data, error } = await supabaseAdmin
       .from('appointments')
       .insert({
-        patient_id: patientId,
-        doctor_id: appointmentData.doctorId,
-        appointment_date: appointmentData.date,
-        appointment_time: appointmentData.time,
-        status: 'confirmed',
-        consultation_type: appointmentData.type || 'in_person'
+        patient_id: uid,
+        doctor_id: doctorId,
+        appointment_date: date,
+        appointment_time: time,
+        status: 'pending',
+        consultation_type: consultationType ?? 'in_person',
+        chief_complaint: chiefComplaint ?? null,
       })
       .select()
-      .single();
+      .single()
 
-    if (error) throw error;
+    if (error) throw error
 
-    // 4. Create Notification for both parties
-    await supabase.from('notifications').insert([
+    const doctorName = (doctor?.profiles as any)?.full_name ?? 'your doctor'
+    const patientName = patient?.full_name ?? 'A patient'
+
+    await supabaseAdmin.from('notifications').insert([
       {
-        user_id: patientId,
-        title: 'Appointment Confirmed!',
-        message: `Your appointment with Dr. ${appointmentData.doctorName} is set for ${appointmentData.date}.`,
-        type: 'success',
-        related_appointment_id: data.id
+        user_id: uid,
+        title: 'Appointment Requested',
+        message: `Your appointment with Dr. ${doctorName} on ${date} at ${time} is pending confirmation.`,
+        type: 'info',
+        related_appointment_id: data.id,
       },
       {
-        user_id: appointmentData.doctorProfileId,
-        title: 'New Appointment',
-        message: `Patient ${appointmentData.patientName} has booked a slot on ${appointmentData.date}.`,
+        user_id: doctor?.profile_id,
+        title: 'New Appointment Request',
+        message: `${patientName} requested an appointment on ${date} at ${time}.`,
         type: 'info',
-        related_appointment_id: data.id
-      }
-    ]);
+        related_appointment_id: data.id,
+      },
+    ])
 
-    return NextResponse.json({ success: true, appointment: data });
+    return NextResponse.json({ success: true, appointment: data })
   } catch (error: any) {
-    console.error('Appointment error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

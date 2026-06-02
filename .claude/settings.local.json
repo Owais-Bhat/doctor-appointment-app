@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"E:\\\\work\\\\doctor-appointment-app\" -Force)",
+      "Bash(Select-Object -Property Mode, Name)",
+      "Bash(Format-Table -AutoSize)",
+      "WebFetch(domain:claude.ai)",
+      "Bash(node *)",
+      "Bash(npx tsc *)",
+      "Bash(Select-Object -First 40)",
+      "PowerShell(cd \"E:\\\\work\\\\doctor-appointment-app\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"page\\\\.tsx|layout\\\\.tsx|Prototype\\\\.tsx\" })",
+      "PowerShell(cd \"E:\\\\work\\\\doctor-appointment-app\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"src/app/page\\\\.tsx|src/app/layout\\\\.tsx|src/components/medflow/Prototype\\\\.tsx\" })",
+      "Bash(Get-ChildItem -Path \"E:\\\\work\\\\doctor-appointment-app\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"E:\\\\work\\\\doctor-appointment-app\\\\src\\\\app\" -Recurse -Filter \"page.tsx\")",
+      "Bash(Select-Object FullName)",
+      "Bash(npx next *)",
+      "Bash(npm install *)"
+    ]
+  }
+}

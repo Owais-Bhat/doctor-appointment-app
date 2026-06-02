@@ -1,35 +1,96 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ChevronRight, Filter, MapPin, Phone, Plus, Sparkles, TrendingUp, Video } from "lucide-react";
 import { MedFlowVoiceAssistant } from "@/components/MedFlowVoiceAssistant";
+import { useAuth } from "@/context/AuthContext";
 
-const kpis = [
-  { label: "Today's appointments", value: "18", detail: "+3 vs avg" },
-  { label: "Patient satisfaction", value: "4.9", detail: "NPS 72" },
-  { label: "Avg. wait time", value: "8m", detail: "-2m" },
-  { label: "Revenue MTD", value: "$24.8k", detail: "+12%" },
-];
+type Appointment = {
+  id: string;
+  appointment_time: string;
+  status: string;
+  consultation_type: string;
+  chief_complaint: string | null;
+  profiles: { full_name: string };
+};
 
-const todaySched = [
-  { time: "09:00", patient: "Maya Rivera", reason: "Follow-up · Echo", duration: 30, mode: "In-person", status: "done" },
-  { time: "09:30", patient: "David Klein", reason: "New patient · Chest pain", duration: 45, mode: "In-person", status: "done" },
-  { time: "10:15", patient: "Priya Shah", reason: "Lab review", duration: 30, mode: "Voice", status: "now" },
-  { time: "11:00", patient: "James Okonkwo", reason: "Pre-op consult", duration: 30, mode: "Video", status: "next" },
-  { time: "13:30", patient: "Sara Anders", reason: "Follow-up · 6mo", duration: 30, mode: "In-person", status: "upcoming" },
-  { time: "14:30", patient: "Alex Rivera", reason: "New patient · Palpitations", duration: 45, mode: "Voice", status: "upcoming" },
-  { time: "15:30", patient: "Maria Conte", reason: "Refill · Atorvastatin", duration: 15, mode: "Voice", status: "upcoming" },
-];
+type Stats = {
+  today_count: number;
+  rating: number;
+  total_reviews: number;
+  revenue_mtd: number;
+  total_patients: number;
+};
+
+function Headshot({ name, hue, size }: { name: string; hue: number; size: number }) {
+  const initials = name.split(" ").map(p => p[0]).slice(0, 2).join("");
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%",
+      background: `linear-gradient(135deg, hsl(${hue} 65% 65%), hsl(${(hue + 40) % 360} 60% 40%))`,
+      display: "grid", placeItems: "center", color: "#fff",
+      fontWeight: 600, fontSize: size * 0.32,
+      boxShadow: "inset 0 -10px 30px rgba(0,0,0,.18), inset 0 6px 14px rgba(255,255,255,.18)", flexShrink: 0,
+    }}>{initials}</div>
+  );
+}
+
+function nameHue(name: string) {
+  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360; return h;
+}
+function formatTime(t: string) {
+  const [h, m] = t.split(':').map(Number);
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
 
 export default function DoctorDashboard() {
+  const { user, getToken } = useAuth();
+  const [schedule, setSchedule] = useState<Appointment[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) { setLoading(false); return; }
+    getToken().then(async token => {
+      const headers = { Authorization: `Bearer ${token}` };
+      const [schedRes, statsRes] = await Promise.all([
+        fetch('/api/doctor/schedule', { headers }).then(r => r.json()),
+        fetch('/api/doctor/stats', { headers }).then(r => r.json()),
+      ]);
+      setSchedule(schedRes.appointments ?? []);
+      setStats(statsRes.stats ?? null);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [user]);
+
+  const doctorName = user?.displayName ?? "Doctor";
+  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+
+  const kpis = stats ? [
+    { label: "Today's appointments", value: String(stats.today_count), detail: "scheduled" },
+    { label: "Patient satisfaction", value: stats.rating > 0 ? stats.rating.toFixed(1) : "—", detail: `${stats.total_reviews} reviews` },
+    { label: "Total patients", value: String(stats.total_patients), detail: "seen" },
+    { label: "Revenue MTD", value: `$${stats.revenue_mtd.toLocaleString()}`, detail: "completed visits" },
+  ] : [
+    { label: "Today's appointments", value: "—", detail: "" },
+    { label: "Patient satisfaction", value: "—", detail: "" },
+    { label: "Total patients", value: "—", detail: "" },
+    { label: "Revenue MTD", value: "—", detail: "" },
+  ];
+
   return (
     <div className="fade-enter col gap-7">
       <div className="row between wrap gap-4">
         <div className="col" style={{ gap: 6 }}>
           <div className="eyebrow">Doctor&apos;s view</div>
           <h1 className="h-1">
-            Good morning, <span className="hero-italic" style={{ color: "var(--accent)" }}>Dr. Jenkins</span>.
+            Good morning, <span className="hero-italic" style={{ color: "var(--accent)" }}>{doctorName}</span>.
           </h1>
-          <p className="body">7 appointments left today. Your next patient joins in 12 minutes.</p>
+          <p className="body">
+            {loading ? "Loading your schedule…" : schedule.length === 0
+              ? "No appointments scheduled for today."
+              : `${schedule.length} appointment${schedule.length !== 1 ? 's' : ''} today.`}
+          </p>
         </div>
         <div className="row gap-3">
           <button className="btn btn-ghost"><Filter size={14} /> Filter</button>
@@ -43,9 +104,8 @@ export default function DoctorDashboard() {
             <div className="eyebrow" style={{ marginBottom: 10 }}>{kpi.label}</div>
             <div className="row between" style={{ alignItems: "baseline" }}>
               <div className="val tnum">{kpi.value}</div>
-              <span className="delta up"><TrendingUp size={13} />{kpi.detail}</span>
+              {kpi.detail && <span className="tiny" style={{ color: "var(--ink-3)" }}>{kpi.detail}</span>}
             </div>
-            <Spark index={index} />
           </div>
         ))}
       </div>
@@ -55,7 +115,7 @@ export default function DoctorDashboard() {
           <div className="row between" style={{ marginBottom: 18 }}>
             <div className="col" style={{ gap: 4 }}>
               <div className="eyebrow">Schedule</div>
-              <div className="h-3">Tuesday, May 19</div>
+              <div className="h-3">{today}</div>
             </div>
             <div className="tabs">
               <button className="tab active">Today</button>
@@ -64,78 +124,58 @@ export default function DoctorDashboard() {
             </div>
           </div>
 
-          <div className="col gap-2">
-            {todaySched.map((item, index) => (
-              <div
-                key={`${item.time}-${item.patient}`}
-                className="row gap-4"
-                style={{
-                  padding: "12px 14px",
-                  borderRadius: 14,
-                  background: item.status === "now" ? "color-mix(in oklab, var(--accent) 10%, transparent)" : "transparent",
-                  border: item.status === "now" ? "1px solid color-mix(in oklab, var(--accent) 24%, transparent)" : "1px solid var(--line)",
-                  alignItems: "center",
-                }}
-              >
-                <div className="col" style={{ gap: 2, minWidth: 60 }}>
-                  <div className="tnum" style={{ fontWeight: 700, fontSize: 15 }}>{item.time}</div>
-                  <div className="tiny">{item.duration}m</div>
-                </div>
-                <div className="vr" />
-                <Headshot name={item.patient} hue={(index * 55 + 30) % 360} size={36} />
-                <div className="grow col" style={{ gap: 2 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{item.patient}</div>
-                  <div className="tiny">{item.reason}</div>
-                </div>
-                <span className="pill">
-                  {item.mode === "Video" ? <Video size={11} /> : item.mode === "Voice" ? <Phone size={11} /> : <MapPin size={11} />}
-                  {item.mode}
-                </span>
-                {item.status === "done" && <span className="pill good">Done</span>}
-                {item.status === "now" && <button className="btn btn-primary btn-sm"><Phone size={13} /> Join</button>}
-                {item.status === "next" && <span className="pill warn">Next</span>}
-                {item.status === "upcoming" && <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />}
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="col gap-2">
+              {[1, 2, 3].map(i => <div key={i} style={{ height: 56, borderRadius: 14, border: "1px solid var(--line)", opacity: 0.4 }} />)}
+            </div>
+          ) : schedule.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px 0" }}>
+              <div className="small">No appointments today.</div>
+            </div>
+          ) : (
+            <div className="col gap-2">
+              {schedule.map((item, index) => {
+                const patientName = item.profiles?.full_name ?? "Patient";
+                return (
+                  <div key={item.id} className="row gap-4" style={{
+                    padding: "12px 14px", borderRadius: 14,
+                    background: item.status === "confirmed" && index === 0 ? "color-mix(in oklab, var(--accent) 10%, transparent)" : "transparent",
+                    border: item.status === "confirmed" && index === 0 ? "1px solid color-mix(in oklab, var(--accent) 24%, transparent)" : "1px solid var(--line)",
+                    alignItems: "center",
+                  }}>
+                    <div className="col" style={{ gap: 2, minWidth: 60 }}>
+                      <div className="tnum" style={{ fontWeight: 700, fontSize: 15 }}>{formatTime(item.appointment_time)}</div>
+                    </div>
+                    <div className="vr" />
+                    <Headshot name={patientName} hue={nameHue(patientName)} size={36} />
+                    <div className="grow col" style={{ gap: 2 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{patientName}</div>
+                      <div className="tiny">{item.chief_complaint ?? item.consultation_type}</div>
+                    </div>
+                    <span className="pill">
+                      {item.consultation_type === 'video' ? <Video size={11} /> : item.consultation_type === 'phone' ? <Phone size={11} /> : <MapPin size={11} />}
+                      {item.consultation_type === 'in_person' ? 'In-person' : item.consultation_type}
+                    </span>
+                    {index === 0 ? <button className="btn btn-primary btn-sm"><Phone size={13} /> Join</button>
+                      : <ChevronRight size={16} style={{ color: "var(--ink-3)" }} />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="col gap-4">
           <MedFlowVoiceAssistant />
-
-          <div className="glass" style={{ padding: 22 }}>
-            <div className="eyebrow" style={{ marginBottom: 14 }}>Patient messages</div>
-            <div className="col gap-3">
-              {[
-                ["Maya R.", "Quick question about the new dose", "2m", true],
-                ["David K.", "Lab results are uploaded", "14m", true],
-                ["Priya S.", "Confirming tomorrow at 1pm", "1h", false],
-              ].map(([name, message, time, unread], index) => (
-                <div key={String(name)} className="row gap-3">
-                  <Headshot name={String(name)} hue={(index * 70 + 20) % 360} size={36} />
-                  <div className="grow col" style={{ gap: 2 }}>
-                    <div className="row between">
-                      <b style={{ fontSize: 14 }}>{name}</b>
-                      <span className="tiny">{time}</span>
-                    </div>
-                    <div className="small" style={{ fontSize: 13, opacity: unread ? 1 : 0.6 }}>{message}</div>
-                  </div>
-                  {unread && <span className="dot" style={{ background: "var(--accent)", width: 8, height: 8 }} />}
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="glass" style={{ padding: 22 }}>
             <div className="eyebrow" style={{ marginBottom: 10 }}>AI suggestions</div>
             <div className="row gap-3">
               <div style={{ color: "var(--accent)" }}><Sparkles size={20} /></div>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>Two follow-ups pending</div>
-                <div className="small" style={{ fontSize: 13 }}>Maya R. and Sara A. haven&apos;t booked their 3-month checks. Want me to draft outreach?</div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Stay on top of follow-ups</div>
+                <div className="small" style={{ fontSize: 13 }}>Review your patient list to find anyone overdue for a check-in.</div>
                 <div className="row gap-2" style={{ marginTop: 10 }}>
-                  <button className="btn btn-primary btn-sm">Draft</button>
-                  <button className="btn btn-ghost btn-sm">Later</button>
+                  <a href="/admin/patients" className="btn btn-primary btn-sm">View patients</a>
                 </div>
               </div>
             </div>
@@ -143,46 +183,5 @@ export default function DoctorDashboard() {
         </div>
       </div>
     </div>
-  );
-}
-
-function Headshot({ name, hue, size }: { name: string; hue: number; size: number }) {
-  const initials = name.split(" ").map((part) => part[0]).slice(0, 2).join("");
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        background: `linear-gradient(135deg, hsl(${hue} 65% 65%), hsl(${(hue + 40) % 360} 60% 40%))`,
-        display: "grid",
-        placeItems: "center",
-        color: "#fff",
-        fontWeight: 600,
-        fontSize: size * 0.32,
-        boxShadow: "inset 0 -10px 30px rgba(0,0,0,.18), inset 0 6px 14px rgba(255,255,255,.18)",
-        flexShrink: 0,
-      }}
-    >
-      {initials}
-    </div>
-  );
-}
-
-function Spark({ index }: { index: number }) {
-  const data = [3, 4, 3, 5, 4, 6, 5, 7, 6, 8].map((x) => x + index);
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const points = data.map((value, i) => {
-    const x = (i / (data.length - 1)) * 100;
-    const y = 32 - 6 - ((value - min) / (max - min || 1)) * 20;
-    return [x, y];
-  });
-  const path = points.map((point, i) => `${i ? "L" : "M"}${point[0].toFixed(1)},${point[1].toFixed(1)}`).join(" ");
-  return (
-    <svg className="chart" viewBox="0 0 100 32" preserveAspectRatio="none" style={{ height: 32 }}>
-      <path d={`${path} L100,32 L0,32 Z`} fill="var(--accent)" opacity="0.14" />
-      <path d={path} fill="none" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-    </svg>
   );
 }

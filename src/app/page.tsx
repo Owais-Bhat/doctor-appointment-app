@@ -4,31 +4,35 @@ import Link from "next/link";
 import {
   Activity,
   ArrowRight,
+  Bone,
   Brain,
+  CalendarDays,
   Clock,
   Eye,
   Heart,
-  HeartPulse,
   HomeIcon,
   Search,
   ShieldCheck,
+  Smile,
   Sparkles,
   Star,
   Stethoscope,
+  TrendingUp,
   Users,
   Video,
+  Wind,
 } from "lucide-react";
 import { Headshot, Spark } from "@/components/medflow/Prototype";
 
 const specialties = [
-  { name: "Cardiology", icon: Heart, color: "#ef4444", count: 24 },
-  { name: "Neurology", icon: Brain, color: "#8b5cf6", count: 18 },
-  { name: "Orthopedics", icon: Activity, color: "#eab308", count: 16 },
-  { name: "Ophthalmology", icon: Eye, color: "#3b82f6", count: 14 },
-  { name: "Dermatology", icon: Sparkles, color: "#ec4899", count: 21 },
-  { name: "General Med", icon: Stethoscope, color: "#10b981", count: 32 },
-  { name: "Pulmonology", icon: HeartPulse, color: "#06b6d4", count: 12 },
-  { name: "Telehealth", icon: Video, color: "#5856d6", count: 28 },
+  { name: "Cardiology",    icon: Heart,       color: "#ef4444", count: 24 },
+  { name: "Neurology",     icon: Brain,       color: "#8b5cf6", count: 18 },
+  { name: "Orthopedics",   icon: Bone,        color: "#eab308", count: 16 },
+  { name: "Pulmonology",   icon: Wind,        color: "#06b6d4", count: 12 },
+  { name: "Ophthalmology", icon: Eye,         color: "#3b82f6", count: 14 },
+  { name: "Dermatology",   icon: Sparkles,    color: "#ec4899", count: 21 },
+  { name: "General Med",   icon: Stethoscope, color: "#10b981", count: 32 },
+  { name: "Dentistry",     icon: Smile,       color: "#14b8a6", count: 10 },
 ];
 
 export default function Home() {
@@ -39,7 +43,17 @@ export default function Home() {
         <aside className="sidebar" data-screen-label="sidebar">
           <Link href="/" className="logo">
             <span className="mark">
-              <Stethoscope size={18} />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.4}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ width: 18, height: 18 }}
+              >
+                <path d="M4 12h3l2-5 4 10 2-5h5" />
+              </svg>
             </span>
             <span>
               Med<span style={{ color: "var(--accent)" }}>Flow</span>
@@ -132,7 +146,8 @@ export default function Home() {
                   .
                 </h1>
                 <p className="body" style={{ maxWidth: 520, fontSize: 18 }}>
-                  Find the right specialist in under a minute. Book by symptom, not by guesswork, and meet your doctor wherever you are.
+                  Find the right specialist in under a minute. Book by symptom, not by guesswork —
+                  and meet your doctor wherever you are.
                 </p>
                 <div className="row gap-3 wrap">
                   <Link className="btn btn-primary btn-lg" href="/client/book">
@@ -169,6 +184,7 @@ export default function Home() {
                   </div>
                   <div className="row between" style={{ marginTop: 16 }}>
                     <div className="row gap-2 tnum">
+                      <CalendarDays size={14} />
                       <span style={{ fontWeight: 600 }}>Today</span>
                       <span style={{ color: "var(--ink-3)" }}>·</span>
                       <span>2:30 PM</span>
@@ -185,9 +201,9 @@ export default function Home() {
                     <div className="eyebrow" style={{ marginBottom: 8 }}>Heart rate</div>
                     <div className="row between" style={{ alignItems: "baseline" }}>
                       <div><span className="h-2 tnum">72</span><span className="small" style={{ marginLeft: 4 }}>bpm</span></div>
-                      <span style={{ color: "var(--good)" }}><Activity size={16} /></span>
+                      <span style={{ color: "var(--good)" }}><TrendingUp size={16} /></span>
                     </div>
-                    <Spark index={0} color="var(--accent)" height={36} />
+                    <Spark data={[68, 70, 69, 72, 71, 73, 72, 74, 72]} color="var(--accent)" height={36} />
                   </div>
                   <div className="glass" style={{ padding: 16, flex: 1 }}>
                     <div className="eyebrow" style={{ marginBottom: 8 }}>Sleep</div>
@@ -195,7 +211,7 @@ export default function Home() {
                       <div><span className="h-2 tnum">7.4</span><span className="small" style={{ marginLeft: 4 }}>hrs</span></div>
                       <span className="pill accent">Good</span>
                     </div>
-                    <Spark index={2} color="var(--accent-2)" height={36} />
+                    <Spark data={[6, 7.2, 6.8, 7.4, 7.1, 7.6, 7.4]} color="var(--accent-2)" height={36} />
                   </div>
                 </div>
 
@@ -252,8 +268,8 @@ export default function Home() {
               </div>
               <div className="bento" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
                 {[
-                  ["01", "Describe how you feel", "Tap a body region or talk to our AI. We map symptoms to specialties, no Googling.", Sparkles],
-                  ["02", "Match a real specialist", "See live availability, fees, and ratings, filtered to clinicians who can help right now.", Users],
+                  ["01", "Describe how you feel", "Tap a body region or talk to our AI. We map symptoms to specialties — no Googling.", Sparkles],
+                  ["02", "Match a real specialist", "See live availability, fees, and ratings — filtered to clinicians who can help right now.", Users],
                   ["03", "Meet your doctor", "Join over video or in-person. Records, prescriptions, and follow-ups stay in one place.", Video],
                 ].map(([step, title, detail, Icon]) => {
                   const StepIcon = Icon as typeof Sparkles;

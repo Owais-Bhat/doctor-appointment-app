@@ -13,6 +13,7 @@ type AuthCtx = {
   isLoading: boolean;
   signIn: () => Promise<any>;
   signOut: () => Promise<void>;
+  getToken: () => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthCtx | undefined>(undefined);
@@ -42,38 +43,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .single();
 
           if (data?.role) {
-            // Hotfix: Force override if they logged in with the official super admin email
             const activeRole = firebaseUser.email === 'admin@cybermilo.com' ? 'super_admin' : data.role;
             setRole(activeRole as UserRole);
             document.cookie = `userRole=${activeRole}; path=/`;
 
-            // Opportunistically patch DB if it was wrong
             if (activeRole === 'super_admin' && data.role !== 'super_admin') {
               await supabase.from('profiles').update({ role: 'super_admin' }).eq('id', firebaseUser.uid);
             }
           } else {
-            // Check Firestore whitelist for doctor role
             const { doc, getDoc } = await import('firebase/firestore');
             const whitelistDoc = await getDoc(doc(db, 'whitelisted_doctors', firebaseUser.email!.toLowerCase()));
             const isWhitelisted = whitelistDoc.exists();
 
-            const initialRole = firebaseUser.email === 'admin@cybermilo.com' ? 'super_admin' : (isWhitelisted ? 'doctor' : 'patient');
-            
+            const initialRole = firebaseUser.email === 'admin@cybermilo.com'
+              ? 'super_admin'
+              : (isWhitelisted ? 'doctor' : 'patient');
+
             await supabase.from('profiles').insert({
               id: firebaseUser.uid,
               full_name: firebaseUser.displayName || (initialRole === 'super_admin' ? 'Super Admin' : 'New User'),
               email: firebaseUser.email!,
-              role: initialRole
+              role: initialRole,
             });
 
             if (initialRole === 'doctor') {
-              // Create the entry in doctor_profiles now that they have their own session
               await supabase.from('doctor_profiles').insert({
-                id: firebaseUser.uid,
-                name: firebaseUser.displayName || 'Dr. New Provider',
+                profile_id: firebaseUser.uid,
                 specialty: 'General Practice',
                 consultation_fee: 100,
-                is_verified: true
+                is_verified: true,
               });
             }
 
@@ -92,6 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const getToken = async (): Promise<string | null> => {
+    if (!user) return null;
+    return user.getIdToken();
+  };
+
   const handleSignOut = async () => {
     await signOutFirebase();
     setUser(null);
@@ -101,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, role, isLoading, signIn: signInWithGoogle, signOut: handleSignOut
+      user, role, isLoading, signIn: signInWithGoogle, signOut: handleSignOut, getToken,
     }}>
       {children}
     </AuthContext.Provider>

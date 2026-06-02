@@ -1,130 +1,225 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, Clock3, FileText, MessageSquare, PhoneCall, Search, ShieldCheck, Video } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, Clock3, ExternalLink, FileText, MapPin, MessageSquare, Phone, Search, ShieldCheck, Video, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { MedFlowVoiceAssistant } from "@/components/MedFlowVoiceAssistant";
-import { appointmentQueue } from "@/lib/medflow-data";
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
-const stages = ["Pending intake", "Checked in", "Room 3", "Ready", "Completed"];
+type Appointment = {
+  id: string;
+  appointment_date: string;
+  appointment_time: string;
+  status: string;
+  consultation_type: string;
+  chief_complaint: string | null;
+  profiles: { full_name: string; phone: string | null };
+};
+
+const STAGES = [
+  { key: "pending", label: "Pending" },
+  { key: "confirmed", label: "Confirmed" },
+  { key: "completed", label: "Completed" },
+  { key: "cancelled", label: "Cancelled" },
+];
+
+function formatTime(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+}
 
 export default function AppointmentKanban() {
-  const [selected, setSelected] = useState(appointmentQueue[0]);
+  const { user, getToken } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [selected, setSelected] = useState<Appointment | null>(null);
   const [query, setQuery] = useState("");
-  const filtered = appointmentQueue.filter((item) =>
-    `${item.patient} ${item.reason} ${item.payer}`.toLowerCase().includes(query.toLowerCase())
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) { setLoading(false); return; }
+    getToken().then(async token => {
+      const res = await fetch("/api/doctor/schedule", { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      const appts: Appointment[] = data.appointments ?? [];
+      setAppointments(appts);
+      if (appts.length > 0) setSelected(appts[0]);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [user]);
+
+  const updateStatus = async (id: string, status: string) => {
+    setUpdating(id);
+    const token = await getToken();
+    const res = await fetch(`/api/doctor/appointments/${id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) {
+      setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+      setSelected(prev => prev?.id === id ? { ...prev, status } : prev);
+    }
+    setUpdating(null);
+  };
+
+  const joinVideo = (appointmentId: string) => {
+    window.open(`https://meet.jit.si/medflow-${appointmentId}`, "_blank", "noopener");
+  };
+
+  const filtered = appointments.filter(item =>
+    `${item.profiles?.full_name ?? ""} ${item.chief_complaint ?? ""} ${item.consultation_type}`
+      .toLowerCase().includes(query.toLowerCase())
   );
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-        <div>
-          <p className="text-sm font-semibold text-blue-700">Appointment operations</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-950 md:text-3xl">AI-assisted visit pipeline</h1>
-          <p className="mt-2 text-sm text-slate-600">Voice booking, intake status, eligibility, and clinician preparation in one place.</p>
+    <div className="fade-enter col gap-7">
+      <div className="row between wrap gap-4">
+        <div className="col" style={{ gap: 6 }}>
+          <div className="eyebrow">Appointment operations</div>
+          <h1 className="h-1">Today's visit pipeline</h1>
+          <p className="body">Today's schedule organized by status. Confirm, complete, or join visits.</p>
         </div>
-        <div className="flex w-full rounded-md border border-slate-200 bg-white lg:w-96">
-          <Search className="ml-3 mt-3 text-slate-400" size={18} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search queue"
-            className="min-w-0 flex-1 rounded-md border-0 px-3 py-2.5 text-sm outline-none"
-          />
+        <div className="search" style={{ minWidth: 280 }}>
+          <Search size={16} style={{ color: "var(--ink-3)" }} />
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search queue" />
         </div>
       </div>
 
-      <section className="grid gap-5 xl:grid-cols-[1fr_380px]">
-        <div className="med-card overflow-hidden">
-          <div className="grid min-w-[900px] grid-cols-5 border-b border-slate-200 bg-slate-50">
-            {stages.map((stage) => (
-              <div key={stage} className="border-r border-slate-200 px-4 py-3 last:border-r-0">
-                <p className="text-xs font-bold uppercase text-slate-500">{stage}</p>
-                <p className="text-xs text-slate-400">{filtered.filter((item) => item.status === stage).length} visits</p>
-              </div>
-            ))}
-          </div>
-          <div className="overflow-x-auto">
-            <div className="grid min-w-[900px] grid-cols-5 gap-0">
-              {stages.map((stage) => (
-                <div key={stage} className="min-h-[560px] space-y-3 border-r border-slate-200 bg-white p-3 last:border-r-0">
-                  {filtered
-                    .filter((item) => item.status === stage)
-                    .map((item) => (
+      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 20, alignItems: "start" }}>
+        <div className="glass" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${STAGES.length}, 1fr)`, minWidth: 760, borderBottom: "1px solid var(--line)", background: "var(--glass)" }}>
+              {STAGES.map(stage => (
+                <div key={stage.key} style={{ padding: "12px 16px", borderRight: "1px solid var(--line)" }}>
+                  <div className="eyebrow">{stage.label}</div>
+                  <div className="tiny" style={{ color: "var(--ink-3)", marginTop: 2 }}>
+                    {loading ? "…" : filtered.filter(a => a.status === stage.key).length} visits
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${STAGES.length}, 1fr)`, minWidth: 760 }}>
+              {STAGES.map(stage => (
+                <div key={stage.key} style={{ minHeight: 420, padding: 12, borderRight: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: 10 }}>
+                  {loading ? (
+                    [1, 2].map(i => <div key={i} style={{ height: 80, borderRadius: 12, border: "1px solid var(--line)", opacity: 0.4 }} />)
+                  ) : filtered.filter(a => a.status === stage.key).length === 0 ? (
+                    <div style={{ padding: "16px 0", textAlign: "center" }}>
+                      <div className="tiny" style={{ color: "var(--ink-3)" }}>Empty</div>
+                    </div>
+                  ) : filtered.filter(a => a.status === stage.key).map(item => {
+                    const isSelected = selected?.id === item.id;
+                    return (
                       <button
                         key={item.id}
                         onClick={() => setSelected(item)}
-                        className={cn(
-                          "w-full rounded-md border p-4 text-left transition hover:border-blue-300 hover:bg-blue-50",
-                          selected.id === item.id ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white"
-                        )}
+                        style={{
+                          width: "100%", textAlign: "left", padding: 14, borderRadius: 12,
+                          border: isSelected ? "1px solid color-mix(in oklab, var(--accent) 50%, transparent)" : "1px solid var(--line)",
+                          background: isSelected ? "color-mix(in oklab, var(--accent) 8%, transparent)" : "transparent",
+                          cursor: "pointer",
+                        }}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold text-slate-950">{item.patient}</p>
-                            <p className="mt-1 text-xs text-slate-500">{item.id}</p>
-                          </div>
-                          <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">{item.time}</span>
+                        <div className="row between" style={{ marginBottom: 6 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{item.profiles?.full_name ?? "Patient"}</div>
+                          <span className="tnum" style={{ fontSize: 11, color: "var(--ink-3)" }}>{formatTime(item.appointment_time)}</span>
                         </div>
-                        <p className="mt-3 text-xs leading-5 text-slate-600">{item.reason}</p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <span className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600">
-                            {item.type === "Video" ? <Video size={12} /> : <PhoneCall size={12} />}
-                            {item.type}
-                          </span>
-                          <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-800">{item.risk}</span>
-                        </div>
+                        <div className="tiny" style={{ marginBottom: 8 }}>{item.chief_complaint ?? item.consultation_type}</div>
+                        <span className="pill" style={{ fontSize: 11 }}>
+                          {item.consultation_type === "video" ? <Video size={10} /> : item.consultation_type === "phone" ? <Phone size={10} /> : <MapPin size={10} />}
+                          {item.consultation_type === "in_person" ? "In-person" : item.consultation_type}
+                        </span>
                       </button>
-                    ))}
+                    );
+                  })}
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <aside className="space-y-5">
-          <MedFlowVoiceAssistant />
-
-          <div className="med-card p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase text-slate-500">Selected visit</p>
-                <h2 className="mt-1 text-xl font-bold text-slate-950">{selected.patient}</h2>
-                <p className="text-sm text-slate-500">{selected.reason}</p>
+        <div className="col gap-4">
+          {selected ? (
+            <div className="glass" style={{ padding: 22 }}>
+              <div className="row between" style={{ marginBottom: 16 }}>
+                <div className="col" style={{ gap: 4 }}>
+                  <div className="eyebrow">Selected visit</div>
+                  <div className="h-3">{selected.profiles?.full_name ?? "Patient"}</div>
+                  <div className="small">{selected.chief_complaint ?? selected.consultation_type}</div>
+                </div>
+                <span className={`pill ${selected.status === "confirmed" ? "good" : selected.status === "completed" ? "" : selected.status === "cancelled" ? "bad" : "accent"}`}>
+                  {selected.status}
+                </span>
               </div>
-              <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">{selected.status}</span>
+              <div className="col gap-3" style={{ marginBottom: 16 }}>
+                <Detail icon={Clock3} label="Time" value={`${formatTime(selected.appointment_time)}, today`} />
+                <Detail icon={ShieldCheck} label="Type" value={selected.consultation_type === "in_person" ? "In-person visit" : selected.consultation_type === "video" ? "Video consultation" : "Phone call"} />
+                <Detail icon={FileText} label="Complaint" value={selected.chief_complaint ?? "Not specified"} />
+                {selected.profiles?.phone && (
+                  <Detail icon={MessageSquare} label="Patient phone" value={selected.profiles.phone} />
+                )}
+              </div>
+              <div className="col gap-2">
+                {selected.consultation_type === "video" && selected.status === "confirmed" && (
+                  <button
+                    className="btn btn-primary"
+                    style={{ justifyContent: "center" }}
+                    onClick={() => joinVideo(selected.id)}
+                  >
+                    <ExternalLink size={14} /> Join video call
+                  </button>
+                )}
+                {selected.status === "pending" && (
+                  <button
+                    className="btn btn-primary"
+                    style={{ justifyContent: "center" }}
+                    disabled={updating === selected.id}
+                    onClick={() => updateStatus(selected.id, "confirmed")}
+                  >
+                    <CheckCircle2 size={14} /> {updating === selected.id ? "Confirming…" : "Confirm appointment"}
+                  </button>
+                )}
+                {selected.status === "confirmed" && (
+                  <button
+                    className="btn btn-glass"
+                    style={{ justifyContent: "center" }}
+                    disabled={updating === selected.id}
+                    onClick={() => updateStatus(selected.id, "completed")}
+                  >
+                    <CheckCircle2 size={14} /> {updating === selected.id ? "Completing…" : "Mark completed"}
+                  </button>
+                )}
+                {(selected.status === "pending" || selected.status === "confirmed") && (
+                  <button
+                    className="btn btn-ghost"
+                    style={{ justifyContent: "center", color: "var(--warn, #e53e3e)" }}
+                    disabled={updating === selected.id}
+                    onClick={() => updateStatus(selected.id, "cancelled")}
+                  >
+                    <XCircle size={14} /> Cancel appointment
+                  </button>
+                )}
+              </div>
             </div>
-
-            <div className="mt-5 grid gap-3">
-              <Detail icon={Clock3} label="Time" value={`${selected.time}, today`} />
-              <Detail icon={ShieldCheck} label="Eligibility" value={`${selected.payer} verified`} />
-              <Detail icon={FileText} label="Clinical prep" value={selected.ai} />
-              <Detail icon={MessageSquare} label="Engagement" value="SMS, email, and portal reminders queued" />
+          ) : !loading && (
+            <div className="glass" style={{ padding: 22, textAlign: "center" }}>
+              <div className="small" style={{ color: "var(--ink-3)" }}>No appointments today.</div>
             </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <button className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-900 px-3 text-sm font-semibold text-white">
-                <Video size={16} /> Start
-              </button>
-              <button className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">
-                <CheckCircle2 size={16} /> Complete
-              </button>
-            </div>
-          </div>
-        </aside>
-      </section>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 function Detail({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-      <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
-        <Icon size={14} /> {label}
+    <div style={{ padding: 12, borderRadius: 10, border: "1px solid var(--line)", background: "var(--glass)" }}>
+      <div className="row gap-2" style={{ marginBottom: 4 }}>
+        <Icon size={12} style={{ color: "var(--ink-3)" }} />
+        <span className="eyebrow" style={{ fontSize: 10 }}>{label}</span>
       </div>
-      <p className="text-sm leading-5 text-slate-700">{value}</p>
+      <div className="small" style={{ lineHeight: 1.5 }}>{value}</div>
     </div>
   );
 }

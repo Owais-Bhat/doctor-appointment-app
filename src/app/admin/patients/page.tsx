@@ -1,162 +1,230 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Activity, FileText, HeartPulse, MessageCircle, Search, ShieldCheck, Stethoscope, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { patients } from "@/lib/medflow-data";
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+
+type PatientRow = {
+  patient_id: string;
+  status: string;
+  appointment_date: string;
+  chief_complaint: string | null;
+  profiles: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone: string | null;
+    blood_type: string | null;
+    date_of_birth: string | null;
+    health_stats: Record<string, string | number> | null;
+  };
+};
+
+function nameHue(name: string) {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+}
+
+function Headshot({ name, size }: { name: string; size: number }) {
+  const hue = nameHue(name);
+  const initials = name.split(" ").map(p => p[0]).slice(0, 2).join("");
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: `linear-gradient(135deg, hsl(${hue} 65% 65%), hsl(${(hue + 40) % 360} 60% 40%))`,
+      display: "grid", placeItems: "center", color: "#fff",
+      fontWeight: 700, fontSize: size * 0.33,
+    }}>{initials}</div>
+  );
+}
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 export default function PatientsPage() {
-  const [selected, setSelected] = useState(patients[0]);
+  const { user, getToken } = useAuth();
+  const [patients, setPatients] = useState<PatientRow[]>([]);
+  const [selected, setSelected] = useState<PatientRow | null>(null);
   const [query, setQuery] = useState("");
-  const filtered = patients.filter((patient) =>
-    `${patient.name} ${patient.condition} ${patient.payer}`.toLowerCase().includes(query.toLowerCase())
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) { setLoading(false); return; }
+    getToken().then(async token => {
+      const res = await fetch("/api/doctor/patients", { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      const rows: PatientRow[] = data.patients ?? [];
+      setPatients(rows);
+      if (rows.length > 0) setSelected(rows[0]);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [user]);
+
+  const filtered = patients.filter(p =>
+    `${p.profiles?.full_name ?? ""} ${p.chief_complaint ?? ""} ${p.profiles?.blood_type ?? ""}`
+      .toLowerCase().includes(query.toLowerCase())
   );
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-        <div>
-          <p className="text-sm font-semibold text-blue-700">Longitudinal care</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-950 md:text-3xl">Patient command record</h1>
-          <p className="mt-2 text-sm text-slate-600">Clinical timeline, outcomes, care gaps, insurance, and engagement in one record.</p>
+    <div className="fade-enter col gap-7">
+      <div className="row between wrap gap-4">
+        <div className="col" style={{ gap: 6 }}>
+          <div className="eyebrow">Longitudinal care</div>
+          <h1 className="h-1">Patient records</h1>
+          <p className="body">Clinical timeline, outcomes, and engagement in one record.</p>
         </div>
-        <div className="flex w-full rounded-md border border-slate-200 bg-white lg:w-96">
-          <Search className="ml-3 mt-3 text-slate-400" size={18} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search patients"
-            className="min-w-0 flex-1 rounded-md border-0 px-3 py-2.5 text-sm outline-none"
-          />
+        <div className="search" style={{ minWidth: 280 }}>
+          <Search size={16} style={{ color: "var(--ink-3)" }} />
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search patients" />
         </div>
       </div>
 
-      <section className="grid gap-5 xl:grid-cols-[1fr_420px]">
-        <div className="med-card overflow-hidden">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-5 py-3">Patient</th>
-                <th className="px-5 py-3">Condition</th>
-                <th className="px-5 py-3">Risk</th>
-                <th className="px-5 py-3">Payer</th>
-                <th className="px-5 py-3">Next action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filtered.map((patient) => (
-                <tr
-                  key={patient.name}
-                  onClick={() => setSelected(patient)}
-                  className={cn("cursor-pointer bg-white hover:bg-blue-50/50", selected.name === patient.name && "bg-blue-50")}
-                >
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-900 text-sm font-bold text-white">
-                        {patient.name.split(" ").map((part) => part[0]).join("")}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-950">{patient.name}</p>
-                        <p className="text-xs text-slate-500">{patient.age} years old, last visit {patient.lastVisit}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 text-slate-700">{patient.condition}</td>
-                  <td className="px-5 py-4">
-                    <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-bold text-amber-800">{patient.risk}</span>
-                  </td>
-                  <td className="px-5 py-4 text-slate-600">{patient.payer}</td>
-                  <td className="px-5 py-4 font-semibold text-blue-700">{patient.next}</td>
+      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: 20, alignItems: "start" }}>
+        <div className="glass" style={{ padding: 0, overflow: "hidden" }}>
+          {loading ? (
+            <div className="col gap-3" style={{ padding: 16 }}>
+              {[1, 2, 3, 4].map(i => <div key={i} style={{ height: 52, borderRadius: 12, border: "1px solid var(--line)", opacity: 0.4 }} />)}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
+              <div className="small" style={{ color: "var(--ink-3)" }}>{query ? "No results." : "No patients yet."}</div>
+            </div>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
+                  {["Patient", "Last complaint", "Blood type", "Last visit", ""].map(h => (
+                    <th key={h} style={{ padding: "12px 16px" }}><span className="eyebrow">{h}</span></th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map(row => {
+                  const name = row.profiles?.full_name ?? "Patient";
+                  const isSelected = selected?.patient_id === row.patient_id;
+                  return (
+                    <tr
+                      key={row.patient_id}
+                      onClick={() => setSelected(row)}
+                      style={{
+                        borderTop: "1px solid var(--line)", cursor: "pointer",
+                        background: isSelected ? "color-mix(in oklab, var(--accent) 6%, transparent)" : "transparent",
+                      }}
+                    >
+                      <td style={{ padding: "12px 16px" }}>
+                        <div className="row gap-3">
+                          <Headshot name={name} size={36} />
+                          <div className="col" style={{ gap: 2 }}>
+                            <div style={{ fontWeight: 600 }}>{name}</div>
+                            <div className="tiny">{row.profiles?.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <div className="small">{row.chief_complaint ?? "—"}</div>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        {row.profiles?.blood_type
+                          ? <span className="pill">{row.profiles.blood_type}</span>
+                          : <span className="tiny" style={{ color: "var(--ink-3)" }}>—</span>
+                        }
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <div className="tiny">{row.appointment_date ? formatDate(row.appointment_date) : "—"}</div>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <span className={`pill ${row.status === "completed" ? "good" : row.status === "confirmed" ? "accent" : ""}`}>
+                          {row.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
 
-        <aside className="space-y-5">
-          <div className="med-card p-5">
-            <div className="flex items-start gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-md bg-blue-600 text-lg font-bold text-white">
-                {selected.name.split(" ").map((part) => part[0]).join("")}
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-950">{selected.name}</h2>
-                <p className="text-sm text-slate-500">{selected.condition}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">{selected.payer}</span>
-                  <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Consent active</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-3 gap-2">
-              <Metric label="BP" value="128/82" />
-              <Metric label="A1C" value="6.8" />
-              <Metric label="Risk" value={selected.risk} />
-            </div>
-          </div>
-
-          <div className="med-card p-5">
-            <h3 className="text-lg font-bold text-slate-950">Clinical timeline</h3>
-            <div className="mt-4 space-y-3">
-              {[
-                ["Today", selected.next, "AI prepared documentation and care gap checklist."],
-                ["May 12", "Medication reconciliation", "Two prescriptions renewed and sent to pharmacy."],
-                ["Apr 28", "Outcome update", "Patient-reported symptoms improved from moderate to mild."],
-              ].map(([date, title, detail]) => (
-                <div key={date} className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-slate-900">{title}</p>
-                    <span className="text-xs font-bold text-slate-500">{date}</span>
+        <div className="col gap-4">
+          {selected ? (
+            <>
+              <div className="glass" style={{ padding: 22 }}>
+                <div className="row gap-4" style={{ marginBottom: 18 }}>
+                  <Headshot name={selected.profiles?.full_name ?? "P"} size={56} />
+                  <div className="col" style={{ gap: 4 }}>
+                    <div className="eyebrow">Patient record</div>
+                    <div className="h-3">{selected.profiles?.full_name ?? "Patient"}</div>
+                    <div className="small">{selected.profiles?.email}</div>
                   </div>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">{detail}</p>
                 </div>
-              ))}
+                <div className="bento" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: 0 }}>
+                  <Metric label="Blood type" value={selected.profiles?.blood_type ?? "—"} />
+                  <Metric label="BP" value={selected.profiles?.health_stats?.bp ? String(selected.profiles.health_stats.bp) : "—"} />
+                  <Metric label="Last visit" value={selected.appointment_date ? formatDate(selected.appointment_date) : "—"} />
+                </div>
+              </div>
+              <div className="glass" style={{ padding: 22 }}>
+                <div className="h-4" style={{ marginBottom: 14 }}>Clinical notes</div>
+                <div className="col gap-3">
+                  <div style={{ padding: 14, borderRadius: 10, border: "1px solid var(--line)" }}>
+                    <div className="row between" style={{ marginBottom: 4 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>Last complaint</div>
+                      <span className="tiny" style={{ color: "var(--ink-3)" }}>{selected.appointment_date ? formatDate(selected.appointment_date) : ""}</span>
+                    </div>
+                    <div className="small">{selected.chief_complaint ?? "No chief complaint recorded."}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="bento" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
+                <ActionBtn icon={MessageCircle} label="Message" />
+                <ActionBtn icon={FileText} label="Note" />
+                <ActionBtn icon={ShieldCheck} label="Eligibility" />
+                <ActionBtn icon={Stethoscope} label="Refer" />
+              </div>
+            </>
+          ) : !loading && (
+            <div className="glass" style={{ padding: 22, textAlign: "center" }}>
+              <div className="small" style={{ color: "var(--ink-3)" }}>Select a patient to view details.</div>
             </div>
-          </div>
+          )}
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Action icon={MessageCircle} label="Message" />
-            <Action icon={FileText} label="Note" />
-            <Action icon={ShieldCheck} label="Eligibility" />
-            <Action icon={Stethoscope} label="Refer" />
-          </div>
-        </aside>
-      </section>
-
-      <section className="grid gap-3 md:grid-cols-3">
+      <div className="bento" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
         <Program icon={HeartPulse} title="Outcome tracking" detail="PROMIS score, disease registry, and CQM evidence are captured." />
         <Program icon={Activity} title="Remote monitoring" detail="Wearable and home-device readings sync into patient risk." />
         <Program icon={TrendingUp} title="Engagement AI" detail="Personalized reminders reduce no-show risk and close care gaps." />
-      </section>
+      </div>
     </div>
   );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-center">
-      <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-bold text-slate-950">{value}</p>
+    <div className="glass cell" style={{ textAlign: "center", padding: 14 }}>
+      <div className="eyebrow" style={{ marginBottom: 6 }}>{label}</div>
+      <div style={{ fontWeight: 700, fontSize: 17 }}>{value}</div>
     </div>
   );
 }
 
-function Action({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+function ActionBtn({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
   return (
-    <button className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50">
-      <Icon size={16} /> {label}
+    <button className="btn btn-glass" style={{ justifyContent: "center", gap: 8, padding: "10px 0" }}>
+      <Icon size={15} /> {label}
     </button>
   );
 }
 
 function Program({ icon: Icon, title, detail }: { icon: LucideIcon; title: string; detail: string }) {
   return (
-    <div className="med-card p-4">
-      <Icon size={18} className="text-blue-700" />
-      <p className="mt-3 font-bold text-slate-950">{title}</p>
-      <p className="mt-1 text-sm leading-6 text-slate-600">{detail}</p>
+    <div className="glass cell" style={{ padding: 20 }}>
+      <Icon size={18} style={{ color: "var(--accent)" }} />
+      <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6 }}>{title}</div>
+      <div className="small" style={{ lineHeight: 1.6 }}>{detail}</div>
     </div>
   );
 }

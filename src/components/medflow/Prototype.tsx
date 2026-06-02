@@ -65,8 +65,8 @@ export function Headshot({ name, hue = 210, size = 40 }: { name: string; hue?: n
   );
 }
 
-export function Spark({ index = 0, color = "var(--accent)", height = 32 }: { index?: number; color?: string; height?: number }) {
-  const data = [3, 4, 3, 5, 4, 6, 5, 7, 6, 8].map((x) => x + index);
+export function Spark({ index = 0, data: dataProp, color = "var(--accent)", height = 32 }: { index?: number; data?: number[]; color?: string; height?: number }) {
+  const data = dataProp ?? [3, 4, 3, 5, 4, 6, 5, 7, 6, 8].map((x) => x + index);
   const max = Math.max(...data);
   const min = Math.min(...data);
   const points = data.map((value, i) => {
