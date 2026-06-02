@@ -2,6 +2,11 @@ import React from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 
+export const metadata = {
+  title: "MedFlow - Patient Portal",
+  description: "Book appointments, manage health records, and connect with healthcare providers",
+};
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <div>

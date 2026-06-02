@@ -6,6 +6,11 @@ import { AIBot } from '@/components/shared/AIBot';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { RealtimeStatusProvider } from '@/components/shared/RealtimeStatusProvider';
 
+export const metadata = {
+  title: "MedFlow - Healthcare Platform",
+  description: "Connect with healthcare providers, book appointments, and manage your health journey",
+};
+
 const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700', '800'],

@@ -18,7 +18,11 @@
       "Bash(npm install *)",
       "Bash(New-Item -ItemType Directory -Path \"E:\\\\work\\\\doctor-appointment-app\\\\src\\\\app\\\\api\\\\auth\\\\session\" -Force)",
       "Bash(Out-Null)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git commit -m 'fix: handle languages as both string and array format *)",
+      "Bash(git commit -m 'fix: add optional chaining for bookingDoctor.profiles access *)",
+      "Bash(git commit -m 'feat: add proper page titles and metadata across all portals *)"
     ]
   }
 }
