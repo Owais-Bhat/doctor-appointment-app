@@ -762,6 +762,150 @@ export const APIUsageSchema = z.object({
   peakQPS: z.number(),
 });
 
+// ============================================
+// Telemedicine & Communication (Phase 3 Week 11)
+// ============================================
+
+export const VideoConsultationSchema = z.object({
+  id: z.string().optional(),
+  appointmentId: z.string(),
+  organizationId: z.string(),
+  clinicId: z.string(),
+  doctorId: z.string(),
+  patientId: z.string(),
+  roomId: z.string(),
+  sessionToken: z.string().optional(),
+  status: z.enum(['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show']),
+  startTime: z.coerce.date(),
+  endTime: z.coerce.date().optional(),
+  duration: z.number().optional(),
+  recordingUrl: z.string().optional(),
+  isRecorded: z.boolean().default(false),
+  meetingLink: z.string().optional(),
+  joinedAt: z.coerce.date().optional(),
+  leftAt: z.coerce.date().optional(),
+  notes: z.string().optional(),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const MessageSchema = z.object({
+  id: z.string().optional(),
+  conversationId: z.string(),
+  senderId: z.string(),
+  senderType: z.enum(['doctor', 'patient', 'admin']),
+  content: z.string().min(1).max(5000),
+  contentType: z.enum(['text', 'image', 'file', 'voice']).default('text'),
+  attachmentUrl: z.string().optional(),
+  attachmentFileName: z.string().optional(),
+  attachmentSize: z.number().optional(),
+  readAt: z.coerce.date().optional(),
+  editedAt: z.coerce.date().optional(),
+  deletedAt: z.coerce.date().optional(),
+  replyTo: z.string().optional(),
+  reactions: z.record(z.number()).optional(),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const ConversationSchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string(),
+  clinicId: z.string().optional(),
+  participantIds: z.array(z.string()).min(2),
+  type: z.enum(['direct', 'group', 'appointment']).default('direct'),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  appointmentId: z.string().optional(),
+  lastMessage: z.string().optional(),
+  lastMessageAt: z.coerce.date().optional(),
+  messageCount: z.number().default(0),
+  unreadCount: z.record(z.number()).optional(),
+  isArchived: z.boolean().default(false),
+  isPinned: z.boolean().default(false),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const NotificationSchema = z.object({
+  id: z.string().optional(),
+  recipientId: z.string(),
+  senderId: z.string().optional(),
+  organizationId: z.string(),
+  type: z.enum([
+    'appointment_reminder',
+    'appointment_confirmed',
+    'appointment_rescheduled',
+    'appointment_cancelled',
+    'message_received',
+    'consultation_started',
+    'consultation_ended',
+    'prescription_ready',
+    'test_result_ready',
+    'payment_received',
+    'claim_status_update',
+    'referral_received',
+    'system_alert',
+  ]),
+  title: z.string(),
+  message: z.string(),
+  actionUrl: z.string().optional(),
+  actionLabel: z.string().optional(),
+  resourceType: z.string().optional(),
+  resourceId: z.string().optional(),
+  priority: z.enum(['low', 'normal', 'high']).default('normal'),
+  isRead: z.boolean().default(false),
+  readAt: z.coerce.date().optional(),
+  sentVia: z.array(z.enum(['in_app', 'email', 'sms', 'push'])).default(['in_app']),
+  sentAt: z.coerce.date().optional(),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const PushTokenSchema = z.object({
+  id: z.string().optional(),
+  userId: z.string(),
+  deviceId: z.string(),
+  platform: z.enum(['ios', 'android', 'web']),
+  token: z.string(),
+  isActive: z.boolean().default(true),
+  lastUsed: z.coerce.date().optional(),
+  createdAt: z.coerce.date().optional(),
+  expiresAt: z.coerce.date().optional(),
+});
+
+export const PresenceSchema = z.object({
+  userId: z.string(),
+  status: z.enum(['online', 'away', 'do_not_disturb', 'offline']),
+  lastActiveAt: z.coerce.date(),
+  activeConversations: z.array(z.string()).optional(),
+  currentLocation: z.object({
+    clinic: z.string().optional(),
+    room: z.string().optional(),
+  }).optional(),
+});
+
+export const CallLogSchema = z.object({
+  id: z.string().optional(),
+  conversationId: z.string(),
+  callType: z.enum(['audio', 'video']),
+  initiatorId: z.string(),
+  participantIds: z.array(z.string()),
+  status: z.enum(['initiated', 'ringing', 'connected', 'completed', 'failed', 'cancelled']),
+  startTime: z.coerce.date().optional(),
+  endTime: z.coerce.date().optional(),
+  duration: z.number().optional(),
+  recordingUrl: z.string().optional(),
+  recordingDuration: z.number().optional(),
+  failureReason: z.string().optional(),
+  createdAt: z.coerce.date().optional(),
+});
+
+export type VideoConsultation = z.infer<typeof VideoConsultationSchema>;
+export type Message = z.infer<typeof MessageSchema>;
+export type Conversation = z.infer<typeof ConversationSchema>;
+export type Notification = z.infer<typeof NotificationSchema>;
+export type PushToken = z.infer<typeof PushTokenSchema>;
+export type Presence = z.infer<typeof PresenceSchema>;
+export type CallLog = z.infer<typeof CallLogSchema>;
+
 export type Organization = z.infer<typeof OrganizationSchema>;
 export type Clinic = z.infer<typeof ClinicSchema>;
 export type StaffMember = z.infer<typeof StaffMemberSchema>;
