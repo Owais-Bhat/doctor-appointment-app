@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  Bell,
   CalendarDays,
   CreditCard,
   FileText,
@@ -24,11 +25,11 @@ import { cn } from "@/lib/utils";
 const doctorNav = [
   { label: "Today", href: "/admin/dashboard", icon: Home },
   { label: "Calendar", href: "/admin/schedule", icon: CalendarDays },
-  { label: "Patients", href: "/admin/patients", icon: Users, count: "412" },
-  { label: "Messages", href: "/admin/appointments", icon: MessageCircle, badge: "3" },
-  { label: "Records", href: "/admin/profile", icon: FileText },
-  { label: "Earnings", href: "/admin/analytics", icon: Activity },
-  { label: "Settings", href: "/admin/profile", icon: Settings },
+  { label: "Patients", href: "/admin/patients", icon: Users },
+  { label: "Appointments", href: "/admin/appointments", icon: MessageCircle },
+  { label: "Notifications", href: "/admin/notifications", icon: Bell },
+  { label: "Analytics", href: "/admin/analytics", icon: Activity },
+  { label: "Profile", href: "/admin/profile", icon: Settings },
 ];
 
 const patientNav = [
@@ -106,10 +107,10 @@ export function Sidebar() {
               />
               <Icon size={16} />
               <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
-              {item.count && <span className="tiny tnum">{item.count}</span>}
-              {item.badge && (
+              {(item as any).count && <span className="tiny tnum">{(item as any).count}</span>}
+              {(item as any).badge && (
                 <span className="pill accent" style={{ fontSize: 10, padding: "1px 7px" }}>
-                  {item.badge}
+                  {(item as any).badge}
                 </span>
               )}
             </Link>

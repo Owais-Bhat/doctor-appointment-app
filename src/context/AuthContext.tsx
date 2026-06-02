@@ -1,9 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { auth, signInWithGoogle, signOutFirebase, db } from "@/lib/firebase";
+import { auth, signInWithGoogle, signOutFirebase } from "@/lib/firebase";
 import type { User } from "firebase/auth";
-import { createClient } from "@/lib/supabase";
 
 type UserRole = 'patient' | 'doctor' | 'super_admin';
 
@@ -24,6 +23,14 @@ export function useAuth() {
   return ctx;
 }
 
+async function setSessionCookie(token: string, role: string) {
+  await fetch('/api/auth/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ role }),
+  }).catch(() => {});
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
@@ -35,51 +42,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (firebaseUser) {
         try {
-          const supabase = createClient();
-          const { data } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', firebaseUser.uid)
-            .single();
-
-          if (data?.role) {
-            const activeRole = firebaseUser.email === 'admin@cybermilo.com' ? 'super_admin' : data.role;
-            setRole(activeRole as UserRole);
-            document.cookie = `userRole=${activeRole}; path=/`;
-
-            if (activeRole === 'super_admin' && data.role !== 'super_admin') {
-              await supabase.from('profiles').update({ role: 'super_admin' }).eq('id', firebaseUser.uid);
-            }
-          } else {
-            const { doc, getDoc } = await import('firebase/firestore');
-            const whitelistDoc = await getDoc(doc(db, 'whitelisted_doctors', firebaseUser.email!.toLowerCase()));
-            const isWhitelisted = whitelistDoc.exists();
-
-            const initialRole = firebaseUser.email === 'admin@cybermilo.com'
-              ? 'super_admin'
-              : (isWhitelisted ? 'doctor' : 'patient');
-
-            await supabase.from('profiles').insert({
-              id: firebaseUser.uid,
-              full_name: firebaseUser.displayName || (initialRole === 'super_admin' ? 'Super Admin' : 'New User'),
-              email: firebaseUser.email!,
-              role: initialRole,
-            });
-
-            if (initialRole === 'doctor') {
-              await supabase.from('doctor_profiles').insert({
-                profile_id: firebaseUser.uid,
-                specialty: 'General Practice',
-                consultation_fee: 100,
-                is_verified: true,
-              });
-            }
-
-            setRole(initialRole as UserRole);
-            document.cookie = `userRole=${initialRole}; path=/`;
-          }
+          const token = await firebaseUser.getIdToken();
+          const res = await fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const { profile } = await res.json();
+          const activeRole = (profile?.role ?? 'patient') as UserRole;
+          setRole(activeRole);
+          await setSessionCookie(token, activeRole);
         } catch (error) {
           console.error("Error fetching user role:", error);
+          setRole('patient');
         }
       } else {
         setRole(null);
@@ -99,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOutFirebase();
     setUser(null);
     setRole(null);
-    document.cookie = "userRole=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    await fetch('/api/auth/session', { method: 'DELETE' }).catch(() => {});
   };
 
   return (

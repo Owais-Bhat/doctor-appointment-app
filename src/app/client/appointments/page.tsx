@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarDays, Check, Clock, CreditCard, ExternalLink, FileText, Phone, Video } from "lucide-react";
+import { CalendarDays, Check, Clock, CreditCard, ExternalLink, FileText, Phone, Star, Video, X } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
 import { useAuth } from "@/context/AuthContext";
 
@@ -52,6 +52,12 @@ export default function ClientAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
 
   // Check payment result from Stripe redirect
   const paymentResult = typeof window !== "undefined"
@@ -82,6 +88,36 @@ export default function ClientAppointments() {
       window.location.href = data.url;
     } else {
       setPaying(null);
+    }
+  };
+
+  const handleCancel = async (appointmentId: string) => {
+    if (!confirm("Cancel this appointment?")) return;
+    setCancelling(appointmentId);
+    const token = await getToken();
+    await fetch(`/api/patient/appointments/${appointmentId}/cancel`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setAppointments(prev => prev.map(a => a.id === appointmentId ? { ...a, status: "cancelled" } : a));
+    setCancelling(null);
+  };
+
+  const submitReview = async () => {
+    if (!reviewTarget) return;
+    setSubmittingReview(true);
+    const token = await getToken();
+    const res = await fetch("/api/patient/reviews", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ appointmentId: reviewTarget, rating: reviewRating, comment: reviewComment }),
+    });
+    setSubmittingReview(false);
+    if (res.ok) {
+      setReviewedIds(prev => new Set([...prev, reviewTarget]));
+      setReviewTarget(null);
+      setReviewComment("");
+      setReviewRating(5);
     }
   };
 
@@ -133,6 +169,9 @@ export default function ClientAppointments() {
               const isVideo = appt.consultation_type === "video";
               const isPending = appt.status === "pending";
               const isConfirmed = appt.status === "confirmed";
+              const isCompleted = appt.status === "completed";
+              const isCancellable = isPending || isConfirmed;
+              const canReview = isCompleted && !reviewedIds.has(appt.id);
 
               return (
                 <div key={appt.id} className="row gap-4" style={{ padding: 16, borderRadius: 18, border: "1px solid var(--line)", flexWrap: "wrap" }}>
@@ -176,6 +215,24 @@ export default function ClientAppointments() {
                       </button>
                     )}
                     <button className="btn btn-glass btn-sm"><FileText size={13} /> Details</button>
+                    {canReview && (
+                      <button
+                        className="btn btn-glass btn-sm"
+                        onClick={() => { setReviewTarget(appt.id); setReviewRating(5); setReviewComment(""); }}
+                      >
+                        <Star size={13} /> Review
+                      </button>
+                    )}
+                    {isCancellable && (
+                      <button
+                        className="btn btn-glass btn-sm"
+                        style={{ color: "var(--bad)" }}
+                        disabled={cancelling === appt.id}
+                        onClick={() => handleCancel(appt.id)}
+                      >
+                        <X size={13} /> {cancelling === appt.id ? "Cancelling…" : "Cancel"}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -183,6 +240,52 @@ export default function ClientAppointments() {
           </div>
         )}
       </div>
+      {reviewTarget && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+        }}>
+          <div className="glass col gap-5" style={{ padding: 28, borderRadius: 20, maxWidth: 420, width: "90%" }}>
+            <div className="row between">
+              <div className="h-3">Leave a review</div>
+              <button onClick={() => setReviewTarget(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)" }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>Rating</div>
+              <div className="row gap-2">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    onClick={() => setReviewRating(star)}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}
+                  >
+                    <Star size={28} fill={star <= reviewRating ? "#f59e0b" : "none"} stroke="#f59e0b" />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 8 }}>Comment (optional)</div>
+              <textarea
+                className="input"
+                rows={3}
+                style={{ resize: "vertical", width: "100%" }}
+                placeholder="Share your experience…"
+                value={reviewComment}
+                onChange={e => setReviewComment(e.target.value)}
+              />
+            </div>
+            <div className="row gap-3" style={{ justifyContent: "flex-end" }}>
+              <button className="btn btn-glass" onClick={() => setReviewTarget(null)}>Cancel</button>
+              <button className="btn btn-primary" disabled={submittingReview} onClick={submitReview}>
+                <Star size={13} /> {submittingReview ? "Submitting…" : "Submit review"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

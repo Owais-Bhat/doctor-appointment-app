@@ -1,188 +1,185 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { CheckCircle2, FileText, AlertCircle, Send } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { createClient } from '@/lib/supabase';
-import { toast } from 'react-hot-toast';
-import { format } from 'date-fns';
+import { useState, useEffect, use } from "react";
+import { CheckCircle2, FileText, AlertCircle, Send } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
-export default function IntakeFormPage({ params }: { params: { appointmentId: string } }) {
-  const { user } = useAuth();
-  const [appointment, setAppointment] = useState<any>(null);
+type Appointment = {
+  id: string;
+  appointment_date: string;
+  appointment_time: string;
+  chief_complaint: string | null;
+  doctor_profiles: { profiles: { full_name: string } };
+};
+
+export default function IntakeFormPage({ params }: { params: Promise<{ appointmentId: string }> }) {
+  const { appointmentId } = use(params);
+  const { user, getToken } = useAuth();
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [formData, setFormData] = useState({
-    chief_complaint: '',
-    current_medications: '',
-    allergies: '',
-    symptoms_duration: '',
-    severity: 'Mild',
+    chief_complaint: "",
+    current_medications: "",
+    allergies: "",
+    symptoms_duration: "",
+    severity: "Mild",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    async function fetchAppointment() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('appointments')
-        .select('*, doctor_profiles(*)')
-        .eq('id', params.appointmentId)
-        .single();
-
-      if (data) {
-        setAppointment(data);
-        // If appointment already has a complaint, pre-fill it
-        if (data.chief_complaint) {
-          setFormData(prev => ({ ...prev, chief_complaint: data.chief_complaint }));
-        }
-      }
-    }
-    fetchAppointment();
-  }, [params.appointmentId]);
+    if (!user) return;
+    getToken().then(token =>
+      fetch(`/api/patient/intake?appointmentId=${appointmentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(r => r.json())
+        .then(d => {
+          if (d.appointment) {
+            setAppointment(d.appointment);
+            if (d.appointment.chief_complaint) {
+              setFormData(prev => ({ ...prev, chief_complaint: d.appointment.chief_complaint }));
+            }
+          }
+        })
+    );
+  }, [user, appointmentId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('appointments')
-        .update({
-          chief_complaint: formData.chief_complaint,
-          notes: `INTAKE FORM:\nMeds: ${formData.current_medications}\nAllergies: ${formData.allergies}\nDuration: ${formData.symptoms_duration}\nSeverity: ${formData.severity}`
-        })
-        .eq('id', params.appointmentId);
-
-      if (error) throw error;
-
-      setIsSubmitted(true);
-      toast.success("Intake form submitted successfully!");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to submit intake form");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setSubmitting(true);
+    const token = await getToken();
+    const notes = `INTAKE:\nMeds: ${formData.current_medications}\nAllergies: ${formData.allergies}\nDuration: ${formData.symptoms_duration}\nSeverity: ${formData.severity}`;
+    await fetch("/api/patient/intake", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ appointmentId, chief_complaint: formData.chief_complaint, notes }),
+    });
+    setSubmitting(false);
+    setSubmitted(true);
   };
 
-  if (!appointment) return <div className="p-6 text-gray-500">Loading appointment details...</div>;
-  if (isSubmitted) return <SubmittedState appointment={appointment} />;
+  if (submitted && appointment) {
+    const doctorName = appointment.doctor_profiles?.profiles?.full_name ?? "your doctor";
+    return (
+      <div className="fade-enter col gap-6" style={{ maxWidth: 480, margin: "0 auto", padding: "48px 0", textAlign: "center" }}>
+        <CheckCircle2 size={56} style={{ color: "var(--good)", margin: "0 auto" }} />
+        <h1 className="h-1">Form submitted!</h1>
+        <p className="body">Your intake form has been sent to Dr. {doctorName}. They will review it before your appointment.</p>
+        <div className="glass" style={{ padding: 20, textAlign: "left" }}>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>Appointment details</div>
+          <div style={{ fontWeight: 700 }}>{new Date(appointment.appointment_date + "T00:00:00").toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</div>
+          <div className="small" style={{ color: "var(--ink-3)" }}>{appointment.appointment_time?.substring(0, 5)}</div>
+        </div>
+        <a href="/client/appointments" className="btn btn-primary" style={{ alignSelf: "center" }}>Back to appointments</a>
+      </div>
+    );
+  }
+
+  if (!appointment) {
+    return (
+      <div className="fade-enter col gap-7">
+        <div className="glass" style={{ padding: 32, textAlign: "center" }}>
+          <div className="small" style={{ color: "var(--ink-3)" }}>Loading appointment…</div>
+        </div>
+      </div>
+    );
+  }
+
+  const doctorName = appointment.doctor_profiles?.profiles?.full_name ?? "your doctor";
+  const apptDate = new Date(appointment.appointment_date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Pre-Visit Intake Form</h1>
-        <p className="text-gray-500">Help Dr. {appointment.doctor_profiles?.full_name} prepare for your visit on {format(new Date(appointment.appointment_date), 'MMM dd')}</p>
+    <div className="fade-enter col gap-7" style={{ maxWidth: 680, margin: "0 auto" }}>
+      <div className="col" style={{ gap: 6, textAlign: "center" }}>
+        <div className="eyebrow">Pre-visit</div>
+        <h1 className="h-1">Intake Form</h1>
+        <p className="body">Help Dr. {doctorName} prepare for your visit on {apptDate}.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="p-8 bg-surface-100 rounded-3xl border border-surface-300 shadow-sm space-y-6">
-          <div className="flex items-center gap-2 text-brand-primary font-bold mb-4">
-            <FileText size={20} />
-            <h2>Symptom Details</h2>
+      <form onSubmit={handleSubmit} className="col gap-5">
+        <div className="glass" style={{ padding: 24 }}>
+          <div className="row gap-2" style={{ marginBottom: 18, color: "var(--accent)", fontWeight: 700 }}>
+            <FileText size={16} />
+            <span>Symptom details</span>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-600">What is the primary reason for your visit?</label>
+          <div className="col gap-4">
+            <div className="col" style={{ gap: 8 }}>
+              <label className="eyebrow">Primary reason for visit</label>
               <textarea
                 required
                 rows={3}
-                className="w-full p-4 rounded-2xl bg-surface-200 border-transparent outline-none focus:ring-2 focus:ring-brand-primary transition-all"
-                placeholder="Describe your symptoms in detail..."
+                className="input"
+                style={{ resize: "vertical" }}
+                placeholder="Describe your symptoms in detail…"
                 value={formData.chief_complaint}
-                onChange={e => setFormData({...formData, chief_complaint: e.target.value})}
+                onChange={e => setFormData({ ...formData, chief_complaint: e.target.value })}
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-600">Duration of symptoms</label>
+            <div className="row gap-4">
+              <div className="col grow" style={{ gap: 8 }}>
+                <label className="eyebrow">Duration</label>
                 <input
-                  type="text"
+                  className="input"
                   placeholder="e.g. 3 days, 2 weeks"
-                  className="w-full p-3 rounded-xl bg-surface-200 border-transparent outline-none focus:ring-2 focus:ring-brand-primary"
                   value={formData.symptoms_duration}
-                  onChange={e => setFormData({...formData, symptoms_duration: e.target.value})}
+                  onChange={e => setFormData({ ...formData, symptoms_duration: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-600">Symptom Severity</label>
+              <div className="col grow" style={{ gap: 8 }}>
+                <label className="eyebrow">Severity</label>
                 <select
-                  className="w-full p-3 rounded-xl bg-surface-200 border-transparent outline-none focus:ring-2 focus:ring-brand-primary"
+                  className="input"
                   value={formData.severity}
-                  onChange={e => setFormData({...formData, severity: e.target.value})}
+                  onChange={e => setFormData({ ...formData, severity: e.target.value })}
                 >
-                  <option value="Mild">Mild</option>
-                  <option value="Moderate">Moderate</option>
-                  <option value="Severe">Severe</option>
-                  <option value="Emergency">Emergency</option>
+                  <option>Mild</option>
+                  <option>Moderate</option>
+                  <option>Severe</option>
+                  <option>Emergency</option>
                 </select>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="pt-6 border-t border-surface-300 space-y-4">
-            <div className="flex items-center gap-2 text-brand-primary font-bold mb-4">
-              <AlertCircle size={20} />
-              <h2>Medical History</h2>
-            </div>
+        <div className="glass" style={{ padding: 24 }}>
+          <div className="row gap-2" style={{ marginBottom: 18, color: "var(--accent)", fontWeight: 700 }}>
+            <AlertCircle size={16} />
+            <span>Medical history</span>
+          </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-600">Current Medications</label>
+          <div className="col gap-4">
+            <div className="col" style={{ gap: 8 }}>
+              <label className="eyebrow">Current medications</label>
               <textarea
                 rows={2}
-                className="w-full p-4 rounded-2xl bg-surface-200 border-transparent outline-none focus:ring-2 focus:ring-brand-primary"
-                placeholder="List any medications you are currently taking..."
+                className="input"
+                style={{ resize: "vertical" }}
+                placeholder="List any medications you are currently taking…"
                 value={formData.current_medications}
-                onChange={e => setFormData({...formData, current_medications: e.target.value})}
+                onChange={e => setFormData({ ...formData, current_medications: e.target.value })}
               />
             </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-600">Known Allergies</label>
+            <div className="col" style={{ gap: 8 }}>
+              <label className="eyebrow">Known allergies</label>
               <textarea
                 rows={2}
-                className="w-full p-4 rounded-2xl bg-surface-200 border-transparent outline-none focus:ring-2 focus:ring-brand-primary"
-                placeholder="List any known drug or food allergies..."
+                className="input"
+                style={{ resize: "vertical" }}
+                placeholder="List any known drug or food allergies…"
                 value={formData.allergies}
-                onChange={e => setFormData({...formData, allergies: e.target.value})}
+                onChange={e => setFormData({ ...formData, allergies: e.target.value })}
               />
             </div>
           </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full p-4 bg-brand-primary text-white rounded-2xl font-bold hover:bg-brand-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
-          >
-            {isSubmitting ? 'Saving...' : 'Submit Intake Form'}
-            <Send size={18} />
-          </button>
         </div>
+
+        <button type="submit" className="btn btn-primary" disabled={submitting} style={{ alignSelf: "flex-end" }}>
+          <Send size={14} /> {submitting ? "Submitting…" : "Submit intake form"}
+        </button>
       </form>
-    </div>
-  );
-}
-
-function SubmittedState({ appointment }: { appointment: any }) {
-  return (
-    <div className="max-w-md mx-auto text-center space-y-6 py-12">
-      <div className="flex justify-center">
-        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center animate-bounce">
-          <CheckCircle2 size={40} />
-        </div>
-      </div>
-      <h1 className="text-3xl font-bold">Form Submitted!</h1>
-      <p className="text-gray-500">Thank you. Your information has been sent to Dr. {appointment.doctor_profiles?.full_name}. They will review it before your appointment.</p>
-      <div className="p-6 bg-surface-100 rounded-3xl border border-surface-300 text-left space-y-2">
-        <p className="text-xs font-bold text-gray-400 uppercase">Appointment Details</p>
-        <p className="font-bold">{format(new Date(appointment.appointment_date), 'MMM dd, yyyy')}</p>
-        <p className="text-sm text-gray-600">{appointment.appointment_time}</p>
-      </div>
-      <a href="/client/appointments" className="inline-block px-8 py-3 bg-brand-primary text-white rounded-full font-bold hover:opacity-90 transition-all">
-        Return to My Appointments
-      </a>
     </div>
   );
 }
