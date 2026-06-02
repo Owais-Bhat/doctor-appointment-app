@@ -356,8 +356,149 @@ export type MedicalRecord = z.infer<typeof MedicalRecordSchema>;
 export type Review = z.infer<typeof ReviewSchema>;
 export type Payment = z.infer<typeof PaymentSchema>;
 export type Notification = z.infer<typeof NotificationSchema>;
+// ============================================
+// Insurance & Revenue Cycle Schemas (Phase 2 Week 8)
+// ============================================
+
+export const InsurancePlanSchema = z.object({
+  id: z.string().optional(),
+  patientId: z.string().min(1),
+  insuranceCompany: z.string().min(1).max(255),
+  planName: z.string().min(1).max(255),
+  policyNumber: z.string().min(1).max(50),
+  groupNumber: z.string().optional(),
+  memberId: z.string().min(1).max(50),
+  effectiveDate: z.coerce.date(),
+  terminationDate: z.coerce.date().optional(),
+  planType: z.enum(['HMO', 'PPO', 'POS', 'EPO', 'HDHP']),
+  copay: z.number().nonnegative().optional(),
+  deductible: z.number().nonnegative().optional(),
+  outOfPocketMax: z.number().nonnegative().optional(),
+  coinsurance: z.number().min(0).max(100).optional(),
+  isSelfPay: z.boolean().default(false),
+  isPrimary: z.boolean().default(true),
+  status: z.enum(['active', 'inactive', 'pending']).default('active'),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const EligibilityCheckSchema = z.object({
+  id: z.string().optional(),
+  patientId: z.string().min(1),
+  insurancePlanId: z.string().min(1),
+  checkDate: z.coerce.date(),
+  isEligible: z.boolean(),
+  effectiveDate: z.coerce.date().optional(),
+  terminationDate: z.coerce.date().optional(),
+  copay: z.number().nonnegative().optional(),
+  deductible: z.number().nonnegative().optional(),
+  deductibleMet: z.number().nonnegative().optional(),
+  outOfPocketMax: z.number().nonnegative().optional(),
+  outOfPocketMet: z.number().nonnegative().optional(),
+  limitations: z.string().max(1000).optional(),
+  requiresAuth: z.boolean().default(false),
+  status: z.enum(['verified', 'pending', 'error']).default('pending'),
+});
+
+export const AuthorizationSchema = z.object({
+  id: z.string().optional(),
+  appointmentId: z.string().min(1),
+  patientId: z.string().min(1),
+  insurancePlanId: z.string().min(1),
+  authNumber: z.string().min(1).max(50),
+  serviceType: z.string().min(1).max(100),
+  units: z.number().positive(),
+  validFrom: z.coerce.date(),
+  validUntil: z.coerce.date(),
+  status: z.enum(['pending', 'approved', 'denied', 'expired']).default('pending'),
+  notes: z.string().max(500).optional(),
+  requestedAt: z.coerce.date().optional(),
+  approvedAt: z.coerce.date().optional(),
+});
+
+export const ClaimSchema = z.object({
+  id: z.string().optional(),
+  appointmentId: z.string().min(1),
+  patientId: z.string().min(1),
+  clinicId: z.string().min(1),
+  doctorId: z.string().min(1),
+  insurancePlanId: z.string().min(1),
+  claimNumber: z.string().optional(),
+  serviceDate: z.coerce.date(),
+  submissionDate: z.coerce.date().optional(),
+  totalCharges: z.number().positive(),
+  allowedAmount: z.number().nonnegative().optional(),
+  patientResponsibility: z.number().nonnegative().optional(),
+  insurancePays: z.number().nonnegative().optional(),
+  copay: z.number().nonnegative().optional(),
+  deductibleApplied: z.number().nonnegative().optional(),
+  coinsuranceAmount: z.number().nonnegative().optional(),
+  serviceCode: z.string().max(10).optional(),
+  modifier: z.string().max(4).optional(),
+  status: z.enum(['draft', 'submitted', 'pending', 'accepted', 'denied', 'paid']).default('draft'),
+  denialReason: z.string().max(500).optional(),
+  notes: z.string().max(1000).optional(),
+  createdAt: z.coerce.date().optional(),
+  submittedAt: z.coerce.date().optional(),
+});
+
+export const PatientResponsibilitySchema = z.object({
+  id: z.string().optional(),
+  patientId: z.string().min(1),
+  appointmentId: z.string().min(1),
+  estimatedCopay: z.number().nonnegative(),
+  estimatedDeductible: z.number().nonnegative(),
+  estimatedCoinsurance: z.number().nonnegative(),
+  estimatedTotal: z.number().nonnegative(),
+  actualCopay: z.number().nonnegative().optional(),
+  actualDeductible: z.number().nonnegative().optional(),
+  actualCoinsurance: z.number().nonnegative().optional(),
+  actualTotal: z.number().nonnegative().optional(),
+  amountPaid: z.number().nonnegative().default(0),
+  status: z.enum(['estimated', 'finalized', 'paid', 'outstanding']).default('estimated'),
+  createdAt: z.coerce.date().optional(),
+  finalizedAt: z.coerce.date().optional(),
+});
+
+export const DenialAppealSchema = z.object({
+  id: z.string().optional(),
+  claimId: z.string().min(1),
+  patientId: z.string().min(1),
+  appointmentId: z.string().min(1),
+  denialReason: z.string().min(1).max(500),
+  appealReason: z.string().min(10).max(1000),
+  supportingDocuments: z.array(z.string().url()).optional(),
+  status: z.enum(['submitted', 'under_review', 'approved', 'denied']).default('submitted'),
+  submittedAt: z.coerce.date().optional(),
+  resolvedAt: z.coerce.date().optional(),
+  resolution: z.string().max(500).optional(),
+});
+
+export const InsuranceProviderSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1).max(255),
+  npi: z.string().min(10).max(10),
+  clearinghouseId: z.string().optional(),
+  supportedTransactions: z.array(z.string()).optional(),
+  contactName: z.string().optional(),
+  contactEmail: UserEmailSchema.optional(),
+  contactPhone: PhoneSchema.optional(),
+  ediCapable: z.boolean().default(false),
+  status: z.enum(['active', 'inactive']).default('active'),
+});
+
+// ============================================
+// Type Exports (for TypeScript)
+// ============================================
+
 export type Organization = z.infer<typeof OrganizationSchema>;
 export type Clinic = z.infer<typeof ClinicSchema>;
 export type StaffMember = z.infer<typeof StaffMemberSchema>;
 export type Referral = z.infer<typeof ReferralSchema>;
 export type Department = z.infer<typeof DepartmentSchema>;
+export type InsurancePlan = z.infer<typeof InsurancePlanSchema>;
+export type EligibilityCheck = z.infer<typeof EligibilityCheckSchema>;
+export type Authorization = z.infer<typeof AuthorizationSchema>;
+export type Claim = z.infer<typeof ClaimSchema>;
+export type PatientResponsibility = z.infer<typeof PatientResponsibilitySchema>;
+export type DenialAppeal = z.infer<typeof DenialAppealSchema>;
+export type InsuranceProvider = z.infer<typeof InsuranceProviderSchema>;

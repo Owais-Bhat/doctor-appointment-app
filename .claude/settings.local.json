@@ -37,7 +37,8 @@
       "Bash(cd E:\\\\\\\\doctor-appointment-app)",
       "Bash(npm list *)",
       "Bash(taskkill /IM chrome.exe /F)",
-      "Bash(git commit -m 'feat: build Phase 2 Week 7 multi-clinic and organization management foundation *)"
+      "Bash(git commit -m 'feat: build Phase 2 Week 7 multi-clinic and organization management foundation *)",
+      "Bash(git commit -m 'feat: build Phase 2 Week 8 insurance integration and claims management system *)"
     ]
   }
 }
