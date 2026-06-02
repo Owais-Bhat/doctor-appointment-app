@@ -209,6 +209,18 @@ export enum AuditAction {
   HEALTH_RESOURCE_ACCESSED = 'HEALTH_RESOURCE_ACCESSED',
   MEDICATION_NAME_LOCALIZED = 'MEDICATION_NAME_LOCALIZED',
   REGION_COMPLIANCE_VALIDATED = 'REGION_COMPLIANCE_VALIDATED',
+
+  // Enterprise Support (Phase 4 Week 16)
+  SLA_CREATED = 'SLA_CREATED',
+  SLA_BREACH_DETECTED = 'SLA_BREACH_DETECTED',
+  SLA_DISABLED = 'SLA_DISABLED',
+  MFA_ENABLED = 'MFA_ENABLED',
+  MFA_DISABLED = 'MFA_DISABLED',
+  MFA_VERIFIED = 'MFA_VERIFIED',
+  PASSWORDLESS_INITIATED = 'PASSWORDLESS_INITIATED',
+  PASSWORDLESS_VERIFIED = 'PASSWORDLESS_VERIFIED',
+  LOGIN_SUCCESSFUL = 'LOGIN_SUCCESSFUL',
+  ANOMALY_DETECTED = 'ANOMALY_DETECTED',
 }
 
 export interface AuditLog {
@@ -218,7 +230,7 @@ export interface AuditLog {
   action: AuditAction;
   resourceType: string;
   resourceId: string | null;
-  status: 'SUCCESS' | 'FAILURE';
+  status: 'SUCCESS' | 'FAILURE' | 'ALERT';
   ipAddress: string | null;
   userAgent: string | null;
   details?: Record<string, any>;
@@ -241,7 +253,7 @@ export async function logAudit(
   resourceType: string,
   resourceId: string | null,
   options?: {
-    status?: 'SUCCESS' | 'FAILURE';
+    status?: 'SUCCESS' | 'FAILURE' | 'ALERT';
     ipAddress?: string | null;
     userAgent?: string | null;
     details?: Record<string, any>;
@@ -343,9 +355,11 @@ export async function logSecurityEvent(
   resourceId: string | null,
   ipAddress: string | null,
   details?: Record<string, any>,
-  errorMessage?: string
+  errorMessage?: string,
+  status?: 'SUCCESS' | 'FAILURE' | 'ALERT'
 ): Promise<void> {
   await logAudit(null, action, resourceType, resourceId, {
+    status,
     status: 'FAILURE',
     ipAddress,
     details,
