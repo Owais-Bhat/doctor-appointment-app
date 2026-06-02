@@ -55,10 +55,10 @@ export default function ClientDashboard() {
 
   return (
     <div className="fade-enter col gap-7">
-      <div className="col" style={{ gap: 6 }}>
+      <div className="col" style={{ gap: 12 }}>
         <div className="eyebrow">Patient portal</div>
-        <h1 className="h-1">Your health, <span className="hero-italic" style={{ color: "var(--accent)" }}>flowing</span>.</h1>
-        <p className="body">Book appointments, join video visits, and track your health records.</p>
+        <h1 className="h-1" style={{ marginBottom: 0 }}>Your health, <span className="hero-italic" style={{ color: "var(--accent)" }}>flowing</span>.</h1>
+        <p className="body" style={{ marginTop: 8 }}>Book appointments, join video visits, and track your health records.</p>
         <div className="row gap-3 wrap">
           <a href="/client/book" className="btn btn-primary"><CalendarDays size={14} /> Book appointment</a>
           <a href="/client/appointments" className="btn btn-ghost">My appointments</a>

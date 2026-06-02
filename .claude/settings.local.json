@@ -23,7 +23,8 @@
       "Bash(git commit -m 'fix: handle languages as both string and array format *)",
       "Bash(git commit -m 'fix: add optional chaining for bookingDoctor.profiles access *)",
       "Bash(git commit -m 'feat: add proper page titles and metadata across all portals *)",
-      "Bash(git commit -m 'fix: resolve profile creation error for newly registered accounts *)"
+      "Bash(git commit -m 'fix: resolve profile creation error for newly registered accounts *)",
+      "Bash(git commit -m 'fix: resolve title overlay issue by increasing gap and adding explicit margins *)"
     ]
   }
 }

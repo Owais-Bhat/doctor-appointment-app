@@ -81,12 +81,12 @@ export default function DoctorDashboard() {
   return (
     <div className="fade-enter col gap-7">
       <div className="row between wrap gap-4">
-        <div className="col" style={{ gap: 6 }}>
+        <div className="col" style={{ gap: 12 }}>
           <div className="eyebrow">Doctor&apos;s view</div>
-          <h1 className="h-1">
+          <h1 className="h-1" style={{ marginBottom: 0 }}>
             Good morning, <span className="hero-italic" style={{ color: "var(--accent)" }}>{doctorName}</span>.
           </h1>
-          <p className="body">
+          <p className="body" style={{ marginTop: 8 }}>
             {loading ? "Loading your schedule…" : schedule.length === 0
               ? "No appointments scheduled for today."
               : `${schedule.length} appointment${schedule.length !== 1 ? 's' : ''} today.`}
