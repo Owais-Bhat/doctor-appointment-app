@@ -263,7 +263,7 @@ export default function BookPage() {
                 <CheckCircle2 size={48} style={{ color: "var(--good)" }} />
                 <div className="h-3">Appointment requested!</div>
                 <p className="small" style={{ color: "var(--ink-3)" }}>
-                  Your appointment with Dr. {bookingDoctor.profiles.full_name} on {selectedDate} at {selectedSlot} is pending confirmation.
+                  Your appointment with Dr. {bookingDoctor.profiles?.full_name || "Doctor"} on {selectedDate} at {selectedSlot} is pending confirmation.
                 </p>
                 <button className="btn btn-primary" onClick={closeBooking}>Done</button>
               </div>
@@ -271,7 +271,7 @@ export default function BookPage() {
               <div className="col gap-5">
                 <div>
                   <div className="eyebrow" style={{ marginBottom: 4 }}>Book appointment</div>
-                  <div className="h-3">Dr. {bookingDoctor.profiles.full_name}</div>
+                  <div className="h-3">Dr. {bookingDoctor.profiles?.full_name || "Doctor"}</div>
                   <div className="small" style={{ color: "var(--ink-3)", marginTop: 2 }}>
                     {bookingDoctor.specialty}{bookingDoctor.clinic_name ? ` · ${bookingDoctor.clinic_name}` : ""}
                   </div>
