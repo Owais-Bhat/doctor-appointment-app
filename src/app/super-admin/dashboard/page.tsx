@@ -41,10 +41,10 @@ export default function SuperAdminDashboard() {
   return (
     <div className="fade-enter col gap-7">
       <div className="row between wrap gap-4">
-        <div className="col" style={{ gap: 12 }}>
+        <div className="col">
           <div className="eyebrow">SaaS operator console</div>
-          <h1 className="h-1" style={{ marginBottom: 0 }}>MedFlow scale command.</h1>
-          <p className="body" style={{ marginTop: 8 }}>All four phases in one operating layer: clinics, insurance, analytics, AI, compliance, and global integrations.</p>
+          <h1 className="h-1">MedFlow scale command.</h1>
+          <p className="body">All four phases in one operating layer: clinics, insurance, analytics, AI, compliance, and global integrations.</p>
         </div>
         <div className="row gap-3">
           <span className="pill good"><ShieldCheck size={11} /> 99.99 SLA</span>

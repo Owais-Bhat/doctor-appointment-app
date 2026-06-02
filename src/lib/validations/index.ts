@@ -232,6 +232,117 @@ export const AppointmentFilterSchema = z.object({
 });
 
 // ============================================
+// Organization & Enterprise Schemas (Phase 2)
+// ============================================
+
+export const StaffRoleEnum = z.enum(['admin', 'manager', 'doctor', 'nurse', 'receptionist', 'staff']);
+
+export const OrganizationSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1).max(255),
+  description: z.string().max(1000).optional(),
+  type: z.enum(['practice', 'clinic', 'hospital', 'group']).default('clinic'),
+  taxId: z.string().optional(),
+  registrationNumber: z.string().optional(),
+  primaryContact: z.object({
+    name: z.string().min(1).max(100),
+    email: UserEmailSchema,
+    phone: PhoneSchema,
+  }),
+  address: z.object({
+    street: z.string().min(1),
+    city: z.string().min(1),
+    state: z.string().min(1),
+    zipCode: z.string().min(1),
+    country: z.string().min(1),
+  }),
+  branding: z.object({
+    logoUrl: z.string().url().optional(),
+    primaryColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+    secondaryColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+  }).optional(),
+  settings: z.object({
+    timeZone: z.string().default('UTC'),
+    dateFormat: z.string().default('MM/DD/YYYY'),
+    appointmentDuration: z.number().default(30),
+    maxAdvanceBooking: z.number().default(90),
+  }).optional(),
+  status: z.enum(['active', 'inactive', 'suspended']).default('active'),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const ClinicSchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string().min(1),
+  name: z.string().min(1).max(255),
+  description: z.string().max(1000).optional(),
+  address: z.object({
+    street: z.string().min(1),
+    city: z.string().min(1),
+    state: z.string().min(1),
+    zipCode: z.string().min(1),
+    country: z.string().min(1),
+  }),
+  phone: PhoneSchema,
+  email: UserEmailSchema,
+  operatingHours: z.object({
+    monday: z.object({ open: z.string(), close: z.string() }).optional(),
+    tuesday: z.object({ open: z.string(), close: z.string() }).optional(),
+    wednesday: z.object({ open: z.string(), close: z.string() }).optional(),
+    thursday: z.object({ open: z.string(), close: z.string() }).optional(),
+    friday: z.object({ open: z.string(), close: z.string() }).optional(),
+    saturday: z.object({ open: z.string(), close: z.string() }).optional(),
+    sunday: z.object({ open: z.string(), close: z.string() }).optional(),
+  }).optional(),
+  capacity: z.number().positive().optional(),
+  status: z.enum(['active', 'inactive']).default('active'),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const StaffMemberSchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string().min(1),
+  clinicId: z.string().min(1).optional(),
+  userId: z.string().min(1),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  email: UserEmailSchema,
+  phone: PhoneSchema,
+  role: StaffRoleEnum,
+  department: z.string().optional(),
+  specialization: z.string().optional(),
+  license: z.string().optional(),
+  isActive: z.boolean().default(true),
+  permissions: z.array(z.string()).optional(),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const ReferralSchema = z.object({
+  id: z.string().optional(),
+  patientId: z.string().min(1),
+  fromDoctorId: z.string().min(1),
+  toDoctorId: z.string().min(1),
+  fromClinicId: z.string().min(1),
+  toClinicId: z.string().min(1),
+  reason: z.string().min(10).max(500),
+  urgency: z.enum(['routine', 'urgent', 'emergency']).default('routine'),
+  status: z.enum(['pending', 'accepted', 'declined', 'completed']).default('pending'),
+  notes: z.string().max(1000).optional(),
+  createdAt: z.coerce.date().optional(),
+  completedAt: z.coerce.date().optional(),
+});
+
+export const DepartmentSchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string().min(1),
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+  head: z.string().optional(),
+  status: z.enum(['active', 'inactive']).default('active'),
+  createdAt: z.coerce.date().optional(),
+});
+
+// ============================================
 // Type Exports (for TypeScript)
 // ============================================
 
@@ -245,3 +356,8 @@ export type MedicalRecord = z.infer<typeof MedicalRecordSchema>;
 export type Review = z.infer<typeof ReviewSchema>;
 export type Payment = z.infer<typeof PaymentSchema>;
 export type Notification = z.infer<typeof NotificationSchema>;
+export type Organization = z.infer<typeof OrganizationSchema>;
+export type Clinic = z.infer<typeof ClinicSchema>;
+export type StaffMember = z.infer<typeof StaffMemberSchema>;
+export type Referral = z.infer<typeof ReferralSchema>;
+export type Department = z.infer<typeof DepartmentSchema>;

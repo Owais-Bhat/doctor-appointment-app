@@ -134,9 +134,9 @@ export default function BookPage() {
     <>
       <div className="fade-enter col gap-7">
         <div className="row between wrap gap-4">
-          <div className="col" style={{ gap: 6 }}>
+          <div className="portal-hero">
             <div className="eyebrow">AI booking</div>
-            <h1 className="h-1">Book care with <span className="hero-italic" style={{ color: "var(--accent)" }}>voice</span>.</h1>
+            <h1 className="h-1 portal-title">Book care with <span className="hero-italic" style={{ color: "var(--accent)" }}>voice</span>.</h1>
             <p className="body">Map symptoms, pick a specialist, verify insurance, and reserve video, voice, or in-person visits.</p>
           </div>
           <div className="search" style={{ minWidth: 320 }}>

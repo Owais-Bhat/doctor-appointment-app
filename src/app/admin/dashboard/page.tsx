@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronRight, Filter, MapPin, Phone, Plus, Sparkles, TrendingUp, Video } from "lucide-react";
+import { ChevronRight, Filter, MapPin, Phone, Plus, Sparkles, Video } from "lucide-react";
 import { MedFlowVoiceAssistant } from "@/components/MedFlowVoiceAssistant";
 import { useAuth } from "@/context/AuthContext";
 
@@ -47,21 +47,38 @@ export default function DoctorDashboard() {
   const { user, getToken } = useAuth();
   const [schedule, setSchedule] = useState<Appointment[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    getToken().then(async token => {
-      const headers = { Authorization: `Bearer ${token}` };
-      const [schedRes, statsRes] = await Promise.all([
-        fetch('/api/doctor/schedule', { headers }).then(r => r.json()),
-        fetch('/api/doctor/stats', { headers }).then(r => r.json()),
-      ]);
-      setSchedule(schedRes.appointments ?? []);
-      setStats(statsRes.stats ?? null);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [user]);
+    if (!user) return;
+
+    let cancelled = false;
+
+    async function loadDashboard() {
+      setLoading(true);
+      try {
+        const token = await getToken();
+        const headers = { Authorization: `Bearer ${token}` };
+        const [scheduleResponse, statsResponse] = await Promise.all([
+          fetch('/api/doctor/schedule', { headers }).then(response => response.json()),
+          fetch('/api/doctor/stats', { headers }).then(response => response.json()),
+        ]);
+
+        if (!cancelled) {
+          setSchedule(scheduleResponse.appointments ?? []);
+          setStats(statsResponse.stats ?? null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, getToken]);
 
   const doctorName = user?.displayName ?? "Doctor";
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
@@ -81,12 +98,12 @@ export default function DoctorDashboard() {
   return (
     <div className="fade-enter col gap-7">
       <div className="row between wrap gap-4">
-        <div className="col" style={{ gap: 12 }}>
+        <div className="portal-hero">
           <div className="eyebrow">Doctor&apos;s view</div>
-          <h1 className="h-1" style={{ marginBottom: 0 }}>
+          <h1 className="h-1 portal-title">
             Good morning, <span className="hero-italic" style={{ color: "var(--accent)" }}>{doctorName}</span>.
           </h1>
-          <p className="body" style={{ marginTop: 8 }}>
+          <p className="body">
             {loading ? "Loading your schedule…" : schedule.length === 0
               ? "No appointments scheduled for today."
               : `${schedule.length} appointment${schedule.length !== 1 ? 's' : ''} today.`}
@@ -99,7 +116,7 @@ export default function DoctorDashboard() {
       </div>
 
       <div className="bento" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-        {kpis.map((kpi, index) => (
+        {kpis.map((kpi) => (
           <div key={kpi.label} className="glass cell stat">
             <div className="eyebrow" style={{ marginBottom: 10 }}>{kpi.label}</div>
             <div className="row between" style={{ alignItems: "baseline" }}>

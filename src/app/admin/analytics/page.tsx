@@ -55,7 +55,7 @@ export default function DoctorAnalytics() {
 
   return (
     <div className="fade-enter col gap-7">
-      <div className="col" style={{ gap: 6 }}>
+      <div className="col">
         <div className="eyebrow">Business intelligence</div>
         <h1 className="h-1">Analytics</h1>
         <p className="body">Visit volume, revenue cycle, patient outcomes, and quality measures.</p>

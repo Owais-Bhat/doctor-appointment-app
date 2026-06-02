@@ -74,7 +74,7 @@ export default function AppointmentKanban() {
   return (
     <div className="fade-enter col gap-7">
       <div className="row between wrap gap-4">
-        <div className="col" style={{ gap: 6 }}>
+        <div className="col">
           <div className="eyebrow">Appointment operations</div>
           <h1 className="h-1">Today's visit pipeline</h1>
           <p className="body">Today's schedule organized by status. Confirm, complete, or join visits.</p>

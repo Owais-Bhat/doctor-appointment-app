@@ -35,31 +35,44 @@ function formatTime(t: string) {
 export default function ClientDashboard() {
   const { user, getToken } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    getToken().then(token =>
-      fetch('/api/patient/appointments', { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.json())
-        .then(d => {
-          const upcoming = (d.appointments ?? []).filter((a: Appointment) =>
-            ['confirmed', 'pending'].includes(a.status)
-          );
-          setAppointments(upcoming.slice(0, 3));
-        })
-        .catch(console.error)
-        .finally(() => setLoading(false))
-    );
-  }, [user]);
+    if (!user) return;
+
+    let cancelled = false;
+
+    async function loadAppointments() {
+      setLoading(true);
+      try {
+        const token = await getToken();
+        const response = await fetch('/api/patient/appointments', { headers: { Authorization: `Bearer ${token}` } });
+        const data = await response.json();
+        const upcoming = (data.appointments ?? []).filter((appointment: Appointment) =>
+          ['confirmed', 'pending'].includes(appointment.status)
+        );
+        if (!cancelled) setAppointments(upcoming.slice(0, 3));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadAppointments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, getToken]);
 
   return (
     <div className="fade-enter col gap-7">
-      <div className="col" style={{ gap: 12 }}>
+      <div className="portal-hero">
         <div className="eyebrow">Patient portal</div>
-        <h1 className="h-1" style={{ marginBottom: 0 }}>Your health, <span className="hero-italic" style={{ color: "var(--accent)" }}>flowing</span>.</h1>
-        <p className="body" style={{ marginTop: 8 }}>Book appointments, join video visits, and track your health records.</p>
-        <div className="row gap-3 wrap">
+        <h1 className="h-1 portal-title">Your health, <span className="hero-italic" style={{ color: "var(--accent)" }}>flowing</span>.</h1>
+        <p className="body">Book appointments, join video visits, and track your health records.</p>
+        <div className="portal-actions">
           <a href="/client/book" className="btn btn-primary"><CalendarDays size={14} /> Book appointment</a>
           <a href="/client/appointments" className="btn btn-ghost">My appointments</a>
         </div>
@@ -71,7 +84,7 @@ export default function ClientDashboard() {
           { label: "Health score", value: "—" },
           { label: "Records", value: "—" },
           { label: "Messages", value: "—" },
-        ].map((stat, i) => (
+        ].map((stat) => (
           <div key={stat.label} className="glass cell stat">
             <div className="eyebrow" style={{ marginBottom: 10 }}>{stat.label}</div>
             <div className="val tnum">{stat.value}</div>
