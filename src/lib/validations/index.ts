@@ -906,6 +906,93 @@ export type PushToken = z.infer<typeof PushTokenSchema>;
 export type Presence = z.infer<typeof PresenceSchema>;
 export type CallLog = z.infer<typeof CallLogSchema>;
 
+// ============================================
+// Advanced Features & AI (Phase 3 Weeks 13-14)
+// ============================================
+
+export const RecommendationSchema = z.object({
+  id: z.string().optional(),
+  userId: z.string(),
+  type: z.enum(['appointment', 'treatment', 'referral', 'preventive', 'lifestyle']),
+  title: z.string(),
+  description: z.string(),
+  confidence: z.number().min(0).max(1),
+  reason: z.string(),
+  actionUrl: z.string().optional(),
+  priority: z.enum(['low', 'medium', 'high']).default('medium'),
+  expiresAt: z.coerce.date().optional(),
+  dismissed: z.boolean().default(false),
+  dismissedAt: z.coerce.date().optional(),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const PredictionSchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string(),
+  type: z.enum(['churn', 'readmission', 'dna', 'revenue', 'utilization']),
+  targetId: z.string().optional(),
+  probability: z.number().min(0).max(1),
+  factors: z.record(z.number()).optional(),
+  timeframe: z.enum(['week', 'month', 'quarter']).default('month'),
+  confidence: z.number().min(0).max(1),
+  recommendations: z.array(z.string()).optional(),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const TranscriptionSchema = z.object({
+  id: z.string().optional(),
+  consultationId: z.string(),
+  audioUrl: z.string(),
+  duration: z.number(),
+  text: z.string(),
+  language: z.string().default('en'),
+  confidence: z.number().min(0).max(1),
+  segments: z.array(z.object({
+    timestamp: z.number(),
+    speaker: z.enum(['doctor', 'patient']),
+    text: z.string(),
+  })).optional(),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const PerformanceMetricSchema = z.object({
+  id: z.string().optional(),
+  timestamp: z.coerce.date(),
+  metric: z.string(),
+  value: z.number(),
+  unit: z.string(),
+  tags: z.record(z.string()).optional(),
+  threshold: z.number().optional(),
+  status: z.enum(['healthy', 'warning', 'critical']).optional(),
+});
+
+export const HealthCheckSchema = z.object({
+  timestamp: z.coerce.date(),
+  status: z.enum(['healthy', 'degraded', 'down']),
+  services: z.record(z.object({
+    status: z.enum(['up', 'down']),
+    latency: z.number().optional(),
+    lastChecked: z.coerce.date().optional(),
+  })).optional(),
+  uptime: z.number().optional(),
+  errorRate: z.number().optional(),
+});
+
+export const CacheConfigSchema = z.object({
+  key: z.string(),
+  ttl: z.number(),
+  size: z.number().optional(),
+  strategy: z.enum(['lru', 'lfu', 'fifo']).default('lru'),
+  tags: z.array(z.string()).optional(),
+});
+
+export type Recommendation = z.infer<typeof RecommendationSchema>;
+export type Prediction = z.infer<typeof PredictionSchema>;
+export type Transcription = z.infer<typeof TranscriptionSchema>;
+export type PerformanceMetric = z.infer<typeof PerformanceMetricSchema>;
+export type HealthCheck = z.infer<typeof HealthCheckSchema>;
+export type CacheConfig = z.infer<typeof CacheConfigSchema>;
+
 export type Organization = z.infer<typeof OrganizationSchema>;
 export type Clinic = z.infer<typeof ClinicSchema>;
 export type StaffMember = z.infer<typeof StaffMemberSchema>;
