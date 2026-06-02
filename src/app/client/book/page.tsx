@@ -216,9 +216,12 @@ export default function BookPage() {
                             {doc.bio.slice(0, 80)}{doc.bio.length > 80 ? "…" : ""}
                           </div>
                         )}
-                        {doc.languages && doc.languages.length > 0 && (
+                        {doc.languages && (
                           <div className="row gap-1 wrap" style={{ marginTop: 4 }}>
-                            {doc.languages.slice(0, 3).map(lang => (
+                            {(typeof doc.languages === 'string'
+                              ? doc.languages.split(',').map(l => l.trim())
+                              : doc.languages
+                            ).slice(0, 3).map(lang => (
                               <span key={lang} className="pill" style={{ fontSize: 10 }}>{lang}</span>
                             ))}
                           </div>
