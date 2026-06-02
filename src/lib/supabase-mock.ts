@@ -62,12 +62,13 @@ export function createMockClient() {
               };
             },
             single() {
+              const notFoundError = data[0] ? null : Object.assign(new Error('No rows found'), { code: 'PGRST116' });
               return {
                 then(resolve: any) {
-                  resolve({ data: data[0] || null, error: data[0] ? null : new Error('Not found') });
+                  resolve({ data: data[0] || null, error: notFoundError });
                 },
                 data: data[0] || null,
-                error: data[0] ? null : new Error('Not found')
+                error: notFoundError
               };
             },
             then(resolve: any) {
