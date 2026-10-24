@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { auth, signInWithGoogle, signOutFirebase } from "@/lib/firebase";
 import type { User } from "firebase/auth";
 
@@ -9,8 +9,10 @@ type UserRole = 'patient' | 'doctor' | 'super_admin';
 type AuthCtx = {
   user: User | null;
   role: UserRole | null;
+  /** Name from the MedFlow profile, falling back to the sign-in provider's name. */
+  displayName: string | null;
   isLoading: boolean;
-  signIn: () => Promise<any>;
+  signIn: () => Promise<unknown>;
   signOut: () => Promise<void>;
   getToken: () => Promise<string | null>;
 };
@@ -34,6 +36,7 @@ async function setSessionCookie(token: string, role: string) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { profile } = await res.json();
           const activeRole = (profile?.role ?? 'patient') as UserRole;
           setRole(activeRole);
+          setProfileName(profile?.full_name ?? null);
           await setSessionCookie(token, activeRole);
         } catch (error) {
           console.error("Error fetching user role:", error);
@@ -56,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setRole(null);
+        setProfileName(null);
       }
       setIsLoading(false);
     });
@@ -63,10 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const getToken = async (): Promise<string | null> => {
+  const getToken = useCallback(async (): Promise<string | null> => {
     if (!user) return null;
     return user.getIdToken();
-  };
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOutFirebase();
@@ -77,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, role, isLoading, signIn: signInWithGoogle, signOut: handleSignOut, getToken,
+      user, role, displayName: profileName ?? user?.displayName ?? null, isLoading, signIn: signInWithGoogle, signOut: handleSignOut, getToken,
     }}>
       {children}
     </AuthContext.Provider>

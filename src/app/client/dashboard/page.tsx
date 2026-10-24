@@ -1,9 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CalendarDays, FileText, HeartPulse, ShieldCheck, Video } from "@/components/medflow/Prototype";
-import { PrototypePanel } from "@/components/medflow/Prototype";
+import Link from "next/link";
+import { Building2, CalendarPlus, ClipboardList, Phone, Stethoscope, UserRound, Video } from "lucide-react";
+import { Headshot } from "@/components/medflow/Prototype";
 import { useAuth } from "@/context/AuthContext";
+import { useApi } from "@/lib/use-api";
+import {
+  STATUS_LABEL,
+  VISIT_TYPE_LABEL,
+  doctorName,
+  formatDay,
+  formatTime,
+  greeting,
+  nameHue,
+  toISODate,
+} from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type Appointment = {
   id: string;
@@ -11,136 +23,212 @@ type Appointment = {
   appointment_time: string;
   status: string;
   consultation_type: string;
-  doctor_profiles: {
-    specialty: string;
-    profiles: { full_name: string };
-  };
+  chief_complaint: string | null;
+  doctor_profiles: { id: string; specialty: string; profiles: { full_name: string } | null } | null;
 };
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  if (d.toDateString() === today.toDateString()) return 'Today';
-  if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+type Notification = { id: string; title: string; message: string; is_read: boolean; created_at: string };
+
+const TYPE_ICON = { video: Video, phone: Phone, in_person: Building2 } as const;
+
+function timeAgo(iso: string) {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 60) return `${Math.max(mins, 1)} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} h ago`;
+  const days = Math.round(hrs / 24);
+  return days === 1 ? "Yesterday" : `${days} days ago`;
 }
 
-function formatTime(t: string) {
-  const [h, m] = t.split(':').map(Number);
-  return `${h % 12 || 12}:${m.toString().padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+function NextVisit({ appt }: { appt: Appointment }) {
+  const name = doctorName(appt.doctor_profiles?.profiles?.full_name);
+  const TypeIcon = TYPE_ICON[appt.consultation_type as keyof typeof TYPE_ICON] ?? Stethoscope;
+  const confirmed = appt.status === "confirmed";
+
+  return (
+    <article className="db-next glass-strong" aria-labelledby="db-next-title">
+      <div className="db-next-when">
+        <span className="db-next-day">{formatDay(appt.appointment_date)}</span>
+        <span className="db-next-time">{formatTime(appt.appointment_time)}</span>
+      </div>
+
+      <div className="db-next-body">
+        <div className="row gap-3" style={{ alignItems: "center" }}>
+          <Headshot name={name} hue={nameHue(name)} size={48} />
+          <div className="col" style={{ gap: 2, minWidth: 0 }}>
+            <h2 id="db-next-title" className="h-4 mf-ellipsis">{name}</h2>
+            <span className="small">{appt.doctor_profiles?.specialty}</span>
+          </div>
+        </div>
+        <div className="row gap-2 wrap">
+          <span className={cn("pill", confirmed ? "good" : "warn")}>{STATUS_LABEL[appt.status] ?? appt.status}</span>
+          <span className="pill">
+            <TypeIcon size={13} /> {VISIT_TYPE_LABEL[appt.consultation_type] ?? "Visit"}
+          </span>
+        </div>
+        {appt.chief_complaint && <p className="small db-next-reason">“{appt.chief_complaint}”</p>}
+        <div className="row gap-2 wrap db-next-actions">
+          <Link href={`/client/intake/${appt.id}`} className="btn btn-primary btn-sm">
+            <ClipboardList size={14} /> {appt.chief_complaint ? "Update visit details" : "Add visit details"}
+          </Link>
+          <Link href="/client/appointments" className="btn btn-ghost btn-sm">
+            Manage visit
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function NoVisits() {
+  return (
+    <article className="db-next db-next-empty glass-strong">
+      <div className="col gap-2">
+        <h2 className="h-3">No visits coming up</h2>
+        <p className="body">Find a doctor and pick a time that suits you. Most clinics confirm within a few hours.</p>
+      </div>
+      <div className="row gap-2 wrap">
+        <Link href="/client/book" className="btn btn-primary">
+          <CalendarPlus size={15} /> Book a visit
+        </Link>
+        <Link href="/client/doctors" className="btn btn-ghost">
+          Browse doctors
+        </Link>
+      </div>
+    </article>
+  );
 }
 
 export default function ClientDashboard() {
-  const { user, getToken } = useAuth();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { displayName } = useAuth();
+  const appts = useApi<{ appointments: Appointment[] }>("/api/patient/appointments");
+  const notes = useApi<{ notifications: Notification[] }>("/api/patient/notifications");
 
-  useEffect(() => {
-    if (!user) return;
+  const today = toISODate(new Date());
+  const upcoming = (appts.data?.appointments ?? [])
+    .filter((a) => ["pending", "confirmed"].includes(a.status) && a.appointment_date >= today)
+    .sort((a, b) => `${a.appointment_date}${a.appointment_time}`.localeCompare(`${b.appointment_date}${b.appointment_time}`));
+  const [next, ...later] = upcoming;
+  const recent = (notes.data?.notifications ?? []).slice(0, 4);
+  const firstName = displayName?.replace(/^dr\.?\s+/i, "").split(" ")[0];
 
-    let cancelled = false;
-
-    async function loadAppointments() {
-      setLoading(true);
-      try {
-        const token = await getToken();
-        const response = await fetch('/api/patient/appointments', { headers: { Authorization: `Bearer ${token}` } });
-        const data = await response.json();
-        const upcoming = (data.appointments ?? []).filter((appointment: Appointment) =>
-          ['confirmed', 'pending'].includes(appointment.status)
-        );
-        if (!cancelled) setAppointments(upcoming.slice(0, 3));
-      } catch (error) {
-        console.error(error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadAppointments();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, getToken]);
+  const summary = appts.loading
+    ? "Loading your visits…"
+    : upcoming.length === 0
+      ? "You have no upcoming visits."
+      : upcoming.length === 1
+        ? "You have one upcoming visit."
+        : `You have ${upcoming.length} upcoming visits.`;
 
   return (
-    <div className="fade-enter col gap-7">
-      <div className="portal-hero">
-        <div className="eyebrow">Patient portal</div>
-        <h1 className="h-1 portal-title">Your health, <span className="hero-italic" style={{ color: "var(--accent)" }}>flowing</span>.</h1>
-        <p className="body">Book appointments, join video visits, and track your health records.</p>
-        <div className="portal-actions">
-          <a href="/client/book" className="btn btn-primary"><CalendarDays size={14} /> Book appointment</a>
-          <a href="/client/appointments" className="btn btn-ghost">My appointments</a>
+    <div className="db">
+      <header className="db-head">
+        <div className="col gap-2">
+          <h1 className="h-1">
+            {greeting()}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="body">{summary}</p>
         </div>
-      </div>
+        {upcoming.length > 0 && (
+          <Link href="/client/book" className="btn btn-primary db-head-cta">
+            <CalendarPlus size={15} /> Book a visit
+          </Link>
+        )}
+      </header>
 
-      <div className="bento" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-        {[
-          { label: "Upcoming visits", value: loading ? "—" : String(appointments.length) },
-          { label: "Health score", value: "—" },
-          { label: "Records", value: "—" },
-          { label: "Messages", value: "—" },
-        ].map((stat) => (
-          <div key={stat.label} className="glass cell stat">
-            <div className="eyebrow" style={{ marginBottom: 10 }}>{stat.label}</div>
-            <div className="val tnum">{stat.value}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
-        <div className="glass" style={{ padding: 24 }}>
-          <div className="row between" style={{ marginBottom: 18 }}>
-            <div>
-              <div className="eyebrow">Care timeline</div>
-              <div className="h-3">Upcoming visits</div>
+      <div className="db-grid">
+        <div className="col gap-6" style={{ minWidth: 0 }}>
+          {appts.loading ? (
+            <div className="db-next glass-strong bk-skeleton" style={{ minHeight: 200 }} aria-busy="true" />
+          ) : appts.error ? (
+            <div className="bk-empty">
+              <p className="h-4">Your visits could not be loaded</p>
+              <p className="small">{appts.error}.</p>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={appts.reload}>
+                Try again
+              </button>
             </div>
-            <span className="pill good"><ShieldCheck size={11} /> Consent active</span>
-          </div>
-
-          {loading ? (
-            <div className="col gap-3">
-              {[1, 2, 3].map(i => <div key={i} style={{ height: 60, borderRadius: 14, border: "1px solid var(--line)", opacity: 0.4 }} />)}
-            </div>
-          ) : appointments.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "24px 0" }}>
-              <div className="small" style={{ marginBottom: 14 }}>No upcoming appointments.</div>
-              <a href="/client/book" className="btn btn-primary btn-sm"><CalendarDays size={13} /> Book now</a>
-            </div>
+          ) : next ? (
+            <NextVisit appt={next} />
           ) : (
-            <div className="col gap-3">
-              {appointments.map(appt => {
-                const doctorName = appt.doctor_profiles?.profiles?.full_name ?? "Doctor";
-                return (
-                  <div key={appt.id} className="dashboard-list-row row gap-4" style={{ padding: 14, borderRadius: 14, border: "1px solid var(--line)" }}>
-                    <div className="pill accent tnum">{formatDate(appt.appointment_date)}</div>
-                    <div className="grow">
-                      <div style={{ fontWeight: 700 }}>{doctorName}</div>
-                      <div className="small">{appt.doctor_profiles?.specialty} · {formatTime(appt.appointment_time)}</div>
-                    </div>
-                    <Video size={16} style={{ color: "var(--accent)" }} />
-                  </div>
-                );
-              })}
-            </div>
+            <NoVisits />
           )}
+
+          {later.length > 0 && (
+            <section className="col gap-3" aria-labelledby="db-later">
+              <div className="row between">
+                <h2 id="db-later" className="h-4">Later</h2>
+                <Link href="/client/appointments" className="db-link">All visits</Link>
+              </div>
+              <ul className="db-list">
+                {later.slice(0, 4).map((a) => {
+                  const name = doctorName(a.doctor_profiles?.profiles?.full_name);
+                  return (
+                    <li key={a.id}>
+                      <Link href="/client/appointments" className="db-row">
+                        <span className="db-row-date">
+                          <span>{formatDay(a.appointment_date)}</span>
+                          <span className="tiny">{formatTime(a.appointment_time)}</span>
+                        </span>
+                        <span className="col" style={{ gap: 1, minWidth: 0 }}>
+                          <span className="mf-ellipsis" style={{ fontWeight: 600 }}>{name}</span>
+                          <span className="tiny mf-ellipsis">
+                            {a.doctor_profiles?.specialty} · {VISIT_TYPE_LABEL[a.consultation_type] ?? "Visit"}
+                          </span>
+                        </span>
+                        <span className={cn("db-status", a.status)}>{STATUS_LABEL[a.status] ?? a.status}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
+          <nav className="db-shortcuts" aria-label="Shortcuts">
+            <Link href="/client/doctors" className="db-shortcut">
+              <Stethoscope size={18} />
+              <span>
+                <strong>Find a doctor</strong>
+                <span className="tiny">By specialty, language or clinic</span>
+              </span>
+            </Link>
+            <Link href="/client/profile" className="db-shortcut">
+              <UserRound size={18} />
+              <span>
+                <strong>Health profile</strong>
+                <span className="tiny">Blood type, allergies, contact details</span>
+              </span>
+            </Link>
+          </nav>
         </div>
 
-        <div className="col gap-4">
-          <PrototypePanel icon={HeartPulse} eyebrow="Vitals" title="Remote monitoring">
-            <p className="small">Blood pressure, sleep, heart rate, and symptom trends are ready for your clinician.</p>
-          </PrototypePanel>
-          <PrototypePanel icon={FileText} eyebrow="Records" title="Encrypted medical file">
-            <p className="small">Labs, prescriptions, visit notes, and insurance cards are organized with access logging.</p>
-          </PrototypePanel>
-          <PrototypePanel icon={CalendarDays} eyebrow="Booking" title="AI appointment desk">
-            <p className="small">Voice scheduling routes you to the right provider and checks availability instantly.</p>
-          </PrototypePanel>
-        </div>
+        <section className="db-updates" aria-labelledby="db-updates">
+          <div className="row between">
+            <h2 id="db-updates" className="h-4">Updates</h2>
+            <Link href="/client/notifications" className="db-link">See all</Link>
+          </div>
+          {notes.loading ? (
+            <div className="col gap-2">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="bk-skeleton" style={{ minHeight: 64, borderRadius: 14 }} />
+              ))}
+            </div>
+          ) : recent.length === 0 ? (
+            <p className="small">Booking confirmations and reminders will show up here.</p>
+          ) : (
+            <ul className="db-notes">
+              {recent.map((n) => (
+                <li key={n.id} className={cn(!n.is_read && "unread")}>
+                  <span className="db-note-title">{n.title}</span>
+                  <span className="small">{n.message}</span>
+                  <span className="tiny">{timeAgo(n.created_at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </div>
   );

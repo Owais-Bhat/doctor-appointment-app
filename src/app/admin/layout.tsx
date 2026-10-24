@@ -1,6 +1,5 @@
 import React from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { TopBar } from "@/components/layout/TopBar";
+import { PortalShell } from "@/components/layout/PortalShell";
 
 export const metadata = {
   title: "MedFlow - Doctor Portal",
@@ -8,16 +7,5 @@ export const metadata = {
 };
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="atmos app-atmos" aria-hidden="true" />
-      <div className="app-shell">
-        <Sidebar />
-        <main className="main">
-          <TopBar />
-          {children}
-        </main>
-      </div>
-    </div>
-  );
+  return <PortalShell>{children}</PortalShell>;
 }

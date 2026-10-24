@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Search, Star, Video } from "lucide-react";
+import { Search, Star, Video } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
-import { useAuth } from "@/context/AuthContext";
+import { doctorName, formatFee } from "@/lib/format";
 
 type Doctor = {
   id: string;
@@ -16,7 +16,6 @@ type Doctor = {
 };
 
 export default function DoctorsPage() {
-  const { user, getToken } = useAuth();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -70,7 +69,7 @@ export default function DoctorsPage() {
               <div className="row gap-4">
                 <Headshot name={doctor.profiles?.full_name ?? "?"} hue={hue(doctor.profiles?.full_name ?? "")} size={64} />
                 <div>
-                  <div className="h-4">{doctor.profiles?.full_name}</div>
+                  <div className="h-4">{doctorName(doctor.profiles?.full_name)}</div>
                   <div className="small">{doctor.specialty}</div>
                   {doctor.rating > 0 && (
                     <div className="row gap-1" style={{ marginTop: 8, color: "var(--accent)" }}>
@@ -81,8 +80,8 @@ export default function DoctorsPage() {
                 </div>
               </div>
               <div className="row between" style={{ marginTop: 20 }}>
-                <span className="pill">${doctor.consultation_fee}/visit</span>
-                <a className="btn btn-primary btn-sm" href={`/client/book`}>
+                <span className="pill">{formatFee(doctor.consultation_fee)} / visit</span>
+                <a className="btn btn-primary btn-sm" href={`/client/book?doctor=${doctor.id}`}>
                   <Video size={12} /> Book
                 </a>
               </div>

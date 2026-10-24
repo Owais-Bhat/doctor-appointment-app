@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { verifyToken, unauthorized } from '@/lib/api-auth'
 import { getStripe } from '@/lib/stripe'
+import { CURRENCY } from '@/lib/format'
 
 
 export async function POST(request: Request) {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     }
 
     const doctor = appt.doctor_profiles as unknown as { consultation_fee?: number; profiles?: { full_name?: string } } | null
-    const fee = Math.round(Number(doctor?.consultation_fee ?? 100) * 100) // cents
+    const fee = Math.round(Number(doctor?.consultation_fee ?? 100) * 100) // smallest unit (cents / paise)
     const doctorName = doctor?.profiles?.full_name ?? 'Your doctor'
 
     // Never build redirect URLs from a client-controlled header
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
       payment_method_types: ['card'],
       line_items: [{
         price_data: {
-          currency: 'usd',
+          currency: CURRENCY.toLowerCase(),
           product_data: {
             name: `Consultation with Dr. ${doctorName}`,
             description: `${appt.appointment_date} at ${appt.appointment_time.substring(0, 5)}`,

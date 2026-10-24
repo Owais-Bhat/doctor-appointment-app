@@ -6,6 +6,7 @@ export const createClient = () => {
   
   if (typeof window === 'undefined') {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('dummy')) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { createMockClient } = require('./supabase-mock');
       return createMockClient();
     }

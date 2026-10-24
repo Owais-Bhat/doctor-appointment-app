@@ -10,6 +10,9 @@ export function RealtimeStatusProvider({ children }: { children: React.ReactNode
 
   useEffect(() => {
     if (!user) return;
+    // Realtime needs a configured Supabase project; skip it in local mock mode
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!url || url.includes('dummy')) return;
 
     const supabase = createClient();
 

@@ -130,8 +130,8 @@ export default function ClientProfile() {
   return (
     <div className="fade-enter col gap-7">
       {/* Header */}
-      <div className="glass" style={{ padding: 28 }}>
-        <div className="row gap-5">
+      <div className="glass pf-card" style={{ padding: 28 }}>
+        <div className="row gap-5 pf-head">
           {loading
             ? <div style={{ width: 96, height: 96, borderRadius: "50%", background: "var(--glass)", flexShrink: 0 }} />
             : <Headshot name={name} hue={nameHue(name)} size={96} />
