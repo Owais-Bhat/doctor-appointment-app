@@ -5,7 +5,7 @@ import { Building2, CalendarPlus, ClipboardList, Phone, Stethoscope, UserRound, 
 import { Headshot } from "@/components/medflow/Prototype";
 import { useAuth } from "@/context/AuthContext";
 import { useApi } from "@/lib/use-api";
-import { canJoinVideo, videoRoomUrl } from "@/lib/video";
+import { canJoinVideo } from "@/lib/video";
 import {
   STATUS_LABEL,
   VISIT_TYPE_LABEL,
@@ -70,9 +70,9 @@ function NextVisit({ appt }: { appt: Appointment }) {
         {appt.chief_complaint && <p className="small db-next-reason">“{appt.chief_complaint}”</p>}
         <div className="row gap-2 wrap db-next-actions">
           {confirmed && appt.consultation_type === "video" && canJoinVideo(appt.appointment_date, appt.appointment_time) && (
-            <a href={videoRoomUrl(appt.id)} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm">
+            <Link href={`/client/visit/${appt.id}`} className="btn btn-primary btn-sm">
               <Video size={14} /> Join video
-            </a>
+            </Link>
           )}
           <Link href={`/client/intake/${appt.id}`} className="btn btn-primary btn-sm">
             <ClipboardList size={14} /> {appt.chief_complaint ? "Update visit details" : "Add visit details"}

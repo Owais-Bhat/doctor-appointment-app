@@ -1,18 +1,10 @@
 import { clinicInstant } from './clinic-time'
 
 /**
- * Video visits use a Jitsi Meet room named after the appointment id.
- * The id is a random UUID, so the room name cannot be guessed. Doctor and
- * patient open the same link. Set NEXT_PUBLIC_JITSI_DOMAIN to use a
- * self-hosted Jitsi server instead of the public meet.jit.si.
+ * Whether to show the "Join video" button: from 15 minutes before the visit
+ * until the end of that day. The server enforces the same window when a
+ * room link is requested (see lib/visit-access.ts).
  */
-const DOMAIN = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.jit.si'
-
-export function videoRoomUrl(appointmentId: string): string {
-  return `https://${DOMAIN}/medflow-${appointmentId}`
-}
-
-/** The room opens 15 minutes before the visit and stays open for the day. */
 export function canJoinVideo(date: string, time: string, now = new Date()): boolean {
   const start = clinicInstant(date, time.substring(0, 5))
   const endOfDay = clinicInstant(date, '23:59')

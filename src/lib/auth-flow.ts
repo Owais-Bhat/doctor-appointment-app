@@ -6,7 +6,7 @@ export const HOME: Record<Role, string> = {
   super_admin: '/super-admin/dashboard',
 }
 
-const AREA: Record<Role, string> = { patient: '/client', doctor: '/admin', super_admin: '/' }
+const AREA: Record<Role, string> = { patient: '/client/', doctor: '/admin/', super_admin: '/super-admin/' }
 
 /**
  * Where to go after sign-in: the `next` page if it is a same-site path the

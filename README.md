@@ -26,6 +26,13 @@ Sign-in always needs a Firebase project.
 New database: run `supabase/schema.sql` in the Supabase SQL editor.
 Existing database: run the files in `supabase/migrations/` in order.
 
+## Video visits
+
+Patients and doctors join from the visit page inside MedFlow (`/client/visit/<id>`, `/admin/visit/<id>`): camera and microphone check, a countdown until the room opens (15 min before for patients, 60 for doctors), the call itself, and for doctors a notes panel with “End visit and complete”.
+
+- **Daily (recommended):** set `DAILY_API_KEY` and `DAILY_DOMAIN`. Each visit gets a private room and only its patient and doctor receive a join token. The free plan includes 10,000 participant minutes a month.
+- **Jitsi:** without Daily, set `NEXT_PUBLIC_JITSI_DOMAIN` to your own Jitsi server or JaaS. The public meet.jit.si is fine for trying it out but isn't meant for embedding in production.
+
 ## Visit reminders
 
 Patients get a reminder about 24 hours and 1 hour before each **confirmed** visit: always in the app, and by SMS or WhatsApp when configured. Patients can turn text reminders off on their health profile.
@@ -42,6 +49,7 @@ For India: SMS needs DLT-registered sender and templates; WhatsApp outside a 24-
 
 - **Identity** comes only from the Firebase ID token (`Authorization: Bearer <token>`), verified on the server. User ids or roles sent in headers or request bodies are never trusted.
 - **Roles** are read from the `profiles` table on every request by `requireUser(request, roles)` in `src/lib/api-auth.ts`.
+- **Portals are separate**: each role can open only its own portal (patients `/client`, doctors `/admin`, admins `/super-admin`); anything else redirects to their home.
 - **Pages** are guarded by `src/proxy.ts` using a role cookie signed with `SESSION_SECRET` (`src/lib/session.ts`), so it cannot be forged in the browser.
 - **Database** access goes through server routes with the service role key; Row Level Security is enabled on every table so the public anon key cannot read patient data.
 - **Time zone**: appointment times are the clinic's wall-clock time (`NEXT_PUBLIC_TIME_ZONE`, default Asia/Kolkata), so servers running in UTC still know what "today" and "in the past" mean.

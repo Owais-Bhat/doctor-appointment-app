@@ -5,7 +5,8 @@ import { Building2, Check, NotebookPen, Phone, Video, X } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
 import { useAuthedFetch } from "@/lib/use-api";
 import { STATUS_LABEL, VISIT_TYPE_LABEL, formatTime, nameHue, toISODate } from "@/lib/format";
-import { canJoinVideo, videoRoomUrl } from "@/lib/video";
+import Link from "next/link";
+import { canJoinVideo } from "@/lib/video";
 import { cn } from "@/lib/utils";
 
 export type DoctorVisit = {
@@ -194,9 +195,9 @@ export function VisitRow({
           {status === "confirmed" && (
             <>
               {visit.consultation_type === "video" && canJoinVideo(visit.appointment_date, visit.appointment_time) && (
-                <a className="btn btn-primary btn-sm" href={videoRoomUrl(visit.id)} target="_blank" rel="noopener noreferrer">
+                <Link className="btn btn-primary btn-sm" href={`/admin/visit/${visit.id}`}>
                   <Video size={14} /> Start video
-                </a>
+                </Link>
               )}
               {isPastOrToday && (
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode("complete")}>

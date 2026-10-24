@@ -82,7 +82,7 @@ function Sidebar() {
 function PageHeader() {
   const pathname = usePathname();
   const portal = NAV[portalFor(pathname)];
-  const label = currentItem(pathname)?.label;
+  const label = currentItem(pathname)?.label ?? (pathname.includes("/visit/") ? "Video visit" : undefined);
 
   return (
     <header className="mf-header">
