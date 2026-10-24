@@ -1,5 +1,6 @@
 "use client";
 
+import { videoRoomUrl } from "@/lib/video";
 import { useEffect, useState } from "react";
 import { CalendarDays, Check, Clock, CreditCard, ExternalLink, FileText, Phone, Star, Video, X } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
@@ -122,7 +123,7 @@ export default function ClientAppointments() {
   };
 
   const joinVideo = (appointmentId: string) => {
-    window.open(`https://meet.jit.si/medflow-${appointmentId}`, "_blank", "noopener");
+    window.open(videoRoomUrl(appointmentId), "_blank", "noopener");
   };
 
   return (

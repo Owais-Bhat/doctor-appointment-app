@@ -13,14 +13,14 @@ export async function POST(
 
   const { data: appt } = await supabaseAdmin
     .from('appointments')
-    .select('id, status')
+    .select('id, status, appointment_date, appointment_time, doctor_id')
     .eq('id', id)
     .eq('patient_id', uid)
-    .single()
+    .maybeSingle()
 
   if (!appt) return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
 
-  if (appt.status === 'completed' || appt.status === 'cancelled') {
+  if (!['pending', 'confirmed'].includes(appt.status)) {
     return NextResponse.json({ error: `Cannot cancel a ${appt.status} appointment` }, { status: 400 })
   }
 
@@ -29,7 +29,22 @@ export async function POST(
     .update({ status: 'cancelled', updated_at: new Date().toISOString() })
     .eq('id', id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: 'Could not cancel appointment' }, { status: 500 })
+
+  // Let the doctor know the slot is free again
+  const { data: doctor } = await supabaseAdmin
+    .from('doctor_profiles').select('profile_id').eq('id', appt.doctor_id).maybeSingle()
+  const doctorUserId = doctor?.profile_id
+  if (doctorUserId) {
+    const { data: patient } = await supabaseAdmin.from('profiles').select('full_name').eq('id', uid).maybeSingle()
+    await supabaseAdmin.from('notifications').insert({
+      user_id: doctorUserId,
+      title: 'Appointment cancelled',
+      message: `${patient?.full_name ?? 'A patient'} cancelled their visit on ${appt.appointment_date} at ${String(appt.appointment_time).substring(0, 5)}.`,
+      type: 'warning',
+      related_appointment_id: id,
+    })
+  }
 
   await supabaseAdmin.from('audit_logs').insert({
     actor_id: uid,

@@ -1,5 +1,6 @@
 "use client";
 
+import { CURRENCY } from "@/lib/format";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Save, Star, Briefcase, DollarSign, FileText } from "lucide-react";
@@ -120,7 +121,7 @@ export default function DoctorProfilePage() {
             <div className="glass cell">
               <div className="row gap-2" style={{ marginBottom: 10, color: "var(--accent)" }}>
                 <DollarSign size={14} />
-                <span className="eyebrow">Consultation fee ($)</span>
+                <span className="eyebrow">Consultation fee ({CURRENCY})</span>
               </div>
               <input
                 className="input"

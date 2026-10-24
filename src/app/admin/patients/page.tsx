@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Activity, FileText, HeartPulse, MessageCircle, Search, ShieldCheck, Stethoscope, TrendingUp } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useMemo, useState } from "react";
+import { Mail, Phone, Search } from "lucide-react";
+import { Headshot } from "@/components/medflow/Prototype";
+import { useApi } from "@/lib/use-api";
+import { STATUS_LABEL, formatDay, nameHue } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type PatientRow = {
   patient_id: string;
@@ -13,218 +15,165 @@ type PatientRow = {
   profiles: {
     id: string;
     full_name: string;
-    email: string;
+    email: string | null;
     phone: string | null;
     blood_type: string | null;
     date_of_birth: string | null;
-    health_stats: Record<string, string | number> | null;
-  };
+    health_stats: Record<string, unknown> | null;
+  } | null;
 };
 
-function nameHue(name: string) {
-  let h = 0;
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return h;
+function age(dob: string | null) {
+  if (!dob) return null;
+  const d = new Date(`${dob}T00:00:00`);
+  const now = new Date();
+  let a = now.getFullYear() - d.getFullYear();
+  if (now < new Date(now.getFullYear(), d.getMonth(), d.getDate())) a--;
+  return a >= 0 && a < 130 ? a : null;
 }
 
-function Headshot({ name, size }: { name: string; size: number }) {
-  const hue = nameHue(name);
-  const initials = name.split(" ").map(p => p[0]).slice(0, 2).join("");
+/** Health fields patients fill in on their profile, shown when present. */
+const HEALTH_FIELDS: [string, string][] = [
+  ["allergies", "Allergies"],
+  ["chronic_conditions", "Conditions"],
+  ["medications", "Medications"],
+  ["bp", "Blood pressure"],
+  ["weight", "Weight"],
+  ["height", "Height"],
+];
+
+function Details({ row }: { row: PatientRow }) {
+  const p = row.profiles;
+  if (!p) return null;
+  const years = age(p.date_of_birth);
+  const health = HEALTH_FIELDS.filter(([k]) => p.health_stats?.[k]).map(([k, label]) => [label, String(p.health_stats![k])]);
+
   return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%", flexShrink: 0,
-      background: `linear-gradient(135deg, hsl(${hue} 65% 65%), hsl(${(hue + 40) % 360} 60% 40%))`,
-      display: "grid", placeItems: "center", color: "#fff",
-      fontWeight: 700, fontSize: size * 0.33,
-    }}>{initials}</div>
-  );
-}
+    <div className="pt-detail">
+      <div className="row gap-3" style={{ alignItems: "center" }}>
+        <Headshot name={p.full_name} hue={nameHue(p.full_name)} size={56} />
+        <div className="col" style={{ gap: 2, minWidth: 0 }}>
+          <h2 className="h-3 mf-ellipsis">{p.full_name}</h2>
+          <span className="small">
+            {[years !== null ? `${years} years` : null, p.blood_type ? `Blood ${p.blood_type}` : null].filter(Boolean).join(" · ") || "No age or blood type on file"}
+          </span>
+        </div>
+      </div>
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      <div className="row gap-2 wrap">
+        {p.phone && (
+          <a className="btn btn-ghost btn-sm" href={`tel:${p.phone.replace(/\s/g, "")}`}>
+            <Phone size={14} /> {p.phone}
+          </a>
+        )}
+        {p.email && (
+          <a className="btn btn-ghost btn-sm" href={`mailto:${p.email}`}>
+            <Mail size={14} /> Email
+          </a>
+        )}
+      </div>
+
+      <dl className="dr-stats">
+        <div>
+          <dt>Latest visit</dt>
+          <dd>
+            {formatDay(row.appointment_date)} · {STATUS_LABEL[row.status] ?? row.status}
+          </dd>
+        </div>
+        {row.chief_complaint && (
+          <div>
+            <dt>Reason</dt>
+            <dd className="pt-wrap">{row.chief_complaint}</dd>
+          </div>
+        )}
+        {health.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd className="pt-wrap">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {health.length === 0 && <p className="tiny">The patient hasn’t added allergies or conditions to their health profile.</p>}
+    </div>
+  );
 }
 
 export default function PatientsPage() {
-  const { user, getToken } = useAuth();
-  const [patients, setPatients] = useState<PatientRow[]>([]);
-  const [selected, setSelected] = useState<PatientRow | null>(null);
+  const { data, loading, error, reload } = useApi<{ patients: PatientRow[] }>("/api/doctor/patients");
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    getToken().then(async token => {
-      const res = await fetch("/api/doctor/patients", { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      const rows: PatientRow[] = data.patients ?? [];
-      setPatients(rows);
-      if (rows.length > 0) setSelected(rows[0]);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [user]);
-
-  const filtered = patients.filter(p =>
-    `${p.profiles?.full_name ?? ""} ${p.chief_complaint ?? ""} ${p.profiles?.blood_type ?? ""}`
-      .toLowerCase().includes(query.toLowerCase())
+  const rows = useMemo(() => (data?.patients ?? []).filter((r) => r.profiles), [data]);
+  const filtered = rows.filter((r) =>
+    `${r.profiles?.full_name} ${r.profiles?.phone ?? ""} ${r.chief_complaint ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()),
   );
+  const selected = filtered.find((r) => r.patient_id === selectedId) ?? filtered[0] ?? null;
 
   return (
-    <div className="fade-enter col gap-7">
-      <div className="row between wrap gap-4">
-        <div className="col" style={{ gap: 6 }}>
-          <div className="eyebrow">Longitudinal care</div>
-          <h1 className="h-1">Patient records</h1>
-          <p className="body">Clinical timeline, outcomes, and engagement in one record.</p>
+    <div className="dr">
+      <header className="dr-head">
+        <div className="col gap-2">
+          <h1 className="h-1">Patients</h1>
+          <p className="body">{loading ? "Loading…" : `${rows.length} ${rows.length === 1 ? "person has" : "people have"} booked with you.`}</p>
         </div>
-        <div className="search" style={{ minWidth: 280 }}>
-          <Search size={16} style={{ color: "var(--ink-3)" }} />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search patients" />
-        </div>
-      </div>
+      </header>
 
-      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: 20, alignItems: "start" }}>
-        <div className="glass" style={{ padding: 0, overflow: "hidden" }}>
-          {loading ? (
-            <div className="col gap-3" style={{ padding: 16 }}>
-              {[1, 2, 3, 4].map(i => <div key={i} style={{ height: 52, borderRadius: 12, border: "1px solid var(--line)", opacity: 0.4 }} />)}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px 0" }}>
-              <div className="small" style={{ color: "var(--ink-3)" }}>{query ? "No results." : "No patients yet."}</div>
-            </div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
-                  {["Patient", "Last complaint", "Blood type", "Last visit", ""].map(h => (
-                    <th key={h} style={{ padding: "12px 16px" }}><span className="eyebrow">{h}</span></th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(row => {
-                  const name = row.profiles?.full_name ?? "Patient";
-                  const isSelected = selected?.patient_id === row.patient_id;
+      {loading ? (
+        <div className="bk-skeleton" style={{ minHeight: 280, borderRadius: 18 }} aria-busy="true" />
+      ) : error ? (
+        <div className="bk-empty">
+          <p className="h-4">Patients could not be loaded</p>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Try again</button>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="bk-empty">
+          <p className="h-4">No patients yet</p>
+          <p className="small">Everyone who books a visit with you will be listed here with their health details.</p>
+        </div>
+      ) : (
+        <div className="dr-grid">
+          <section className="col gap-3" style={{ minWidth: 0 }} aria-label="Patient list">
+            <label className="search">
+              <Search size={16} className="mf-muted" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name, phone or reason" aria-label="Search patients" />
+            </label>
+            {filtered.length === 0 ? (
+              <p className="small">No patients match “{query}”.</p>
+            ) : (
+              <ul className="pt-list">
+                {filtered.map((r) => {
+                  const p = r.profiles!;
+                  const on = selected?.patient_id === r.patient_id;
                   return (
-                    <tr
-                      key={row.patient_id}
-                      onClick={() => setSelected(row)}
-                      style={{
-                        borderTop: "1px solid var(--line)", cursor: "pointer",
-                        background: isSelected ? "color-mix(in oklab, var(--accent) 6%, transparent)" : "transparent",
-                      }}
-                    >
-                      <td style={{ padding: "12px 16px" }}>
-                        <div className="row gap-3">
-                          <Headshot name={name} size={36} />
-                          <div className="col" style={{ gap: 2 }}>
-                            <div style={{ fontWeight: 600 }}>{name}</div>
-                            <div className="tiny">{row.profiles?.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <div className="small">{row.chief_complaint ?? "—"}</div>
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        {row.profiles?.blood_type
-                          ? <span className="pill">{row.profiles.blood_type}</span>
-                          : <span className="tiny" style={{ color: "var(--ink-3)" }}>—</span>
-                        }
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <div className="tiny">{row.appointment_date ? formatDate(row.appointment_date) : "—"}</div>
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <span className={`pill ${row.status === "completed" ? "good" : row.status === "confirmed" ? "accent" : ""}`}>
-                          {row.status}
+                    <li key={r.patient_id}>
+                      <button type="button" className={cn("pt-row", on && "on")} onClick={() => setSelectedId(r.patient_id)} aria-expanded={on}>
+                        <Headshot name={p.full_name} hue={nameHue(p.full_name)} size={40} />
+                        <span className="col" style={{ gap: 1, minWidth: 0 }}>
+                          <span className="mf-ellipsis" style={{ fontWeight: 600 }}>{p.full_name}</span>
+                          <span className="tiny mf-ellipsis">{r.chief_complaint ?? "No reason given"}</span>
                         </span>
-                      </td>
-                    </tr>
+                        <span className="tiny pt-last">{formatDay(r.appointment_date)}</span>
+                      </button>
+                      {/* On mobile the details open under the selected row */}
+                      {on && (
+                        <div className="pt-inline">
+                          <Details row={r} />
+                        </div>
+                      )}
+                    </li>
                   );
                 })}
-              </tbody>
-            </table>
+              </ul>
+            )}
+          </section>
+
+          {selected && (
+            <aside className="pt-side glass-strong" aria-label="Patient details">
+              <Details row={selected} />
+            </aside>
           )}
         </div>
-
-        <div className="col gap-4">
-          {selected ? (
-            <>
-              <div className="glass" style={{ padding: 22 }}>
-                <div className="row gap-4" style={{ marginBottom: 18 }}>
-                  <Headshot name={selected.profiles?.full_name ?? "P"} size={56} />
-                  <div className="col" style={{ gap: 4 }}>
-                    <div className="eyebrow">Patient record</div>
-                    <div className="h-3">{selected.profiles?.full_name ?? "Patient"}</div>
-                    <div className="small">{selected.profiles?.email}</div>
-                  </div>
-                </div>
-                <div className="bento" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: 0 }}>
-                  <Metric label="Blood type" value={selected.profiles?.blood_type ?? "—"} />
-                  <Metric label="BP" value={selected.profiles?.health_stats?.bp ? String(selected.profiles.health_stats.bp) : "—"} />
-                  <Metric label="Last visit" value={selected.appointment_date ? formatDate(selected.appointment_date) : "—"} />
-                </div>
-              </div>
-              <div className="glass" style={{ padding: 22 }}>
-                <div className="h-4" style={{ marginBottom: 14 }}>Clinical notes</div>
-                <div className="col gap-3">
-                  <div style={{ padding: 14, borderRadius: 10, border: "1px solid var(--line)" }}>
-                    <div className="row between" style={{ marginBottom: 4 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>Last complaint</div>
-                      <span className="tiny" style={{ color: "var(--ink-3)" }}>{selected.appointment_date ? formatDate(selected.appointment_date) : ""}</span>
-                    </div>
-                    <div className="small">{selected.chief_complaint ?? "No chief complaint recorded."}</div>
-                  </div>
-                </div>
-              </div>
-              <div className="bento" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
-                <ActionBtn icon={MessageCircle} label="Message" />
-                <ActionBtn icon={FileText} label="Note" />
-                <ActionBtn icon={ShieldCheck} label="Eligibility" />
-                <ActionBtn icon={Stethoscope} label="Refer" />
-              </div>
-            </>
-          ) : !loading && (
-            <div className="glass" style={{ padding: 22, textAlign: "center" }}>
-              <div className="small" style={{ color: "var(--ink-3)" }}>Select a patient to view details.</div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bento" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-        <Program icon={HeartPulse} title="Outcome tracking" detail="PROMIS score, disease registry, and CQM evidence are captured." />
-        <Program icon={Activity} title="Remote monitoring" detail="Wearable and home-device readings sync into patient risk." />
-        <Program icon={TrendingUp} title="Engagement AI" detail="Personalized reminders reduce no-show risk and close care gaps." />
-      </div>
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="glass cell" style={{ textAlign: "center", padding: 14 }}>
-      <div className="eyebrow" style={{ marginBottom: 6 }}>{label}</div>
-      <div style={{ fontWeight: 700, fontSize: 17 }}>{value}</div>
-    </div>
-  );
-}
-
-function ActionBtn({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  return (
-    <button className="btn btn-glass" style={{ justifyContent: "center", gap: 8, padding: "10px 0" }}>
-      <Icon size={15} /> {label}
-    </button>
-  );
-}
-
-function Program({ icon: Icon, title, detail }: { icon: LucideIcon; title: string; detail: string }) {
-  return (
-    <div className="glass cell" style={{ padding: 20 }}>
-      <Icon size={18} style={{ color: "var(--accent)" }} />
-      <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6 }}>{title}</div>
-      <div className="small" style={{ lineHeight: 1.6 }}>{detail}</div>
+      )}
     </div>
   );
 }

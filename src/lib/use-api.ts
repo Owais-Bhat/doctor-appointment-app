@@ -52,8 +52,10 @@ export function useApi<T>(path: string | null, { auth = true }: { auth?: boolean
     };
   }, [key, path, authedFetch]);
 
-  // Loading until the response for the current request arrives (or while sign-in resolves)
-  const loading = !!path && (key ? result.key !== key : auth && authLoading);
+  // Loading until the first response for this path arrives (or while sign-in resolves).
+  // A reload() keeps showing the previous data until the new response lands.
+  const sameP = result.key?.slice(0, result.key.lastIndexOf("#")) === path;
+  const loading = !!path && (key ? !sameP : auth && authLoading);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   return { data: result.data, error: loading ? null : result.error, loading, reload };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatFee } from "@/lib/format";
 import { useEffect, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAuth } from "@/context/AuthContext";
@@ -43,7 +44,7 @@ export default function DoctorAnalytics() {
 
   const kpis = stats ? [
     { label: "Total visits", value: String(stats.totalVisits), detail: "6 months" },
-    { label: "Revenue", value: `$${stats.totalRevenue.toLocaleString()}`, detail: "completed" },
+    { label: "Revenue", value: formatFee(stats.totalRevenue), detail: "completed" },
     { label: "Patients", value: String(stats.uniquePatients), detail: "unique" },
     { label: "Rating", value: stats.rating > 0 ? stats.rating.toFixed(1) : "—", detail: `${stats.totalReviews} reviews` },
   ] : [
@@ -131,8 +132,8 @@ export default function DoctorAnalytics() {
               </defs>
               <CartesianGrid stroke="var(--line, #e5edf5)" vertical={false} />
               <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} tickFormatter={v => `$${v}`} />
-              <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--line, #e5edf5)", fontSize: 13 }} formatter={(v: any) => [`$${v}`, "Revenue"]} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} tickFormatter={v => formatFee(v)} />
+              <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--line, #e5edf5)", fontSize: 13 }} formatter={(v) => [formatFee(Number(v)), "Revenue"]} />
               <Area type="monotone" dataKey="revenue" stroke="#22c55e" strokeWidth={2.5} fill="url(#revFill)" />
             </AreaChart>
           </ResponsiveContainer>
