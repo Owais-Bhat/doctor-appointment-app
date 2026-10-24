@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabase-admin'
+import { clinicInstant } from './clinic-time'
 
 export type ConsultationType = 'video' | 'phone' | 'in_person'
 export const CONSULTATION_TYPES: ConsultationType[] = ['video', 'phone', 'in_person']
@@ -55,7 +56,7 @@ export async function getAvailableSlots(doctorId: string, date: string): Promise
 
   const taken = new Set((booked ?? []).map((a: { appointment_time: string }) => hhmm(a.appointment_time)))
   const now = new Date()
-  return all.filter((s) => !taken.has(s) && new Date(`${date}T${s}`) > now)
+  return all.filter((s) => !taken.has(s) && clinicInstant(date, s) > now)
 }
 
 export type BookingInput = {
@@ -87,7 +88,7 @@ export async function bookAppointment(input: BookingInput): Promise<BookingResul
   if (!CONSULTATION_TYPES.includes(consultationType as ConsultationType)) {
     return { ok: false, status: 400, error: 'Invalid consultation type' }
   }
-  if (new Date(`${date}T${hhmm(time)}`) < new Date()) {
+  if (clinicInstant(date, hhmm(time)) < new Date()) {
     return { ok: false, status: 400, error: 'Cannot book appointments in the past' }
   }
 

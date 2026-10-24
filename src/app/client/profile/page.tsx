@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Edit2, HeartPulse, ShieldCheck, X } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
 import { useAuth } from "@/context/AuthContext";
+import { ReminderToggle } from "@/components/shared/ReminderToggle";
 
 type Profile = {
   id: string;
@@ -271,16 +272,7 @@ export default function ClientProfile() {
                 ))}
               </div>
             </div>
-            <div className="glass" style={{ padding: 24 }}>
-              <div className="eyebrow" style={{ marginBottom: 8 }}>
-                <ShieldCheck size={12} style={{ display: "inline", marginRight: 6 }} />
-                Privacy and consent
-              </div>
-              <div className="small" style={{ lineHeight: 1.7 }}>
-                HIPAA/GDPR/CCPA access logs and data sharing preferences are active for your account.
-                Your health data is encrypted at rest and in transit.
-              </div>
-            </div>
+            <ReminderToggle />
           </div>
         </div>
       )}

@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { clinicInstant, clinicMonthStart } from '@/lib/clinic-time'
 
 export async function GET(request: Request) {
   const auth = await requireUser(request, ['super_admin'])
   if (auth instanceof NextResponse) return auth
 
-  const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthStartDate = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}-01`
+  const monthStartDate = clinicMonthStart()
+  const monthStart = clinicInstant(monthStartDate, '00:00')
 
   const count = (q: PromiseLike<{ count: number | null }>) => Promise.resolve(q).then((r) => r.count ?? 0)
 

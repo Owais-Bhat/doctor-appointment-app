@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { clinicToday } from '@/lib/clinic-time'
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
@@ -80,7 +81,7 @@ export async function PATCH(
     if (!allowed.includes(status)) {
       return NextResponse.json({ error: `A ${appt.status} visit can’t be marked ${status}` }, { status: 400 })
     }
-    const today = new Date().toISOString().split('T')[0]
+    const today = clinicToday()
     if ((status === 'completed' || status === 'no_show') && appt.appointment_date > today) {
       return NextResponse.json({ error: 'A visit can only be completed on or after its date' }, { status: 400 })
     }

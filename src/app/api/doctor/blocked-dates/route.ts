@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { clinicToday } from '@/lib/clinic-time'
 
 export async function POST(request: Request) {
   const auth = await requireUser(request, ['doctor'])
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: 'Pick a valid date' }, { status: 400 })
   }
-  if (date < new Date().toISOString().split('T')[0]) {
+  if (date < clinicToday()) {
     return NextResponse.json({ error: 'That date has already passed' }, { status: 400 })
   }
 

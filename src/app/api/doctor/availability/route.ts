@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { clinicToday } from '@/lib/clinic-time'
 
 export async function GET(request: Request) {
   const auth = await requireUser(request, ['doctor'])
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
 
   if (!dp) return NextResponse.json({ availability: [], blocked_dates: [] })
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = clinicToday()
 
   const [{ data: avail }, { data: blocked }] = await Promise.all([
     supabaseAdmin

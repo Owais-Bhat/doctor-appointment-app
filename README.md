@@ -26,12 +26,25 @@ Sign-in always needs a Firebase project.
 New database: run `supabase/schema.sql` in the Supabase SQL editor.
 Existing database: run the files in `supabase/migrations/` in order.
 
+## Visit reminders
+
+Patients get a reminder about 24 hours and 1 hour before each **confirmed** visit: always in the app, and by SMS or WhatsApp when configured. Patients can turn text reminders off on their health profile.
+
+1. Run `supabase/migrations/002_appointment_reminders.sql`.
+2. Set `CRON_SECRET`, and for texts `REMINDER_CHANNEL` plus the `TWILIO_*` values (see `.env.example`).
+3. Call `GET /api/cron/reminders` every 15 minutes with `Authorization: Bearer <CRON_SECRET>`.
+   `vercel.json` schedules this on Vercel; per-15-minute cron jobs need a Vercel Pro plan. On the free plan use Supabase `pg_cron` or a free service such as cron-job.org instead.
+
+Each reminder is claimed in the database before sending, so overlapping runs never send it twice.
+For India: SMS needs DLT-registered sender and templates; WhatsApp outside a 24-hour chat window needs an approved message template in Twilio.
+
 ## How security works
 
 - **Identity** comes only from the Firebase ID token (`Authorization: Bearer <token>`), verified on the server. User ids or roles sent in headers or request bodies are never trusted.
 - **Roles** are read from the `profiles` table on every request by `requireUser(request, roles)` in `src/lib/api-auth.ts`.
 - **Pages** are guarded by `src/proxy.ts` using a role cookie signed with `SESSION_SECRET` (`src/lib/session.ts`), so it cannot be forged in the browser.
 - **Database** access goes through server routes with the service role key; Row Level Security is enabled on every table so the public anon key cannot read patient data.
+- **Time zone**: appointment times are the clinic's wall-clock time (`NEXT_PUBLIC_TIME_ZONE`, default Asia/Kolkata), so servers running in UTC still know what "today" and "in the past" mean.
 - **Booking** (`src/lib/appointments.ts`) checks the doctor is verified, the slot is inside their availability and still free; a partial unique index blocks double-booking under concurrency.
 
 ## Project layout

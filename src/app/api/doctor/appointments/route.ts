@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { clinicToday } from '@/lib/clinic-time'
 
 const SCOPES = ['today', 'requests', 'upcoming', 'past'] as const
 type Scope = (typeof SCOPES)[number]
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
 
   if (!dp) return NextResponse.json({ appointments: [], counts: { requests: 0, today: 0 } })
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = clinicToday()
 
   let query = supabaseAdmin
     .from('appointments')

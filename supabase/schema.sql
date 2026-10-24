@@ -15,6 +15,7 @@ CREATE TABLE profiles (
   address TEXT,
   health_stats JSONB DEFAULT '{}', -- { weight, height, allergies, chronic_conditions }
   is_active BOOLEAN DEFAULT true,
+  reminders_enabled BOOLEAN NOT NULL DEFAULT true, -- text/WhatsApp reminders
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -71,6 +72,8 @@ CREATE TABLE appointments (
   notes TEXT,                      -- Doctor's notes post-consultation
   prescription TEXT,               -- Post-visit prescription
   follow_up_date DATE,
+  reminder_24h_sent_at TIMESTAMPTZ,
+  reminder_1h_sent_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -81,6 +84,7 @@ CREATE UNIQUE INDEX appointments_active_slot_unique
   WHERE status IN ('pending', 'confirmed');
 CREATE INDEX appointments_patient_idx     ON appointments (patient_id, appointment_date);
 CREATE INDEX appointments_doctor_date_idx ON appointments (doctor_id, appointment_date);
+CREATE INDEX appointments_confirmed_date_idx ON appointments (appointment_date) WHERE status = 'confirmed';
 
 -- REVIEWS
 CREATE TABLE reviews (

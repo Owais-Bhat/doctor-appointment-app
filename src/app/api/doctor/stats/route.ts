@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { clinicMonthStart, clinicToday } from '@/lib/clinic-time'
 
 export async function GET(request: Request) {
   const auth = await requireUser(request, ['doctor'])
@@ -15,8 +16,8 @@ export async function GET(request: Request) {
 
   if (!doctorProfile) return NextResponse.json({ stats: null })
 
-  const today = new Date().toISOString().split('T')[0]
-  const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  const today = clinicToday()
+  const firstOfMonth = clinicMonthStart()
 
   const [{ count: todayCount }, { count: monthlyCompleted }, { data: patientRows }] = await Promise.all([
     supabaseAdmin.from('appointments').select('*', { count: 'exact', head: true })
