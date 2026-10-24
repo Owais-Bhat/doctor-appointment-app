@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useAuth } from "@/context/AuthContext";
+import { useApi } from "@/lib/use-api";
+import { formatFee } from "@/lib/format";
 
 type MonthRow = { month: string; appointments: number; revenue: number };
 type UserGrowthRow = { month: string; users: number };
@@ -26,31 +26,22 @@ const STATUS_COLOR: Record<string, string> = {
 const SPECIALTY_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#22c55e", "#ef4444"];
 
 export default function SuperAdminAnalytics() {
-  const { user, getToken } = useAuth();
-  const [monthly, setMonthly] = useState<MonthRow[]>([]);
-  const [userGrowth, setUserGrowth] = useState<UserGrowthRow[]>([]);
-  const [specialties, setSpecialties] = useState<SpecialtyRow[]>([]);
-  const [statusBreakdown, setStatusBreakdown] = useState<StatusRow[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    getToken().then(async token => {
-      const res = await fetch("/api/super-admin/analytics", { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      setMonthly(data.monthly ?? []);
-      setUserGrowth(data.userGrowth ?? []);
-      setSpecialties(data.specialties ?? []);
-      setStatusBreakdown(data.statusBreakdown ?? []);
-      setStats(data.stats ?? null);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [user]);
+  const { data, loading } = useApi<{
+    monthly?: MonthRow[];
+    userGrowth?: UserGrowthRow[];
+    specialties?: SpecialtyRow[];
+    statusBreakdown?: StatusRow[];
+    stats?: Stats;
+  }>("/api/super-admin/analytics");
+  const monthly = data?.monthly ?? [];
+  const userGrowth = data?.userGrowth ?? [];
+  const specialties = data?.specialties ?? [];
+  const statusBreakdown = data?.statusBreakdown ?? [];
+  const stats = data?.stats ?? null;
 
   const kpis = stats ? [
-    { label: "Revenue (6mo)", value: `$${stats.totalRevenue.toLocaleString()}`, detail: "completed" },
-    { label: "Appointments", value: String(stats.totalAppointments), detail: "total" },
+    { label: "Revenue (6mo)", value: formatFee(stats.totalRevenue), detail: "completed" },
+    { label: "Appointments", value: stats.totalAppointments.toLocaleString(), detail: "total" },
     { label: "Completion rate", value: stats.totalAppointments > 0 ? `${Math.round((stats.completedAppointments / stats.totalAppointments) * 100)}%` : "—", detail: "of visits" },
     { label: "New users", value: String(stats.newUsersThisMonth), detail: "this month" },
   ] : [
@@ -64,8 +55,8 @@ export default function SuperAdminAnalytics() {
     <div className="fade-enter col gap-7">
       <div className="col" style={{ gap: 6 }}>
         <div className="eyebrow">Platform analytics</div>
-        <h1 className="h-1">BI and forecasting</h1>
-        <p className="body">Platform-wide revenue, user growth, specialties, and operational benchmarks.</p>
+        <h1 className="h-1">Analytics</h1>
+        <p className="body">Visits, fees collected and sign-ups over the last six months.</p>
       </div>
 
       <div className="bento" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>

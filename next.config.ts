@@ -10,6 +10,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    // "Make doctor" moved from Settings to the Users page
+    return [{ source: "/super-admin/settings", destination: "/super-admin/users", permanent: false }];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

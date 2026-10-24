@@ -1,169 +1,99 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, ShieldAlert, ShieldCheck } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
+import { useApi } from "@/lib/use-api";
+import { auditLabel, auditTone } from "@/lib/audit-labels";
+import { cn } from "@/lib/utils";
 
-type LogEntry = {
+type Log = {
   id: string;
   action: string;
   target_table: string | null;
   target_id: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
-  profiles: {
-    full_name: string;
-    email: string;
-    role: string;
-  } | null;
+  profiles: { full_name: string; email: string; role: string } | null;
 };
+type Page = { logs: Log[]; total: number; page: number; limit: number };
 
-const SENSITIVE_ACTIONS = ["rate_limit", "unauthorized", "blocked", "failed"];
+const LIMIT = 25;
+const ROLE = { patient: "Patient", doctor: "Doctor", super_admin: "Admin" } as Record<string, string>;
 
-function actionColor(action: string) {
-  if (SENSITIVE_ACTIONS.some(s => action.includes(s))) return "bad";
-  if (action.includes("cancel") || action.includes("demote")) return "bad";
-  if (action.includes("promote") || action.includes("verify") || action.includes("confirm") || action.includes("complete")) return "good";
-  return "accent";
-}
-
-function formatTs(ts: string) {
-  return new Date(ts).toLocaleString(undefined, {
-    month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
-
-export default function AuditLogsPage() {
-  const { user, getToken } = useAuth();
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [total, setTotal] = useState(0);
+export default function AuditLog() {
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const limit = 25;
-
-  const fetchLogs = async (p: number) => {
-    setLoading(true);
-    const token = await getToken();
-    const res = await fetch(`/api/super-admin/audit-logs?page=${p}&limit=${limit}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    setLogs(data.logs ?? []);
-    setTotal(data.total ?? 0);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    fetchLogs(page);
-  }, [user]);
-
-  const totalPages = Math.ceil(total / limit);
-
-  const goPage = (p: number) => {
-    setPage(p);
-    fetchLogs(p);
-  };
+  const { data, loading, error, reload } = useApi<Page>(`/api/super-admin/audit-logs?page=${page}&limit=${LIMIT}`);
+  const total = data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / LIMIT));
 
   return (
-    <div className="fade-enter col gap-7">
-      <div className="row between wrap gap-4">
-        <div>
-          <div className="eyebrow">Compliance</div>
-          <h1 className="h-1">Audit logs</h1>
-          <p className="body">HIPAA, GDPR, CCPA, and enterprise security evidence — all platform actions recorded.</p>
+    <div className="dr">
+      <header className="dr-head">
+        <div className="col gap-2">
+          <h1 className="h-1">Audit log</h1>
+          <p className="body">Every change to accounts, doctors and visits, newest first.</p>
         </div>
-        {!loading && <span className="pill accent">{total.toLocaleString()} total events</span>}
-      </div>
+      </header>
 
-      <div className="glass" style={{ padding: 0, overflow: "hidden" }}>
-        {loading ? (
-          <div className="col gap-3" style={{ padding: 16 }}>
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} style={{ height: 52, borderRadius: 10, border: "1px solid var(--line)", opacity: 0.4 }} />
-            ))}
-          </div>
-        ) : logs.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 0" }}>
-            <div className="small" style={{ color: "var(--ink-3)" }}>No audit events yet.</div>
-          </div>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
-            <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
-                {["Time", "Actor", "Action", "Target", "Details"].map(h => (
-                  <th key={h} style={{ padding: "12px 16px" }}><span className="eyebrow">{h}</span></th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map(log => {
-                const isSensitive = SENSITIVE_ACTIONS.some(s => log.action.includes(s));
-                return (
-                  <tr key={log.id} style={{ borderTop: "1px solid var(--line)" }}>
-                    <td style={{ padding: "12px 16px" }}>
-                      <div className="tiny mono">{formatTs(log.created_at)}</div>
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{log.profiles?.full_name ?? "System"}</div>
-                      <div className="tiny" style={{ color: "var(--ink-3)" }}>{log.profiles?.role ?? ""}</div>
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <div className="row gap-2" style={{ alignItems: "center" }}>
-                        {isSensitive
-                          ? <ShieldAlert size={14} style={{ color: "var(--warn, #e53e3e)", flexShrink: 0 }} />
-                          : <ShieldCheck size={14} style={{ color: "var(--good, #22c55e)", flexShrink: 0 }} />
-                        }
-                        <span className={`pill ${actionColor(log.action)}`} style={{ fontSize: 11 }}>
-                          {log.action.replace(/_/g, " ")}
-                        </span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <div className="small">{log.target_table ?? "—"}</div>
-                      {log.target_id && (
-                        <div className="tiny mono" style={{ color: "var(--ink-3)" }}>{log.target_id.substring(0, 8)}…</div>
-                      )}
-                    </td>
-                    <td style={{ padding: "12px 16px", maxWidth: 240 }}>
-                      {log.metadata ? (
-                        <div className="tiny" style={{ color: "var(--ink-3)", wordBreak: "break-all" }}>
-                          {JSON.stringify(log.metadata).substring(0, 80)}
-                          {JSON.stringify(log.metadata).length > 80 ? "…" : ""}
-                        </div>
-                      ) : (
-                        <span className="tiny" style={{ color: "var(--ink-3)" }}>—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="row" style={{ justifyContent: "center", gap: 8 }}>
-          <button
-            className="btn btn-glass btn-sm"
-            disabled={page <= 1}
-            onClick={() => goPage(page - 1)}
-          >
-            <ChevronLeft size={14} />
-          </button>
-          <span className="small" style={{ lineHeight: "32px" }}>
-            Page {page} of {totalPages}
-          </span>
-          <button
-            className="btn btn-glass btn-sm"
-            disabled={page >= totalPages}
-            onClick={() => goPage(page + 1)}
-          >
-            <ChevronRight size={14} />
-          </button>
+      {loading ? (
+        <div className="bk-skeleton" style={{ minHeight: 320, borderRadius: 18 }} aria-busy="true" />
+      ) : error ? (
+        <div className="bk-empty">
+          <p className="h-4">The audit log could not be loaded</p>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Try again</button>
         </div>
+      ) : (data?.logs ?? []).length === 0 ? (
+        <div className="bk-empty">
+          <p className="h-4">No activity yet</p>
+          <p className="small">Verifying doctors, confirming visits and other changes are recorded here.</p>
+        </div>
+      ) : (
+        <>
+          <div className="ad-table-wrap">
+            <table className="ad-table">
+              <thead>
+                <tr>
+                  <th scope="col">When</th>
+                  <th scope="col">Who</th>
+                  <th scope="col">What</th>
+                  <th scope="col">Record</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data!.logs.map((l) => {
+                  const d = new Date(l.created_at);
+                  return (
+                    <tr key={l.id}>
+                      <td className="tnum">
+                        {d.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                        <span className="tiny"> {d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 600 }}>{l.profiles?.full_name ?? "Unknown"}</span>
+                        <span className="tiny"> {ROLE[l.profiles?.role ?? ""] ?? ""}</span>
+                      </td>
+                      <td>
+                        <span className={cn("ad-dot", auditTone(l.action))} aria-hidden="true" /> {auditLabel(l.action)}
+                      </td>
+                      <td className="tiny ad-mono" title={l.target_id ?? undefined}>
+                        {l.target_table ? `${l.target_table.replace(/_/g, " ")} · ${l.target_id?.slice(0, 8) ?? ""}` : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <nav className="row between" aria-label="Pages">
+            <span className="small">
+              {(page - 1) * LIMIT + 1}–{Math.min(page * LIMIT, total)} of {total}
+            </span>
+            <span className="row gap-2">
+              <button type="button" className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Newer</button>
+              <button type="button" className="btn btn-ghost btn-sm" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>Older</button>
+            </span>
+          </nav>
+        </>
       )}
     </div>
   );

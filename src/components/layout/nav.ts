@@ -7,7 +7,6 @@ import {
   FileClock,
   Home,
   Settings,
-  ShieldCheck,
   Stethoscope,
   UserRound,
   Users,
@@ -64,7 +63,6 @@ export const NAV: Record<Portal, { name: string; home: string; notifications: st
       { label: "Users", href: "/super-admin/users", icon: Users, tab: true },
       { label: "Analytics", href: "/super-admin/analytics", icon: Activity, tab: true },
       { label: "Audit log", href: "/super-admin/audit-logs", icon: FileClock, tab: true },
-      { label: "Settings", href: "/super-admin/settings", icon: ShieldCheck },
     ],
   },
 };
