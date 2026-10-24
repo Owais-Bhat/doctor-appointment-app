@@ -237,7 +237,7 @@ export function cleanupExpiredRateLimits(): number {
 /**
  * Set up cleanup interval (run every hour)
  */
-export function startRateLimitCleanup(intervalMs: number = 60 * 60 * 1000): NodeJS.Timer {
+export function startRateLimitCleanup(intervalMs: number = 60 * 60 * 1000): ReturnType<typeof setInterval> {
   return setInterval(() => {
     cleanupExpiredRateLimits();
   }, intervalMs);

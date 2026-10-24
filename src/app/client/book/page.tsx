@@ -16,7 +16,7 @@ type Doctor = {
   rating: number;
   total_reviews: number;
   clinic_name: string | null;
-  languages: string[] | null;
+  languages: string[] | string | null;
   profiles: {
     full_name: string;
     email: string;
@@ -219,9 +219,9 @@ export default function BookPage() {
                         {doc.languages && (
                           <div className="row gap-1 wrap" style={{ marginTop: 4 }}>
                             {(typeof doc.languages === 'string'
-                              ? doc.languages.split(',').map(l => l.trim())
+                              ? (doc.languages as string).split(',').map((l: string) => l.trim())
                               : doc.languages
-                            ).slice(0, 3).map(lang => (
+                            ).slice(0, 3).map((lang: string) => (
                               <span key={lang} className="pill" style={{ fontSize: 10 }}>{lang}</span>
                             ))}
                           </div>

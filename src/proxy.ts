@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { SESSION_COOKIE, readSessionRole } from '@/lib/session'
 
-export async function middleware(request: NextRequest) {
-  const roleCookie = request.cookies.get('userRole');
-  const role = roleCookie?.value;
+export async function proxy(request: NextRequest) {
+  // Only trust a role cookie carrying a valid server signature
+  const role = await readSessionRole(request.cookies.get(SESSION_COOKIE)?.value);
   const path = request.nextUrl.pathname;
 
   // 1. ALWAYS allow access to login pages so users can actually authenticate
@@ -29,6 +30,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // 4. Role-based protection for Doctors and Patients
+  if (path.startsWith('/super-admin')) {
+    return NextResponse.redirect(new URL('/super-admin/login', request.url))
+  }
+
   if (path.startsWith('/client') && role !== 'patient') {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }

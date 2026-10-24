@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 
 function getLast6Months() {
   const months: string[] = []
@@ -19,11 +19,8 @@ function shortMonthLabel(ym: string) {
 }
 
 export async function GET(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
-
-  const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', uid).single()
-  if (profile?.role !== 'super_admin') return unauthorized()
+  const auth = await requireUser(request, ['super_admin'])
+  if (auth instanceof NextResponse) return auth
 
   const sixMonthsAgo = new Date()
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)

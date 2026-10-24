@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   if (!appointmentId || !rating) {
     return NextResponse.json({ error: 'appointmentId and rating required' }, { status: 400 })
   }
-  if (rating < 1 || rating > 5) {
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     return NextResponse.json({ error: 'Rating must be between 1 and 5' }, { status: 400 })
   }
 

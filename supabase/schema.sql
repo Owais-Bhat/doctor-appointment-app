@@ -72,9 +72,15 @@ CREATE TABLE appointments (
   prescription TEXT,               -- Post-visit prescription
   follow_up_date DATE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(doctor_id, appointment_date, appointment_time)
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- No double-booking of an active slot; cancelled slots can be booked again
+CREATE UNIQUE INDEX appointments_active_slot_unique
+  ON appointments (doctor_id, appointment_date, appointment_time)
+  WHERE status IN ('pending', 'confirmed');
+CREATE INDEX appointments_patient_idx     ON appointments (patient_id, appointment_date);
+CREATE INDEX appointments_doctor_date_idx ON appointments (doctor_id, appointment_date);
 
 -- REVIEWS
 CREATE TABLE reviews (
@@ -86,6 +92,7 @@ CREATE TABLE reviews (
   comment TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE UNIQUE INDEX reviews_one_per_appointment ON reviews (appointment_id);
 
 -- NOTIFICATIONS
 CREATE TABLE notifications (
@@ -110,33 +117,23 @@ CREATE TABLE audit_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS POLICIES
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE doctor_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+CREATE INDEX notifications_user_idx      ON notifications (user_id, created_at DESC);
+CREATE INDEX doctor_profiles_profile_idx ON doctor_profiles (profile_id);
 
--- Patients see own profile
-CREATE POLICY "patients_own_profile" ON profiles
-  FOR ALL USING (auth.uid()::text = id);
+-- ROW LEVEL SECURITY
+-- Identity comes from Firebase, not Supabase Auth, so the app reads and writes
+-- only through server routes using the service role key (which bypasses RLS)
+-- after verifying the Firebase token. RLS is on for every table so the public
+-- anon key cannot read patient data directly.
+ALTER TABLE profiles            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doctor_profiles     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doctor_availability ENABLE ROW LEVEL SECURITY;
+ALTER TABLE blocked_dates       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE appointments        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs          ENABLE ROW LEVEL SECURITY;
 
--- Patients see own appointments
-CREATE POLICY "patients_own_appointments" ON appointments
-  FOR SELECT USING (auth.uid()::text = patient_id);
-
--- Patients create appointments
-CREATE POLICY "patients_create_appointments" ON appointments
-  FOR INSERT WITH CHECK (auth.uid()::text = patient_id);
-
--- Doctors see their appointments
-CREATE POLICY "doctors_own_appointments" ON appointments
-  FOR ALL USING (
-    doctor_id IN (
-      SELECT id FROM doctor_profiles WHERE profile_id = auth.uid()::text
-    )
-  );
-
--- All see doctor profiles
+-- Verified doctor listings are public information
 CREATE POLICY "public_doctor_profiles" ON doctor_profiles
   FOR SELECT USING (is_verified = true);

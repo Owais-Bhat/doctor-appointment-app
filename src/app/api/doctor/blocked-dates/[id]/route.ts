@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const auth = await requireUser(request, ['doctor'])
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const { id } = await context.params
 

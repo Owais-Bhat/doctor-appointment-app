@@ -80,7 +80,7 @@ export function HumanModel3D({ selectedRegion, onSelectRegion }: { selectedRegio
         rotation={[0, 0, 0]}
         polar={[-0.2, 0.2]}
         azimuth={[-0.5, 0.5]}
-        config={{ mass: 2, tension: 400 }}
+        damping={0.25}
       >
         <Float speed={1.5} rotationIntensity={0.1}>
           <group position={[0, -1, 0]}>

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 
 export async function GET(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const auth = await requireUser(request, ['doctor'])
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const { data: dp } = await supabaseAdmin
     .from('doctor_profiles')
@@ -34,8 +35,9 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const auth = await requireUser(request, ['doctor'])
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const { data: dp } = await supabaseAdmin
     .from('doctor_profiles')
@@ -47,11 +49,28 @@ export async function PUT(request: Request) {
 
   const { slots } = await request.json()
 
+  type SlotInput = {
+    day_of_week: number
+    start_time: string
+    end_time: string
+    slot_duration_minutes?: number
+    is_active?: boolean
+  }
+  const TIME = /^\d{2}:\d{2}(:\d{2})?$/
+  const list: SlotInput[] = Array.isArray(slots) ? slots : []
+  const invalid = list.find((s) =>
+    !Number.isInteger(s?.day_of_week) || s.day_of_week < 0 || s.day_of_week > 6 ||
+    !TIME.test(String(s.start_time)) || !TIME.test(String(s.end_time)) ||
+    String(s.start_time) >= String(s.end_time) ||
+    (s.slot_duration_minutes !== undefined && (Number(s.slot_duration_minutes) < 5 || Number(s.slot_duration_minutes) > 240))
+  )
+  if (invalid) return NextResponse.json({ error: 'Invalid availability slot' }, { status: 400 })
+
   await supabaseAdmin.from('doctor_availability').delete().eq('doctor_id', dp.id)
 
-  if (slots?.length > 0) {
+  if (list.length > 0) {
     const { error } = await supabaseAdmin.from('doctor_availability').insert(
-      slots.map((s: any) => ({
+      list.map((s) => ({
         doctor_id: dp.id,
         day_of_week: s.day_of_week,
         start_time: s.start_time,
