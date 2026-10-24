@@ -1332,3 +1332,50 @@ a { color: inherit; text-decoration: none; }
   .ad-actions{ grid-column: 2; justify-content: flex-start; }
   .ad-form{ grid-template-columns: 1fr; }
 }
+
+/* ════ Sign-in pages ════════════════════════════════════════════ */
+.au{ min-height: 100vh; display: grid; grid-template-columns: minmax(360px, 5fr) 7fr; background: var(--bg); }
+.au :is(h1, p){ width: auto; }
+.au-brand{
+  position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;
+  padding: 40px 44px; color: #fff;
+  background: linear-gradient(160deg, var(--accent) 0%, color-mix(in oklab, var(--accent) 55%, var(--accent-2)) 100%);
+}
+.au-logo{ color: #fff; padding: 0; }
+.au-logo .mark{ background: rgba(255,255,255,.18); }
+.au-brand-body{ position: relative; z-index: 1; display: flex; flex-direction: column; gap: 20px; max-width: 380px; }
+.au-brand-heading{ font-size: 34px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+.au-brand ul{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.au-brand li{ display: flex; gap: 10px; align-items: baseline; font-size: 15px; color: rgba(255,255,255,.88); }
+.au-brand li::before{ content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; flex-shrink: 0; transform: translateY(-2px); }
+/* The heartbeat line from the logo, drawn large across the panel */
+.au-pulse{ position: absolute; left: 0; right: 0; top: 30%; width: 100%; height: 120px; }
+.au-pulse path{ fill: none; stroke: rgba(255,255,255,.22); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.au-main{ display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; }
+.au-mobile-logo{ display: none; }
+.au-form{ width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 20px; }
+.au-stack{ display: flex; flex-direction: column; gap: 14px; }
+.au-stack .btn-primary{ width: 100%; margin-top: 4px; }
+.au-field{ display: flex; flex-direction: column; gap: 6px; }
+.au-field input[aria-invalid="true"]{ border-color: var(--bad); }
+.au-pw{ position: relative; display: block; }
+.au-pw .input{ width: 100%; padding-right: 44px; }
+.au-eye{ position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: none; color: var(--ink-3); border-radius: 8px; }
+.au-eye:hover{ color: var(--ink); }
+.au-google{ width: 100%; gap: 10px; }
+.au-or{ display: flex; align-items: center; gap: 12px; color: var(--ink-3); font-size: 12.5px; }
+.au-or::before, .au-or::after{ content: ""; flex: 1; height: 1px; background: var(--line); }
+.au-link{ background: none; border: 0; padding: 0; font-size: 13.5px; font-weight: 600; color: var(--accent); align-self: flex-start; }
+.au-link:hover{ text-decoration: underline; }
+.au-forgot{ align-self: flex-end; margin-top: -6px; font-size: 13px; }
+.au-switch a{ color: var(--accent); font-weight: 600; }
+.au-notice{ font-size: 13.5px; color: var(--ink-2); padding: 12px 14px; border-radius: 12px; background: color-mix(in oklab, var(--good) 10%, transparent); }
+@media (max-width: 900px) {
+  .au{ grid-template-columns: 1fr; }
+  .au-brand{ display: none; }
+  .au-main{ justify-content: flex-start; padding: 24px 20px 40px; gap: 32px; }
+  .au-mobile-logo{ display: inline-flex; align-self: flex-start; }
+}
+
+/* The assistant needs a signed-in user; keep sign-in pages clean */
+body:has(.au) .chat-widget{ display: none; }

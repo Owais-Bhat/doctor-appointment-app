@@ -51,9 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           const { profile } = await res.json();
           const activeRole = (profile?.role ?? 'patient') as UserRole;
-          setRole(activeRole);
-          setProfileName(profile?.full_name ?? null);
+          // Set the signed role cookie first, so pages the user is sent to
+          // next aren't bounced back to sign-in by the proxy
           await setSessionCookie(token, activeRole);
+          setProfileName(profile?.full_name ?? null);
+          setRole(activeRole);
         } catch (error) {
           console.error("Error fetching user role:", error);
           setRole('patient');

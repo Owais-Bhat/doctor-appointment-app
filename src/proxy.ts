@@ -16,10 +16,12 @@ export async function proxy(request: NextRequest) {
                            path.startsWith('/admin') ||
                            path.startsWith('/super-admin')
 
-  // 2. If not logged in, force them to the main login page
+  // 2. If not logged in, send them to sign in and back here afterwards
   if (!role) {
     if (isProtectedRoute) {
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+      const login = new URL(path.startsWith('/super-admin') ? '/super-admin/login' : '/auth/login', request.url)
+      login.searchParams.set('next', path + request.nextUrl.search)
+      return NextResponse.redirect(login)
     }
     return NextResponse.next()
   }
