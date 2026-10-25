@@ -12,7 +12,7 @@ type Message = {
 };
 
 export function AIBot() {
-  const { user } = useAuth();
+  const { getToken } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
@@ -40,13 +40,15 @@ export function AIBot() {
     setIsTyping(true);
 
     try {
+      const token = await getToken();
+      if (!token) {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Please sign in to chat with the assistant.' }]);
+        return;
+      }
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userMessage,
-          userId: user?.uid
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: userMessage }),
       });
 
       const data = await response.json();

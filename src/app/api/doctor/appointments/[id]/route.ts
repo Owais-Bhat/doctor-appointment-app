@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
@@ -13,8 +13,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const auth = await requireUser(request, ['doctor'])
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const { id } = await context.params
   const { status, notes } = await request.json()
@@ -42,8 +43,8 @@ export async function PATCH(
     return NextResponse.json({ error: `Cannot transition from ${appt.status} to ${status}` }, { status: 400 })
   }
 
-  const updates: Record<string, any> = { status, updated_at: new Date().toISOString() }
-  if (notes) updates.notes = notes
+  const updates: Record<string, string> = { status, updated_at: new Date().toISOString() }
+  if (notes) updates.notes = String(notes).slice(0, 10000)
 
   const { data, error } = await supabaseAdmin
     .from('appointments')

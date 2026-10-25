@@ -1,17 +1,29 @@
 import { GoogleGenAI, Type } from '@google/genai';
-import { createAppointment, getPatientProfile } from '@/app/actions';
 import { NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/api-auth';
+import { bookAppointment } from '@/lib/appointments';
+import { supabaseAdmin } from '@/lib/supabase-admin';
+import { checkRateLimitByUser } from '@/lib/middleware/rateLimiter';
 
 export async function POST(request: Request) {
   try {
-    const { message, userId, doctorId } = await request.json();
-
-    if (!message) {
-      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
-    }
-
+    const userId = await verifyToken(request);
     if (!userId) {
       return NextResponse.json({ error: 'User must be logged in to use the assistant.' }, { status: 401 });
+    }
+
+    const { message, doctorId } = await request.json();
+
+    if (!message || typeof message !== 'string') {
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+    }
+    if (message.length > 2000) {
+      return NextResponse.json({ error: 'Message is too long' }, { status: 400 });
+    }
+
+    const limit = checkRateLimitByUser(`ai-chat:${userId}`, { windowMs: 60_000, maxRequests: 20 });
+    if (!limit.success) {
+      return NextResponse.json({ error: 'Too many messages. Please wait a minute.' }, { status: 429 });
     }
 
     if (!process.env.GEMINI_API_KEY) {
@@ -86,46 +98,51 @@ export async function POST(request: Request) {
     if (response.functionCalls && response.functionCalls.length > 0) {
       const call = response.functionCalls[0];
       
-      let functionResponseData = {};
+      let functionResponseData: Record<string, unknown> = {};
 
       if (call.name === 'book_appointment') {
-        const args: any = call.args || {};
-        const { date, time } = args;
+        const args = (call.args || {}) as { doctorId?: string; date?: string; time?: string };
+        const date = String(args.date ?? '');
+        const time = String(args.time ?? '');
         // Strictly override the doctorId with the specific SaaS Tenant ID from context
-        const assignedDoctor = doctorId || args.doctorId || 'doc-123';
-        try {
-          const result = await createAppointment({ doctorId: assignedDoctor, date, time, patientId: userId });
-          functionResponseData = result;
-        } catch (err: any) {
-          functionResponseData = { success: false, message: err.message };
-        }
+        const assignedDoctor = String(doctorId || args.doctorId || '');
+        const result = await bookAppointment({ patientId: userId, doctorId: assignedDoctor, date, time });
+        functionResponseData = result.ok
+          ? { success: true, message: 'Appointment requested. It is pending confirmation.' }
+          : { success: false, message: result.error };
       } else if (call.name === 'get_health_report') {
-        try {
-          const profile = await getPatientProfile(userId);
-          functionResponseData = {
-            success: true,
-            bloodType: profile?.blood_type || 'Unknown',
-            healthStats: profile?.health_stats || 'No current issues reported. Standard vitals looking great.',
-          };
-        } catch (err: any) {
-          functionResponseData = { success: false, message: "Could not fetch profile", error: err.message };
-        }
+        // Only ever the signed-in user's own profile
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('blood_type, health_stats')
+          .eq('id', userId)
+          .maybeSingle();
+        functionResponseData = profile
+          ? {
+              success: true,
+              bloodType: profile.blood_type || 'Unknown',
+              healthStats: profile.health_stats || 'No health information on file.',
+            }
+          : { success: false, message: 'Could not fetch profile' };
       }
 
       // Send the function execution result back to Gemini so it can reply
       response = await chat.sendMessage({
-        functionResponses: [{
-          name: call.name,
-          response: functionResponseData
-        }]
-      } as any); // Type cast due to generic sdk setup
+        message: [{
+          functionResponse: {
+            id: call.id,
+            name: call.name,
+            response: functionResponseData,
+          },
+        }],
+      });
     }
 
     return NextResponse.json({
       reply: response.text
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('AI Chat Error:', error);
     return NextResponse.json({ error: 'AI service is temporarily unavailable' }, { status: 500 });
   }

@@ -24,7 +24,7 @@ export function RealtimeStatusProvider({ children }: { children: React.ReactNode
           table: 'appointments',
           filter: `patient_id=eq.${user.uid}`,
         },
-        (payload) => {
+        (payload: { new: { status?: string }; old: { status?: string } }) => {
           const { new: newRecord, old: oldRecord } = payload;
 
           if (newRecord.status !== oldRecord.status) {
@@ -35,7 +35,7 @@ export function RealtimeStatusProvider({ children }: { children: React.ReactNode
               'cancelled': 'Your appointment has been cancelled.'
             };
 
-            const message = statusMessages[newRecord.status] || `Your appointment status changed to ${newRecord.status}.`;
+            const message = statusMessages[newRecord.status ?? ""] || `Your appointment status changed to ${newRecord.status}.`;
             toast.success(message, {
               duration: 5000,
               position: 'top-right',

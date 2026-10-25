@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 
 export async function GET(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const auth = await requireUser(request, ['doctor'])
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const { data: doctorProfile } = await supabaseAdmin
     .from('doctor_profiles')

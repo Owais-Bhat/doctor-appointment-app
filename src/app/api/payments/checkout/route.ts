@@ -1,17 +1,15 @@
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { getStripe } from '@/lib/stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
-  apiVersion: '2026-05-27.dahlia',
-})
 
 export async function POST(request: Request) {
   const uid = await verifyToken(request)
   if (!uid) return unauthorized()
 
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const stripe = getStripe()
+  if (!stripe) {
     return NextResponse.json({ error: 'Payments not configured' }, { status: 503 })
   }
 
@@ -37,11 +35,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Appointment is not pending payment' }, { status: 400 })
     }
 
-    const doctor = appt.doctor_profiles as any
+    const doctor = appt.doctor_profiles as unknown as { consultation_fee?: number; profiles?: { full_name?: string } } | null
     const fee = Math.round(Number(doctor?.consultation_fee ?? 100) * 100) // cents
     const doctorName = doctor?.profiles?.full_name ?? 'Your doctor'
 
-    const origin = request.headers.get('origin') ?? 'http://localhost:3000'
+    // Never build redirect URLs from a client-controlled header
+    const origin = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -66,7 +65,8 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ url: session.url })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('Checkout error:', error)
+    return NextResponse.json({ error: 'Could not start checkout' }, { status: 500 })
   }
 }

@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MedFlow — Doctor Appointment App
 
-## Getting Started
+Book doctors, manage clinic schedules, and run the platform — in one Next.js app with three portals:
 
-First, run the development server:
+| Portal | Path | Who |
+|---|---|---|
+| Patient | `/client` | Find doctors, book slots, pay, intake forms, reviews, notifications |
+| Doctor | `/admin` | Today's schedule, appointments, availability, blocked dates, patients, analytics |
+| Super Admin | `/super-admin` | Users, doctor verification, roles, platform analytics, audit log |
+
+**Stack:** Next.js 16 (App Router, Turbopack) · React 19 · Tailwind CSS 4 · Supabase (Postgres) · Firebase Auth · Stripe · Gemini
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # fill in the values you have
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without Supabase credentials, local development stores data in `db.json` (never in production).
+Sign-in always needs a Firebase project.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Database
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+New database: run `supabase/schema.sql` in the Supabase SQL editor.
+Existing database: run the files in `supabase/migrations/` in order.
 
-## Learn More
+## How security works
 
-To learn more about Next.js, take a look at the following resources:
+- **Identity** comes only from the Firebase ID token (`Authorization: Bearer <token>`), verified on the server. User ids or roles sent in headers or request bodies are never trusted.
+- **Roles** are read from the `profiles` table on every request by `requireUser(request, roles)` in `src/lib/api-auth.ts`.
+- **Pages** are guarded by `src/proxy.ts` using a role cookie signed with `SESSION_SECRET` (`src/lib/session.ts`), so it cannot be forged in the browser.
+- **Database** access goes through server routes with the service role key; Row Level Security is enabled on every table so the public anon key cannot read patient data.
+- **Booking** (`src/lib/appointments.ts`) checks the doctor is verified, the slot is inside their availability and still free; a partial unique index blocks double-booking under concurrency.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+  app/            pages for each portal + API routes (app/api)
+  components/     UI components (ui/ = design-system primitives)
+  context/        AuthContext (Firebase session)
+  lib/            api-auth, session, appointments, supabase, firebase, stripe
+  proxy.ts        page access control
+supabase/         schema.sql and migrations
+design/           MedFlow design prototypes (source of truth for the UI)
+docs/             guides, design system, roadmap, history
+```
 
-## Deploy on Vercel
+## Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run build` | Production build (type-checked) |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint |
