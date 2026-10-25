@@ -1,185 +1,217 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
-import { CheckCircle2, FileText, AlertCircle, Send } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { use, useEffect, useState } from "react";
+import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowLeft, Check, ClipboardList, Pill, Siren } from "lucide-react";
+import { Headshot } from "@/components/medflow/Prototype";
+import { useApi, useAuthedFetch } from "@/lib/use-api";
+import { VISIT_TYPE_LABEL, doctorName, formatDay, formatTime, nameHue } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-type Appointment = {
-  id: string;
-  appointment_date: string;
-  appointment_time: string;
-  chief_complaint: string | null;
-  doctor_profiles: { profiles: { full_name: string } };
+type Intake = { duration?: string | null; severity?: string | null; medications?: string | null; allergies?: string | null } | null;
+type Response = {
+  appointment: {
+    id: string;
+    appointment_date: string;
+    appointment_time: string;
+    status: string;
+    consultation_type: string;
+    chief_complaint: string | null;
+    intake: Intake;
+    doctor: { name: string | null; specialty: string | null };
+  };
+  health: { allergies: string | null; medications: string | null };
+  editable: boolean;
 };
+
+const SEVERITY = [
+  { id: "mild", label: "Mild", hint: "Annoying, but I can go about my day" },
+  { id: "moderate", label: "Moderate", hint: "It gets in the way of daily life" },
+  { id: "severe", label: "Severe", hint: "Hard to cope, getting worse" },
+] as const;
+
+const DURATIONS = ["Today", "2–3 days", "About a week", "Few weeks", "Months or more"];
 
 export default function IntakeFormPage({ params }: { params: Promise<{ appointmentId: string }> }) {
   const { appointmentId } = use(params);
-  const { user, getToken } = useAuth();
-  const [appointment, setAppointment] = useState<Appointment | null>(null);
-  const [formData, setFormData] = useState({
-    chief_complaint: "",
-    current_medications: "",
-    allergies: "",
-    symptoms_duration: "",
-    severity: "Mild",
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const { data, loading, error } = useApi<Response>(`/api/patient/intake?appointmentId=${appointmentId}`);
+  const authedFetch = useAuthedFetch();
+  const reduce = useReducedMotion();
+
+  const [form, setForm] = useState({ reason: "", duration: "", severity: "", medications: "", allergies: "" });
+  const [saveToProfile, setSaveToProfile] = useState(true);
+  const [ready, setReady] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    getToken().then(token =>
-      fetch(`/api/patient/intake?appointmentId=${appointmentId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(r => r.json())
-        .then(d => {
-          if (d.appointment) {
-            setAppointment(d.appointment);
-            if (d.appointment.chief_complaint) {
-              setFormData(prev => ({ ...prev, chief_complaint: d.appointment.chief_complaint }));
-            }
-          }
-        })
-    );
-  }, [user, appointmentId]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    const token = await getToken();
-    const notes = `INTAKE:\nMeds: ${formData.current_medications}\nAllergies: ${formData.allergies}\nDuration: ${formData.symptoms_duration}\nSeverity: ${formData.severity}`;
-    await fetch("/api/patient/intake", {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ appointmentId, chief_complaint: formData.chief_complaint, notes }),
+    if (!data || ready) return;
+    const i = data.appointment.intake ?? {};
+    setForm({
+      reason: data.appointment.chief_complaint ?? "",
+      duration: i.duration ?? "",
+      severity: i.severity ?? "",
+      medications: i.medications ?? data.health.medications ?? "",
+      allergies: i.allergies ?? data.health.allergies ?? "",
     });
-    setSubmitting(false);
-    setSubmitted(true);
+    setReady(true);
+  }, [data, ready]);
+
+  const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.reason.trim()) return setSaveError("Tell the doctor why you’re visiting.");
+    setSaving(true);
+    setSaveError("");
+    try {
+      await authedFetch("/api/patient/intake", {
+        method: "PATCH",
+        body: JSON.stringify({
+          appointmentId,
+          chief_complaint: form.reason,
+          duration: form.duration,
+          severity: form.severity || null,
+          medications: form.medications,
+          allergies: form.allergies,
+          saveToProfile,
+        }),
+      });
+      setDone(true);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Couldn’t save");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (submitted && appointment) {
-    const doctorName = appointment.doctor_profiles?.profiles?.full_name ?? "your doctor";
+  if (loading) {
     return (
-      <div className="fade-enter col gap-6" style={{ maxWidth: 480, margin: "0 auto", padding: "48px 0", textAlign: "center" }}>
-        <CheckCircle2 size={56} style={{ color: "var(--good)", margin: "0 auto" }} />
-        <h1 className="h-1">Form submitted!</h1>
-        <p className="body">Your intake form has been sent to Dr. {doctorName}. They will review it before your appointment.</p>
-        <div className="glass" style={{ padding: 20, textAlign: "left" }}>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Appointment details</div>
-          <div style={{ fontWeight: 700 }}>{new Date(appointment.appointment_date + "T00:00:00").toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</div>
-          <div className="small" style={{ color: "var(--ink-3)" }}>{appointment.appointment_time?.substring(0, 5)}</div>
-        </div>
-        <a href="/client/appointments" className="btn btn-primary" style={{ alignSelf: "center" }}>Back to appointments</a>
+      <div className="ik" aria-busy="true">
+        <div className="bk-skeleton" style={{ minHeight: 90, borderRadius: 20 }} />
+        <div className="bk-skeleton" style={{ minHeight: 420, borderRadius: 22 }} />
+      </div>
+    );
+  }
+  if (error || !data) {
+    return (
+      <div className="bk-empty">
+        <p className="h-4">This visit couldn’t be found</p>
+        <p className="small">It may belong to another account.</p>
+        <Link href="/client/appointments" className="btn btn-ghost btn-sm">Back to visits</Link>
       </div>
     );
   }
 
-  if (!appointment) {
+  const a = data.appointment;
+  const doc = doctorName(a.doctor.name);
+  const when = `${formatDay(a.appointment_date)}, ${formatTime(a.appointment_time)}`;
+
+  if (done) {
     return (
-      <div className="fade-enter col gap-7">
-        <div className="glass" style={{ padding: 32, textAlign: "center" }}>
-          <div className="small" style={{ color: "var(--ink-3)" }}>Loading appointment…</div>
+      <motion.section className="bk-done glass-strong ik-done" initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.span className="bk-done-icon" aria-hidden="true" initial={reduce ? false : { scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.1 }}>
+          <Check size={26} />
+        </motion.span>
+        <h1 className="h-2">Sent to {doc}</h1>
+        <p className="body">They’ll read this before your visit on {when}. You can change it any time before then.</p>
+        <div className="row gap-2 wrap" style={{ justifyContent: "center" }}>
+          <Link href="/client/appointments" className="btn btn-primary">Back to visits</Link>
+          <button type="button" className="btn btn-ghost" onClick={() => setDone(false)}>Edit details</button>
         </div>
-      </div>
+      </motion.section>
     );
   }
-
-  const doctorName = appointment.doctor_profiles?.profiles?.full_name ?? "your doctor";
-  const apptDate = new Date(appointment.appointment_date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
-    <div className="fade-enter col gap-7" style={{ maxWidth: 680, margin: "0 auto" }}>
-      <div className="col" style={{ gap: 6, textAlign: "center" }}>
-        <div className="eyebrow">Pre-visit</div>
-        <h1 className="h-1">Intake Form</h1>
-        <p className="body">Help Dr. {doctorName} prepare for your visit on {apptDate}.</p>
-      </div>
+    <form className="ik" onSubmit={submit} noValidate>
+      <Link href="/client/appointments" className="bk-back"><ArrowLeft size={15} /> Visits</Link>
+      <header className="ik-head">
+        <Headshot name={doc} hue={nameHue(doc)} size={52} />
+        <div className="col" style={{ gap: 3, minWidth: 0 }}>
+          <h1 className="h-2">Before your visit</h1>
+          <p className="small">
+            {doc}{a.doctor.specialty ? ` · ${a.doctor.specialty}` : ""} · {when} · {VISIT_TYPE_LABEL[a.consultation_type] ?? "Visit"}
+          </p>
+        </div>
+      </header>
 
-      <form onSubmit={handleSubmit} className="col gap-5">
-        <div className="glass" style={{ padding: 24 }}>
-          <div className="row gap-2" style={{ marginBottom: 18, color: "var(--accent)", fontWeight: 700 }}>
-            <FileText size={16} />
-            <span>Symptom details</span>
-          </div>
+      {!data.editable && (
+        <p className="dr-alert" role="status">This visit has passed or was cancelled, so these details can’t be changed.</p>
+      )}
 
-          <div className="col gap-4">
-            <div className="col" style={{ gap: 8 }}>
-              <label className="eyebrow">Primary reason for visit</label>
-              <textarea
-                required
-                rows={3}
-                className="input"
-                style={{ resize: "vertical" }}
-                placeholder="Describe your symptoms in detail…"
-                value={formData.chief_complaint}
-                onChange={e => setFormData({ ...formData, chief_complaint: e.target.value })}
-              />
-            </div>
+      <fieldset className="ik-card" disabled={!data.editable}>
+        <legend className="hp-title"><ClipboardList size={16} /> What’s bothering you?</legend>
+        <label className="fm-field">
+          <span className="mf-label">Reason for the visit</span>
+          <textarea
+            className="input"
+            rows={4}
+            maxLength={1000}
+            value={form.reason}
+            onChange={(e) => set("reason")(e.target.value)}
+            placeholder="e.g. Headache on the left side for a week, worse in the morning. Paracetamol helps a little."
+            aria-invalid={!!saveError && !form.reason.trim()}
+          />
+          <span className="tiny">What you feel, when it started, and anything that makes it better or worse.</span>
+        </label>
 
-            <div className="row gap-4">
-              <div className="col grow" style={{ gap: 8 }}>
-                <label className="eyebrow">Duration</label>
-                <input
-                  className="input"
-                  placeholder="e.g. 3 days, 2 weeks"
-                  value={formData.symptoms_duration}
-                  onChange={e => setFormData({ ...formData, symptoms_duration: e.target.value })}
-                />
-              </div>
-              <div className="col grow" style={{ gap: 8 }}>
-                <label className="eyebrow">Severity</label>
-                <select
-                  className="input"
-                  value={formData.severity}
-                  onChange={e => setFormData({ ...formData, severity: e.target.value })}
-                >
-                  <option>Mild</option>
-                  <option>Moderate</option>
-                  <option>Severe</option>
-                  <option>Emergency</option>
-                </select>
-              </div>
-            </div>
+        <div className="fm-field">
+          <span className="mf-label" id="ik-dur">How long has this been going on?</span>
+          <div className="bk-chips" role="radiogroup" aria-labelledby="ik-dur">
+            {DURATIONS.map((d) => (
+              <button key={d} type="button" role="radio" aria-checked={form.duration === d} className={cn("bk-chip", form.duration === d && "on")} onClick={() => set("duration")(form.duration === d ? "" : d)}>
+                {d}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="glass" style={{ padding: 24 }}>
-          <div className="row gap-2" style={{ marginBottom: 18, color: "var(--accent)", fontWeight: 700 }}>
-            <AlertCircle size={16} />
-            <span>Medical history</span>
+        <div className="fm-field">
+          <span className="mf-label" id="ik-sev">How bad is it?</span>
+          <div className="ik-sev" role="radiogroup" aria-labelledby="ik-sev">
+            {SEVERITY.map((s) => (
+              <button key={s.id} type="button" role="radio" aria-checked={form.severity === s.id} className={cn("ik-sev-opt", `sev-${s.id}`, form.severity === s.id && "on")} onClick={() => set("severity")(form.severity === s.id ? "" : s.id)}>
+                <b>{s.label}</b>
+                <span className="tiny">{s.hint}</span>
+              </button>
+            ))}
           </div>
-
-          <div className="col gap-4">
-            <div className="col" style={{ gap: 8 }}>
-              <label className="eyebrow">Current medications</label>
-              <textarea
-                rows={2}
-                className="input"
-                style={{ resize: "vertical" }}
-                placeholder="List any medications you are currently taking…"
-                value={formData.current_medications}
-                onChange={e => setFormData({ ...formData, current_medications: e.target.value })}
-              />
-            </div>
-            <div className="col" style={{ gap: 8 }}>
-              <label className="eyebrow">Known allergies</label>
-              <textarea
-                rows={2}
-                className="input"
-                style={{ resize: "vertical" }}
-                placeholder="List any known drug or food allergies…"
-                value={formData.allergies}
-                onChange={e => setFormData({ ...formData, allergies: e.target.value })}
-              />
-            </div>
-          </div>
+          {form.severity === "severe" && (
+            <motion.p className="ik-urgent" role="alert" initial={reduce ? false : { opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+              <Siren size={16} />
+              <span>If you have chest pain, trouble breathing, fainting, or sudden weakness, don’t wait for this visit — call <a href="tel:112">112</a> or go to the nearest emergency room.</span>
+            </motion.p>
+          )}
         </div>
+      </fieldset>
 
-        <button type="submit" className="btn btn-primary" disabled={submitting} style={{ alignSelf: "flex-end" }}>
-          <Send size={14} /> {submitting ? "Submitting…" : "Submit intake form"}
-        </button>
-      </form>
-    </div>
+      <fieldset className="ik-card" disabled={!data.editable}>
+        <legend className="hp-title"><Pill size={16} /> Medicines and allergies</legend>
+        <div className="fm-grid">
+          <label className="fm-field">
+            <span className="mf-label">Medicines you take</span>
+            <textarea className="input" rows={2} maxLength={300} value={form.medications} onChange={(e) => set("medications")(e.target.value)} placeholder="Name and dose, or “None”" />
+          </label>
+          <label className="fm-field">
+            <span className="mf-label">Allergies</span>
+            <textarea className="input" rows={2} maxLength={300} value={form.allergies} onChange={(e) => set("allergies")(e.target.value)} placeholder="Medicines or food, or “None”" />
+          </label>
+        </div>
+        <label className="ik-check">
+          <input type="checkbox" checked={saveToProfile} onChange={(e) => setSaveToProfile(e.target.checked)} />
+          <span>Also save these to my health profile for next time</span>
+        </label>
+      </fieldset>
+
+      {data.editable && (
+        <div className="ik-actions">
+          {saveError && <p className="bk-error" role="alert" style={{ position: "static" }}>{saveError}</p>}
+          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Sending…" : `Send to ${doc}`}</button>
+        </div>
+      )}
+    </form>
   );
 }

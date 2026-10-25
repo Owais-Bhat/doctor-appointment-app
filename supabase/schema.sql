@@ -69,6 +69,7 @@ CREATE TABLE appointments (
   status TEXT DEFAULT 'pending',   -- pending, confirmed, completed, cancelled, no_show
   consultation_type TEXT DEFAULT 'in_person', -- in_person, video, phone
   chief_complaint TEXT,            -- Patient's main reason for visit
+  intake JSONB,                    -- Patient's pre-visit details (duration, severity, medications, allergies)
   notes TEXT,                      -- Doctor's notes post-consultation
   prescription TEXT,               -- Post-visit prescription
   follow_up_date DATE,

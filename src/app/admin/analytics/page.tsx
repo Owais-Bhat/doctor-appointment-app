@@ -1,144 +1,94 @@
 "use client";
 
+import { RankBars, StatTile, TrendChart } from "@/components/charts/Charts";
+import { useApi } from "@/lib/use-api";
 import { formatFee } from "@/lib/format";
-import { useEffect, useState } from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useAuth } from "@/context/AuthContext";
 
-type MonthRow = { month: string; visits: number; revenue: number };
-type StatusRow = { status: string; count: number };
-type Stats = {
-  totalVisits: number;
-  totalRevenue: number;
-  uniquePatients: number;
-  rating: number;
-  totalReviews: number;
-  completedVisits: number;
+type Response = {
+  monthly: { month: string; visits: number; revenue: number }[];
+  stats: { totalVisits: number; totalRevenue: number; uniquePatients: number; rating: number; totalReviews: number; completedVisits: number };
+  statusBreakdown: { status: string; count: number }[];
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  completed: "#22c55e",
-  confirmed: "#3b82f6",
-  pending: "#f59e0b",
-  cancelled: "#ef4444",
+const OUTCOME: Record<string, string> = {
+  completed: "Completed",
+  confirmed: "Confirmed, still to come",
+  pending: "Waiting for you to confirm",
+  cancelled: "Cancelled",
+  no_show: "Patient didn’t attend",
 };
 
 export default function DoctorAnalytics() {
-  const { user, getToken } = useAuth();
-  const [monthly, setMonthly] = useState<MonthRow[]>([]);
-  const [statusBreakdown, setStatusBreakdown] = useState<StatusRow[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error, reload } = useApi<Response>("/api/doctor/analytics");
+  const s = data?.stats;
+  const ended = data ? data.statusBreakdown.filter((r) => ["completed", "cancelled", "no_show"].includes(r.status)).reduce((a, r) => a + r.count, 0) : 0;
+  const completion = s && ended > 0 ? Math.round((s.completedVisits / ended) * 100) : null;
 
-  useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    getToken().then(async token => {
-      const res = await fetch("/api/doctor/analytics", { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      setMonthly(data.monthly ?? []);
-      setStatusBreakdown(data.statusBreakdown ?? []);
-      setStats(data.stats ?? null);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [user]);
-
-  const kpis = stats ? [
-    { label: "Total visits", value: String(stats.totalVisits), detail: "6 months" },
-    { label: "Revenue", value: formatFee(stats.totalRevenue), detail: "completed" },
-    { label: "Patients", value: String(stats.uniquePatients), detail: "unique" },
-    { label: "Rating", value: stats.rating > 0 ? stats.rating.toFixed(1) : "—", detail: `${stats.totalReviews} reviews` },
-  ] : [
-    { label: "Total visits", value: "—", detail: "" },
-    { label: "Revenue", value: "—", detail: "" },
-    { label: "Patients", value: "—", detail: "" },
-    { label: "Rating", value: "—", detail: "" },
-  ];
+  if (error) {
+    return (
+      <div className="bk-empty">
+        <p className="h-4">Analytics couldn’t be loaded</p>
+        <p className="small">{error}.</p>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Try again</button>
+      </div>
+    );
+  }
 
   return (
-    <div className="fade-enter col gap-7">
-      <div className="col">
-        <div className="eyebrow">Business intelligence</div>
-        <h1 className="h-1">Analytics</h1>
-        <p className="body">Visit volume, revenue cycle, patient outcomes, and quality measures.</p>
-      </div>
-
-      <div className="bento" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-        {kpis.map(kpi => (
-          <div key={kpi.label} className="glass cell stat">
-            <div className="eyebrow" style={{ marginBottom: 10 }}>{kpi.label}</div>
-            <div className="row between" style={{ alignItems: "baseline" }}>
-              <div className="val tnum">{loading ? "…" : kpi.value}</div>
-              {kpi.detail && <span className="tiny" style={{ color: "var(--ink-3)" }}>{kpi.detail}</span>}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 20 }}>
-        <div className="glass" style={{ padding: 24 }}>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>Monthly visits</div>
-          <div className="h-3" style={{ marginBottom: 18 }}>Visit volume over 6 months</div>
-          <div style={{ height: 260 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthly}>
-                <defs>
-                  <linearGradient id="visitFill" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent, #3b82f6)" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="var(--accent, #3b82f6)" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="var(--line, #e5edf5)" vertical={false} />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--line, #e5edf5)", fontSize: 13 }} />
-                <Area type="monotone" dataKey="visits" stroke="var(--accent, #3b82f6)" strokeWidth={2.5} fill="url(#visitFill)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+    <div className="dr">
+      <header className="dr-head">
+        <div className="col" style={{ gap: 4 }}>
+          <h1 className="h-1">Analytics</h1>
+          <p className="small">Your practice over the last six months.</p>
         </div>
+      </header>
 
-        <div className="glass" style={{ padding: 24 }}>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>Status breakdown</div>
-          <div className="h-3" style={{ marginBottom: 18 }}>Appointments by status</div>
-          <div style={{ height: 260 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statusBreakdown} layout="vertical">
-                <CartesianGrid stroke="var(--line, #e5edf5)" horizontal={false} />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-                <YAxis dataKey="status" type="category" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} width={72} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--line, #e5edf5)", fontSize: 13 }} />
-                <Bar dataKey="count" radius={[0, 6, 6, 0]}>
-                  {statusBreakdown.map((entry) => (
-                    <Cell key={entry.status} fill={STATUS_COLOR[entry.status] ?? "#94a3b8"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+      <div className="an-tiles">
+        <StatTile loading={loading} label="Visits" value={s ? s.totalVisits.toLocaleString() : "—"} detail="booked in 6 months" />
+        <StatTile loading={loading} label="Earned" value={s ? formatFee(s.totalRevenue) : "—"} detail={s ? `from ${s.completedVisits} completed visits` : undefined} />
+        <StatTile loading={loading} label="Patients" value={s ? s.uniquePatients.toLocaleString() : "—"} detail="different people" />
+        <StatTile
+          loading={loading}
+          label={completion !== null ? "Completed" : "Rating"}
+          value={completion !== null ? `${completion}%` : s && s.rating > 0 ? s.rating.toFixed(1) : "—"}
+          detail={completion !== null ? "of visits that have ended" : s ? `${s.totalReviews} reviews` : undefined}
+        />
+      </div>
+
+      {loading || !data ? (
+        <div className="an-grid" aria-busy="true">
+          <div className="bk-skeleton" style={{ minHeight: 360, borderRadius: 22 }} />
+          <div className="bk-skeleton" style={{ minHeight: 360, borderRadius: 22 }} />
+        </div>
+      ) : (
+        <>
+          <div className="an-grid">
+            <TrendChart
+              title="Visits per month"
+              subtitle="All bookings, whatever happened to them"
+              valueName="Visits"
+              data={data.monthly.map((m) => ({ label: m.month, value: m.visits }))}
+            />
+            <RankBars
+              title="How visits ended"
+              subtitle="Last six months"
+              rows={data.statusBreakdown
+                .filter((r) => r.count > 0)
+                .sort((a, b) => b.count - a.count)
+                .map((r) => ({ label: OUTCOME[r.status] ?? r.status, value: r.count }))}
+              empty="No visits in the last six months."
+            />
           </div>
-        </div>
-      </div>
-
-      <div className="glass" style={{ padding: 24 }}>
-        <div className="eyebrow" style={{ marginBottom: 4 }}>Monthly revenue</div>
-        <div className="h-3" style={{ marginBottom: 18 }}>Completed consultation revenue</div>
-        <div style={{ height: 220 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={monthly}>
-              <defs>
-                <linearGradient id="revFill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="var(--line, #e5edf5)" vertical={false} />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} tickFormatter={v => formatFee(v)} />
-              <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--line, #e5edf5)", fontSize: 13 }} formatter={(v) => [formatFee(Number(v)), "Revenue"]} />
-              <Area type="monotone" dataKey="revenue" stroke="#22c55e" strokeWidth={2.5} fill="url(#revFill)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+          <TrendChart
+            title="Earnings per month"
+            subtitle="Completed visits × your consultation fee"
+            valueName="Earned"
+            format={(v) => formatFee(v)}
+            data={data.monthly.map((m) => ({ label: m.month, value: m.revenue }))}
+            height={220}
+          />
+        </>
+      )}
     </div>
   );
 }

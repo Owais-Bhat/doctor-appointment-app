@@ -24,7 +24,7 @@ Sign-in always needs a Firebase project.
 ### Database
 
 New database: run `supabase/schema.sql` in the Supabase SQL editor.
-Existing database: run the files in `supabase/migrations/` in order.
+Existing database: run the files in `supabase/migrations/` in order (`004_visit_intake.sql` also moves old pre-visit forms out of the doctor's notes).
 
 ## Video visits
 

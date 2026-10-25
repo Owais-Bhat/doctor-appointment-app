@@ -20,6 +20,7 @@ import { Headshot } from "@/components/medflow/Prototype";
 import { useApi, useAuthedFetch } from "@/lib/use-api";
 import { doctorName, formatDay, formatFee, formatTime, nameHue } from "@/lib/format";
 import { usePayVisit } from "@/lib/use-pay-visit";
+import { IntakeFacts, type IntakeData } from "@/components/shared/IntakeFacts";
 import { cn } from "@/lib/utils";
 
 type JoinState = { ok: true } | { ok: false; reason: "not_video" | "not_confirmed" | "too_early" | "ended" | "unpaid"; opensAt?: string };
@@ -27,7 +28,7 @@ type VisitResponse = {
   role: "patient" | "doctor";
   provider: "daily" | "jitsi";
   join: JoinState;
-  visit: { id: string; date: string; time: string; status: string; type: string; reason: string | null; notes?: string | null };
+  visit: { id: string; date: string; time: string; status: string; type: string; reason: string | null; notes?: string | null; intake?: IntakeData };
   doctor: { name: string; specialty: string | null; fee?: number | null };
   patient: { full_name: string; date_of_birth?: string | null; blood_type?: string | null; phone?: string | null; health_stats?: Record<string, unknown> | null } | null;
 };
@@ -265,6 +266,7 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
         {data.visit.reason && <div><dt>Reason</dt><dd className="pt-wrap">{data.visit.reason}</dd></div>}
         {isDoctor && allergies && <div><dt>Allergies</dt><dd className="pt-wrap">{allergies}</dd></div>}
       </dl>
+      {isDoctor && <IntakeFacts intake={data.visit.intake} hideAllergies={!!allergies} />}
       {isDoctor && stage === "call" && (
         <DoctorNotes visitId={data.visit.id} initial={data.visit.notes ?? ""} onCompleted={() => setStage("completed")} />
       )}

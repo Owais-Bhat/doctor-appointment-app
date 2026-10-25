@@ -40,6 +40,8 @@ const HEALTH_FIELDS: [string, string][] = [
   ["bp", "Blood pressure"],
   ["weight", "Weight"],
   ["height", "Height"],
+  ["emergency_contact_name", "Emergency contact"],
+  ["emergency_contact_phone", "Emergency phone"],
 ];
 
 function Details({ row }: { row: PatientRow }) {

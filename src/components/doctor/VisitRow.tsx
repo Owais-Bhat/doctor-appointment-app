@@ -9,6 +9,7 @@ import Link from "next/link";
 import { canJoinVideo } from "@/lib/video";
 import { cn } from "@/lib/utils";
 import { PaymentTag, paymentState } from "@/components/shared/PaymentTag";
+import { IntakeFacts } from "@/components/shared/IntakeFacts";
 
 export type DoctorVisit = {
   id: string;
@@ -17,6 +18,7 @@ export type DoctorVisit = {
   status: string;
   consultation_type: string;
   chief_complaint: string | null;
+  intake?: { duration?: string | null; severity?: string | null; medications?: string | null; allergies?: string | null } | null;
   notes: string | null;
   payment_status?: string | null;
   amount_paid?: number | null;
@@ -131,6 +133,7 @@ export function VisitRow({
         </div>
 
         {visit.chief_complaint && <p className="vrow-reason">“{visit.chief_complaint}”</p>}
+        <IntakeFacts intake={visit.intake} />
         {visit.notes && mode !== "notes" && mode !== "complete" && (
           <p className="vrow-notes">
             <NotebookPen size={13} /> {visit.notes}

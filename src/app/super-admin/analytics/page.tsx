@@ -1,163 +1,100 @@
 "use client";
 
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { RankBars, StatTile, TrendChart } from "@/components/charts/Charts";
 import { useApi } from "@/lib/use-api";
 import { formatFee } from "@/lib/format";
 
-type MonthRow = { month: string; appointments: number; revenue: number };
-type UserGrowthRow = { month: string; users: number };
-type SpecialtyRow = { name: string; count: number };
-type StatusRow = { status: string; count: number };
-type Stats = {
-  totalRevenue: number;
-  totalAppointments: number;
-  completedAppointments: number;
-  verifiedDoctors: number;
-  newUsersThisMonth: number;
+type Response = {
+  monthly: { month: string; appointments: number; revenue: number }[];
+  userGrowth: { month: string; users: number }[];
+  specialties: { name: string; count: number }[];
+  statusBreakdown: { status: string; count: number }[];
+  stats: {
+    totalRevenue: number;
+    totalAppointments: number;
+    completedAppointments: number;
+    verifiedDoctors: number;
+    newUsersThisMonth: number;
+    paidOnline?: number;
+    paymentsEnabled?: boolean;
+  };
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  completed: "#22c55e",
-  confirmed: "#3b82f6",
-  pending: "#f59e0b",
-  cancelled: "#ef4444",
+const OUTCOME: Record<string, string> = {
+  completed: "Completed",
+  confirmed: "Confirmed, still to come",
+  pending: "Waiting for the doctor",
+  cancelled: "Cancelled",
+  no_show: "Patient didn’t attend",
 };
-
-const SPECIALTY_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#22c55e", "#ef4444"];
 
 export default function SuperAdminAnalytics() {
-  const { data, loading } = useApi<{
-    monthly?: MonthRow[];
-    userGrowth?: UserGrowthRow[];
-    specialties?: SpecialtyRow[];
-    statusBreakdown?: StatusRow[];
-    stats?: Stats;
-  }>("/api/super-admin/analytics");
-  const monthly = data?.monthly ?? [];
-  const userGrowth = data?.userGrowth ?? [];
-  const specialties = data?.specialties ?? [];
-  const statusBreakdown = data?.statusBreakdown ?? [];
-  const stats = data?.stats ?? null;
+  const { data, loading, error, reload } = useApi<Response>("/api/super-admin/analytics");
+  const s = data?.stats;
+  const ended = data ? data.statusBreakdown.filter((r) => ["completed", "cancelled", "no_show"].includes(r.status)).reduce((a, r) => a + r.count, 0) : 0;
+  const completion = s && ended > 0 ? `${Math.round((s.completedAppointments / ended) * 100)}%` : "—";
 
-  const kpis = stats ? [
-    { label: "Revenue (6mo)", value: formatFee(stats.totalRevenue), detail: "completed" },
-    { label: "Appointments", value: stats.totalAppointments.toLocaleString(), detail: "total" },
-    { label: "Completion rate", value: stats.totalAppointments > 0 ? `${Math.round((stats.completedAppointments / stats.totalAppointments) * 100)}%` : "—", detail: "of visits" },
-    { label: "New users", value: String(stats.newUsersThisMonth), detail: "this month" },
-  ] : [
-    { label: "Revenue (6mo)", value: "—", detail: "" },
-    { label: "Appointments", value: "—", detail: "" },
-    { label: "Completion rate", value: "—", detail: "" },
-    { label: "New users", value: "—", detail: "" },
-  ];
+  if (error) {
+    return (
+      <div className="bk-empty">
+        <p className="h-4">Analytics couldn’t be loaded</p>
+        <p className="small">{error}.</p>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Try again</button>
+      </div>
+    );
+  }
 
   return (
-    <div className="fade-enter col gap-7">
-      <div className="col" style={{ gap: 6 }}>
-        <div className="eyebrow">Platform analytics</div>
-        <h1 className="h-1">Analytics</h1>
-        <p className="body">Visits, fees collected and sign-ups over the last six months.</p>
+    <div className="dr">
+      <header className="dr-head">
+        <div className="col" style={{ gap: 4 }}>
+          <h1 className="h-1">Analytics</h1>
+          <p className="small">Visits, fees and sign-ups across MedFlow over the last six months.</p>
+        </div>
+      </header>
+
+      <div className="an-tiles">
+        <StatTile loading={loading} label="Visits" value={s ? s.totalAppointments.toLocaleString() : "—"} detail="booked in 6 months" />
+        <StatTile
+          loading={loading}
+          label={s?.paymentsEnabled ? "Paid online" : "Consultation fees"}
+          value={s ? formatFee(s.paymentsEnabled ? s.paidOnline ?? 0 : s.totalRevenue) : "—"}
+          detail={s?.paymentsEnabled ? `${formatFee(s.totalRevenue)} from completed visits` : "from completed visits"}
+        />
+        <StatTile loading={loading} label="Completed" value={completion} detail="of visits that have ended" />
+        <StatTile loading={loading} label="New users" value={s ? s.newUsersThisMonth.toLocaleString() : "—"} detail={s ? `this month · ${s.verifiedDoctors} verified doctors` : undefined} />
       </div>
 
-      <div className="bento" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-        {kpis.map(kpi => (
-          <div key={kpi.label} className="glass cell stat">
-            <div className="eyebrow" style={{ marginBottom: 10 }}>{kpi.label}</div>
-            <div className="row between" style={{ alignItems: "baseline" }}>
-              <div className="val tnum">{loading ? "…" : kpi.value}</div>
-              {kpi.detail && <span className="tiny" style={{ color: "var(--ink-3)" }}>{kpi.detail}</span>}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
-        <div className="glass" style={{ padding: 24 }}>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>Monthly appointments</div>
-          <div className="h-3" style={{ marginBottom: 18 }}>Platform visit volume</div>
-          <div style={{ height: 240 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthly}>
-                <defs>
-                  <linearGradient id="apptFill" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent, #3b82f6)" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="var(--accent, #3b82f6)" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="var(--line, #e5edf5)" vertical={false} />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--line, #e5edf5)", fontSize: 13 }} />
-                <Area type="monotone" dataKey="appointments" stroke="var(--accent, #3b82f6)" strokeWidth={2.5} fill="url(#apptFill)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+      {loading || !data ? (
+        <div className="an-grid" aria-busy="true">
+          <div className="bk-skeleton" style={{ minHeight: 360, borderRadius: 22 }} />
+          <div className="bk-skeleton" style={{ minHeight: 360, borderRadius: 22 }} />
         </div>
-
-        <div className="glass" style={{ padding: 24 }}>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>User growth</div>
-          <div className="h-3" style={{ marginBottom: 18 }}>New registrations per month</div>
-          <div style={{ height: 240 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={userGrowth}>
-                <defs>
-                  <linearGradient id="userFill" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="var(--line, #e5edf5)" vertical={false} />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--line, #e5edf5)", fontSize: 13 }} />
-                <Area type="monotone" dataKey="users" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#userFill)" />
-              </AreaChart>
-            </ResponsiveContainer>
+      ) : (
+        <>
+          <div className="an-grid">
+            <TrendChart title="Visits per month" subtitle="All bookings on the platform" valueName="Visits" data={data.monthly.map((m) => ({ label: m.month, value: m.appointments }))} />
+            <RankBars
+              title="How visits ended"
+              subtitle="Last six months"
+              rows={data.statusBreakdown.filter((r) => r.count > 0).sort((a, b) => b.count - a.count).map((r) => ({ label: OUTCOME[r.status] ?? r.status, value: r.count }))}
+              empty="No visits in the last six months."
+            />
           </div>
-        </div>
-      </div>
-
-      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
-        <div className="glass" style={{ padding: 24 }}>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>Specialty distribution</div>
-          <div className="h-3" style={{ marginBottom: 18 }}>Doctors by specialty</div>
-          <div style={{ height: 220 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={specialties}>
-                <CartesianGrid stroke="var(--line, #e5edf5)" vertical={false} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 11 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--line, #e5edf5)", fontSize: 13 }} />
-                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                  {specialties.map((_, i) => (
-                    <Cell key={i} fill={SPECIALTY_COLORS[i % SPECIALTY_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="an-grid">
+            <TrendChart title="New sign-ups per month" subtitle="Patients and doctors" valueName="Sign-ups" data={data.userGrowth.map((m) => ({ label: m.month, value: m.users }))} height={220} />
+            <RankBars title="Doctors by specialty" subtitle="Top six" rows={data.specialties.map((r) => ({ label: r.name, value: r.count }))} empty="No doctors yet." />
           </div>
-        </div>
-
-        <div className="glass" style={{ padding: 24 }}>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>Status breakdown</div>
-          <div className="h-3" style={{ marginBottom: 18 }}>All appointments by status</div>
-          <div style={{ height: 220 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statusBreakdown} layout="vertical">
-                <CartesianGrid stroke="var(--line, #e5edf5)" horizontal={false} />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} />
-                <YAxis dataKey="status" type="category" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-3, #64748b)", fontSize: 12 }} width={72} />
-                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--line, #e5edf5)", fontSize: 13 }} />
-                <Bar dataKey="count" radius={[0, 6, 6, 0]}>
-                  {statusBreakdown.map((entry) => (
-                    <Cell key={entry.status} fill={STATUS_COLOR[entry.status] ?? "#94a3b8"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
+          <TrendChart
+            title="Consultation fees per month"
+            subtitle="Completed visits × each doctor’s fee"
+            valueName="Fees"
+            format={(v) => formatFee(v)}
+            data={data.monthly.map((m) => ({ label: m.month, value: m.revenue }))}
+            height={220}
+          />
+        </>
+      )}
     </div>
   );
 }

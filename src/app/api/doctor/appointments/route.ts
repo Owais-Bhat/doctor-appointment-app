@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     .from('appointments')
     .select(`
       id, appointment_date, appointment_time, status, consultation_type,
-      chief_complaint, notes, created_at, payment_status, amount_paid,
+      chief_complaint, intake, notes, created_at, payment_status, amount_paid,
       profiles!appointments_patient_id_fkey ( id, full_name, phone, date_of_birth, blood_type )
     `)
     .eq('doctor_id', dp.id)

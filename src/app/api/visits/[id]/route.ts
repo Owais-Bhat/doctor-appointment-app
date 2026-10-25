@@ -40,6 +40,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       reason: visit.chief_complaint,
       // visit notes are the doctor's working notes
       notes: role === 'doctor' ? visit.notes : undefined,
+      intake: role === 'doctor' ? visit.intake ?? null : undefined,
     },
     doctor: { name: doctorProfile?.full_name ?? 'Your doctor', specialty: doctorRow?.specialty ?? null, fee: doctorRow?.consultation_fee ?? null },
     patient,
