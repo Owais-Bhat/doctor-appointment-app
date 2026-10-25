@@ -12,7 +12,7 @@ export async function GET(
     .select(`
       id, profile_id, specialty, bio, qualifications,
       experience_years, consultation_fee, rating, total_reviews,
-      is_verified, clinic_name, languages,
+      is_verified, clinic_name, clinic_address, languages, registration_number, registration_council,
       profiles!doctor_profiles_profile_id_fkey(full_name, email, avatar_url)
     `)
     .eq('id', id)

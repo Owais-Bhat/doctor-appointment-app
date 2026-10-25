@@ -21,12 +21,14 @@ export async function PATCH(request: Request) {
   const uid = await verifyToken(request)
   if (!uid) return unauthorized()
 
-  const { id } = await request.json()
-  await supabaseAdmin
-    .from('notifications')
-    .update({ is_read: true })
-    .eq('id', id)
-    .eq('user_id', uid)
+  // { id } marks one notification read; { all: true } marks every unread one
+  const { id, all } = await request.json().catch(() => ({}))
+  if (!id && !all) return NextResponse.json({ error: 'id or all required' }, { status: 400 })
+
+  let query = supabaseAdmin.from('notifications').update({ is_read: true }).eq('user_id', uid)
+  query = all ? query.eq('is_read', false) : query.eq('id', id)
+  const { error } = await query
+  if (error) return NextResponse.json({ error: 'Could not update notifications' }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }

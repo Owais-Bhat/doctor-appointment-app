@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { paymentsEnabled } from '@/lib/payments'
 
 function getLast6Months() {
   const months: string[] = []
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
   ] = await Promise.all([
     supabaseAdmin
       .from('appointments')
-      .select('id, appointment_date, status, doctor_id')
+      .select('id, appointment_date, status, doctor_id, payment_status, amount_paid')
       .gte('appointment_date', startDate),
     supabaseAdmin
       .from('profiles')
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
     .filter(a => a.status === 'completed')
     .reduce((sum, a) => sum + (feeMap[a.doctor_id] || 0), 0)
 
-  const statusDist = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 } as Record<string, number>
+  const statusDist = { pending: 0, confirmed: 0, completed: 0, cancelled: 0, no_show: 0 } as Record<string, number>
   for (const a of appts) {
     if (statusDist[a.status] !== undefined) statusDist[a.status]++
   }
@@ -100,6 +101,9 @@ export async function GET(request: Request) {
       totalAppointments: appts.length,
       completedAppointments: appts.filter(a => a.status === 'completed').length,
       verifiedDoctors: docs.filter(d => d.is_verified).length,
+      // Money actually received online (Razorpay), not refunded
+      paidOnline: appts.filter(a => a.payment_status === 'paid').reduce((sum, a) => sum + (a.amount_paid ?? 0), 0) / 100,
+      paymentsEnabled: paymentsEnabled(),
       newUsersThisMonth: usrs.filter(u => u.created_at.substring(0, 7) === months[months.length - 1]).length,
     },
     statusBreakdown: Object.entries(statusDist).map(([status, count]) => ({ status, count })),

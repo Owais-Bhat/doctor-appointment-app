@@ -1,161 +1,285 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { Save, Star, Briefcase, DollarSign, FileText } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { BadgeCheck, Building2, ShieldCheck, CalendarPlus, Clock, GraduationCap, Languages, MapPin, Star, UserRound } from "lucide-react";
+import { Headshot } from "@/components/medflow/Prototype";
+import { SaveBar } from "@/components/shared/SaveBar";
+import { TagInput } from "@/components/shared/TagInput";
+import { useApi, useAuthedFetch } from "@/lib/use-api";
+import { CURRENCY, doctorName, formatFee, nameHue } from "@/lib/format";
 
 type Profile = {
   id: string;
   specialty: string;
-  consultation_fee: number;
-  experience_years: number;
-  bio: string;
+  consultation_fee: number | null;
+  experience_years: number | null;
+  bio: string | null;
   is_verified: boolean;
-  rating: number;
-  total_reviews: number;
-  profiles: { full_name: string; email: string };
+  rating: number | null;
+  total_reviews: number | null;
+  clinic_name: string | null;
+  clinic_address: string | null;
+  qualifications: string[] | null;
+  languages: string[] | string | null;
+  registration_number?: string | null;
+  registration_council?: string | null;
+  profiles: { full_name: string; email: string } | null;
 };
 
+type Form = {
+  full_name: string;
+  specialty: string;
+  experience_years: string;
+  consultation_fee: string;
+  clinic_name: string;
+  clinic_address: string;
+  bio: string;
+  qualifications: string[];
+  languages: string[];
+  registration_number: string;
+  registration_council: string;
+};
+
+const LANGS = ["English", "Hindi", "Urdu", "Kashmiri", "Punjabi", "Bengali", "Tamil", "Telugu", "Marathi"];
+const COUNCILS = ["National Medical Commission", "J&K Medical Council", "Delhi Medical Council", "Maharashtra Medical Council", "Karnataka Medical Council", "Tamil Nadu Medical Council", "Punjab Medical Council", "Uttar Pradesh Medical Council"];
+const QUALS = ["MBBS", "MD", "MS", "DNB", "DM", "MCh", "BDS", "MDS"];
+
+function toForm(p: Profile): Form {
+  const langs = !p.languages ? [] : Array.isArray(p.languages) ? p.languages : p.languages.split(",").map((l) => l.trim()).filter(Boolean);
+  return {
+    full_name: (p.profiles?.full_name ?? "").replace(/^dr\.?\s+/i, ""),
+    specialty: p.specialty ?? "",
+    experience_years: p.experience_years === null || p.experience_years === undefined ? "" : String(p.experience_years),
+    consultation_fee: p.consultation_fee === null || p.consultation_fee === undefined ? "" : String(Number(p.consultation_fee)),
+    clinic_name: p.clinic_name ?? "",
+    clinic_address: p.clinic_address ?? "",
+    bio: p.bio ?? "",
+    qualifications: p.qualifications ?? [],
+    languages: langs,
+    registration_number: p.registration_number ?? "",
+    registration_council: p.registration_council ?? "",
+  };
+}
+
+const same = (a: Form, b: Form) => JSON.stringify(a) === JSON.stringify(b);
+
 export default function DoctorProfilePage() {
-  const { user, getToken } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error, reload } = useApi<{ profile: Profile }>("/api/doctor/profile");
+  const authedFetch = useAuthedFetch();
+  const [saved, setSaved] = useState<Form | null>(null);
+  const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
+  const clearSaved = useCallback(() => setJustSaved(false), []);
 
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    getToken().then(token =>
-      fetch("/api/doctor/profile", { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.json())
-        .then(d => setProfile(d.profile ?? null))
-        .catch(console.error)
-        .finally(() => setLoading(false))
-    );
-  }, [user]);
+    if (data?.profile && !saved) {
+      const f = toForm(data.profile);
+      setSaved(f);
+      setForm(f);
+    }
+  }, [data, saved]);
 
-  const handleSave = async (e: React.FormEvent) => {
+  const dirty = useMemo(() => !!form && !!saved && !same(form, saved), [form, saved]);
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => {
+    setForm((f) => (f ? { ...f, [k]: v } : f));
+    setJustSaved(false);
+  };
+  const input = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => set(k, e.target.value as never);
+
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
+    if (!form || !dirty) return;
     setSaving(true);
-    setSaved(false);
-    const token = await getToken();
-    await fetch("/api/doctor/profile", {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        specialty: profile.specialty,
-        consultation_fee: profile.consultation_fee,
-        experience_years: profile.experience_years,
-        bio: profile.bio,
-      }),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaveError("");
+    try {
+      await authedFetch("/api/doctor/profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          full_name: form.full_name,
+          specialty: form.specialty,
+          experience_years: form.experience_years === "" ? 0 : Number(form.experience_years),
+          consultation_fee: form.consultation_fee === "" ? 0 : Number(form.consultation_fee),
+          clinic_name: form.clinic_name,
+          clinic_address: form.clinic_address,
+          bio: form.bio,
+          qualifications: form.qualifications,
+          languages: form.languages,
+          registration_number: form.registration_number,
+          registration_council: form.registration_council,
+        }),
+      });
+      setSaved(form);
+      setJustSaved(true);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Couldn’t save");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (loading) return <div className="fade-enter col gap-7"><div className="glass small" style={{ padding: 32, textAlign: "center" }}>Loading profile…</div></div>;
-  if (!profile) return <div className="fade-enter"><div className="glass small" style={{ padding: 32, textAlign: "center", color: "var(--bad)" }}>Doctor profile not found.</div></div>;
+  if (loading || (!form && !error)) {
+    return (
+      <div className="dr" aria-busy="true">
+        <div className="bk-skeleton" style={{ minHeight: 60, borderRadius: 16, maxWidth: 320 }} />
+        <div className="bk-skeleton" style={{ minHeight: 480, borderRadius: 24 }} />
+      </div>
+    );
+  }
+  if (error || !form || !data) {
+    return (
+      <div className="bk-empty">
+        <p className="h-4">Your profile couldn’t be loaded</p>
+        <p className="small">{error}.</p>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Try again</button>
+      </div>
+    );
+  }
 
-  const fullName = profile.profiles?.full_name ?? "Doctor";
-  const email = profile.profiles?.email ?? "";
+  const p = data.profile;
+  const name = doctorName(form.full_name);
+  const fee = Number(form.consultation_fee || 0);
+  const canSave = !!form.full_name.trim() && !!form.specialty.trim();
 
   return (
-    <div className="fade-enter col gap-7">
-      <div className="col" style={{ gap: 6 }}>
-        <div className="eyebrow">Account settings</div>
-        <h1 className="h-1">Profile</h1>
-        <p className="body">Update your professional details visible to patients.</p>
-      </div>
+    <form className="dr hp" onSubmit={save} noValidate>
+      <header className="dr-head">
+        <div className="col" style={{ gap: 4 }}>
+          <h1 className="h-1">Your profile</h1>
+          <p className="small">This is what patients see when they choose a doctor.</p>
+        </div>
+        {p.is_verified ? (
+          <span className="pay-tag pay-paid"><BadgeCheck size={13} /> Verified by MedFlow</span>
+        ) : (
+          <span className="pay-tag pay-due">{form.registration_number.trim() ? "Waiting for verification — you’ll appear in search once approved" : "Add your medical registration number to get verified"}</span>
+        )}
+      </header>
 
-      <div className="glass" style={{ padding: 24 }}>
-        <div className="row gap-4" style={{ marginBottom: 24 }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: 20,
-            background: "var(--accent)", color: "#fff",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 26, fontWeight: 900,
-          }}>
-            {fullName.charAt(0)}
-          </div>
-          <div className="col" style={{ gap: 4 }}>
-            <div style={{ fontWeight: 800, fontSize: 20 }}>{fullName}</div>
-            <div className="small" style={{ color: "var(--ink-3)" }}>{email}</div>
-            <div className="row gap-2" style={{ marginTop: 4 }}>
-              {profile.is_verified && <span className="pill good">Verified</span>}
-              <span className="pill">{profile.rating > 0 ? profile.rating.toFixed(1) : "—"} ★ · {profile.total_reviews} reviews</span>
+      <div className="dp2">
+        <div className="col gap-5" style={{ minWidth: 0 }}>
+          <section className="hp-card" aria-labelledby="dp-who">
+            <h2 id="dp-who" className="hp-title"><UserRound size={16} /> About you</h2>
+            <div className="fm-grid">
+              <label className="fm-field">
+                <span className="mf-label">Name</span>
+                <span className="dp-prefix">
+                  <span aria-hidden="true">Dr.</span>
+                  <input className="input" value={form.full_name} onChange={input("full_name")} aria-invalid={!form.full_name.trim()} autoComplete="name" />
+                </span>
+              </label>
+              <label className="fm-field">
+                <span className="mf-label">Specialty</span>
+                <input className="input" value={form.specialty} onChange={input("specialty")} placeholder="e.g. Cardiology" aria-invalid={!form.specialty.trim()} />
+              </label>
+              <label className="fm-field">
+                <span className="mf-label">Years of experience</span>
+                <input className="input" type="number" min={0} max={70} value={form.experience_years} onChange={input("experience_years")} />
+              </label>
+              <div className="fm-field">
+                <label className="mf-label" htmlFor="dp-quals">Qualifications</label>
+                <TagInput id="dp-quals" value={form.qualifications} onChange={(v) => set("qualifications", v)} placeholder="Type and press Enter" suggestions={QUALS} />
+              </div>
+              <label className="fm-field fm-wide">
+                <span className="mf-label">About you</span>
+                <textarea className="input" rows={4} maxLength={2000} value={form.bio} onChange={input("bio")} placeholder="What you treat, how you work with patients, and anything that helps them choose you." />
+                <span className="tiny">{form.bio.length}/2000</span>
+              </label>
+              <div className="fm-field fm-wide">
+                <label className="mf-label" htmlFor="dp-langs">Languages you consult in</label>
+                <TagInput id="dp-langs" value={form.languages} onChange={(v) => set("languages", v)} placeholder="e.g. English" suggestions={LANGS} />
+              </div>
             </div>
-          </div>
+          </section>
+
+          <section className="hp-card" aria-labelledby="dp-reg">
+            <h2 id="dp-reg" className="hp-title"><ShieldCheck size={16} /> Medical registration</h2>
+            <p className="tiny" style={{ marginTop: -6 }}>Shown on your profile, as the Telemedicine Practice Guidelines require. MedFlow checks it before verifying you.</p>
+            <div className="fm-grid">
+              <label className="fm-field">
+                <span className="mf-label">Registration number</span>
+                <input className="input" value={form.registration_number} onChange={input("registration_number")} placeholder="e.g. JKMC/12345" maxLength={40} aria-invalid={!form.registration_number.trim() && !p.is_verified} />
+              </label>
+              <label className="fm-field">
+                <span className="mf-label">Medical council</span>
+                <input className="input" value={form.registration_council} onChange={input("registration_council")} placeholder="e.g. J&K Medical Council or NMC" maxLength={100} list="dp-councils" />
+                <datalist id="dp-councils">
+                  {COUNCILS.map((c) => <option key={c} value={c} />)}
+                </datalist>
+              </label>
+            </div>
+          </section>
+
+          <section className="hp-card" aria-labelledby="dp-clinic">
+            <h2 id="dp-clinic" className="hp-title"><Building2 size={16} /> Clinic and fee</h2>
+            <div className="fm-grid">
+              <label className="fm-field">
+                <span className="mf-label">Clinic or hospital</span>
+                <input className="input" value={form.clinic_name} onChange={input("clinic_name")} placeholder="e.g. City Care Clinic" />
+              </label>
+              <label className="fm-field">
+                <span className="mf-label">Consultation fee</span>
+                <span className="dp-prefix">
+                  <span aria-hidden="true">{formatFee(0).replace(/[\d.,\s]/g, "") || CURRENCY}</span>
+                  <input className="input" type="number" min={0} max={100000} value={form.consultation_fee} onChange={input("consultation_fee")} inputMode="numeric" />
+                </span>
+                <span className="tiny">Patients pay this when they book online. Changes apply to new payments.</span>
+              </label>
+              <label className="fm-field fm-wide">
+                <span className="mf-label">Clinic address</span>
+                <input className="input" value={form.clinic_address} onChange={input("clinic_address")} placeholder="Street, area, city" />
+              </label>
+            </div>
+            <Link href="/admin/schedule" className="dp-link"><Clock size={14} /> Set your weekly hours and days off</Link>
+          </section>
         </div>
 
-        <form onSubmit={handleSave} className="col gap-5">
-          <div className="bento" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-            <div className="glass cell">
-              <div className="row gap-2" style={{ marginBottom: 10, color: "var(--accent)" }}>
-                <Star size={14} />
-                <span className="eyebrow">Specialty</span>
-              </div>
-              <input
-                className="input"
-                value={profile.specialty}
-                onChange={e => setProfile({ ...profile, specialty: e.target.value })}
-                placeholder="e.g. Cardiology"
-                required
-              />
+        <aside className="dp2-preview" aria-label="Preview of your card in search">
+          <span className="mf-label">How patients see you</span>
+          <div className="dl-card">
+            <div className="dl-main">
+              <Headshot name={name} hue={nameHue(name)} size={56} />
+              <span className="col" style={{ gap: 3, minWidth: 0 }}>
+                <span className="dl-name">
+                  <span className="mf-ellipsis">{name}</span>
+                  {p.is_verified && <BadgeCheck size={15} className="dl-verified" />}
+                </span>
+                <span className="small">{form.specialty || "Your specialty"}{form.experience_years ? ` · ${form.experience_years} yrs` : ""}</span>
+                {p.rating && p.total_reviews ? (
+                  <span className="dl-rating"><Star size={12} fill="currentColor" strokeWidth={0} /> {Number(p.rating).toFixed(1)} <span className="tiny">({p.total_reviews})</span></span>
+                ) : (
+                  <span className="tiny">New on MedFlow</span>
+                )}
+              </span>
             </div>
-            <div className="glass cell">
-              <div className="row gap-2" style={{ marginBottom: 10, color: "var(--accent)" }}>
-                <Briefcase size={14} />
-                <span className="eyebrow">Experience (years)</span>
+            {(form.clinic_name || form.languages.length > 0 || form.qualifications.length > 0) && (
+              <div className="dl-meta">
+                {form.qualifications.length > 0 && <span><GraduationCap size={13} /> {form.qualifications.join(", ")}</span>}
+                {form.registration_number && <span><ShieldCheck size={13} /> Reg. no. {form.registration_number}</span>}
+                {form.clinic_name && <span><MapPin size={13} /> {form.clinic_name}</span>}
+                {form.languages.length > 0 && <span><Languages size={13} /> {form.languages.join(", ")}</span>}
               </div>
-              <input
-                className="input"
-                type="number"
-                min={0}
-                value={profile.experience_years ?? ""}
-                onChange={e => setProfile({ ...profile, experience_years: +e.target.value })}
-              />
-            </div>
-            <div className="glass cell">
-              <div className="row gap-2" style={{ marginBottom: 10, color: "var(--accent)" }}>
-                <DollarSign size={14} />
-                <span className="eyebrow">Consultation fee ($)</span>
-              </div>
-              <input
-                className="input"
-                type="number"
-                min={0}
-                step="0.01"
-                value={profile.consultation_fee ?? ""}
-                onChange={e => setProfile({ ...profile, consultation_fee: +e.target.value })}
-              />
+            )}
+            {form.bio && <p className="small dp2-bio">{form.bio}</p>}
+            <div className="dl-foot">
+              <span className="dl-fee">{formatFee(fee)} <span className="tiny">per visit</span></span>
+              <span className="btn btn-primary btn-sm" aria-hidden="true"><CalendarPlus size={14} /> Book</span>
             </div>
           </div>
-
-          <div className="glass cell">
-            <div className="row gap-2" style={{ marginBottom: 10, color: "var(--accent)" }}>
-              <FileText size={14} />
-              <span className="eyebrow">Professional bio</span>
-            </div>
-            <textarea
-              className="input"
-              rows={5}
-              style={{ resize: "vertical" }}
-              value={profile.bio ?? ""}
-              onChange={e => setProfile({ ...profile, bio: e.target.value })}
-              placeholder="Tell patients about your background and approach…"
-            />
-          </div>
-
-          <div className="row" style={{ justifyContent: "flex-end", gap: 12 }}>
-            {saved && <span className="small" style={{ color: "var(--good)", alignSelf: "center" }}>Saved</span>}
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              <Save size={14} /> {saving ? "Saving…" : "Save changes"}
-            </button>
-          </div>
-        </form>
+          <p className="tiny">{p.profiles?.email}</p>
+        </aside>
       </div>
-    </div>
+
+      <SaveBar
+        dirty={dirty}
+        saving={saving}
+        saved={justSaved}
+        error={saveError}
+        canSave={canSave}
+        onDiscard={() => { setForm(saved); setSaveError(""); }}
+        onSavedShown={clearSaved}
+      />
+    </form>
   );
 }

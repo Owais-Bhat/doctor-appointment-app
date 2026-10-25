@@ -1,94 +1,162 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowRight, Search, Star, Video } from "lucide-react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import { BadgeCheck, CalendarPlus, Languages, MapPin, Search, Star } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
-import { useAuth } from "@/context/AuthContext";
+import { useApi } from "@/lib/use-api";
+import { doctorName, formatFee, nameHue } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type Doctor = {
   id: string;
   specialty: string;
-  rating: number;
-  total_reviews: number;
+  bio: string | null;
+  rating: number | null;
+  total_reviews: number | null;
   consultation_fee: number;
-  experience_years: number;
-  profiles: { full_name: string };
+  experience_years: number | null;
+  clinic_name: string | null;
+  languages: string[] | string | null;
+  is_verified?: boolean;
+  profiles: { full_name: string } | null;
 };
 
+const SORTS = {
+  rating: { label: "Top rated", fn: (a: Doctor, b: Doctor) => (b.rating ?? 0) - (a.rating ?? 0) || (b.total_reviews ?? 0) - (a.total_reviews ?? 0) },
+  fee: { label: "Lowest fee", fn: (a: Doctor, b: Doctor) => Number(a.consultation_fee) - Number(b.consultation_fee) },
+  experience: { label: "Most experienced", fn: (a: Doctor, b: Doctor) => (b.experience_years ?? 0) - (a.experience_years ?? 0) },
+} as const;
+type SortKey = keyof typeof SORTS;
+
+function langs(d: Doctor): string[] {
+  if (!d.languages) return [];
+  return Array.isArray(d.languages) ? d.languages : d.languages.split(",").map((l) => l.trim()).filter(Boolean);
+}
+
 export default function DoctorsPage() {
-  const { user, getToken } = useAuth();
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const { data, loading, error, reload } = useApi<{ doctors: Doctor[] }>("/api/doctors", { auth: false });
+  const reduce = useReducedMotion();
+  const [query, setQuery] = useState("");
+  const [specialty, setSpecialty] = useState<string | null>(null);
+  const [language, setLanguage] = useState("");
+  const [sort, setSort] = useState<SortKey>("rating");
 
-  useEffect(() => {
-    fetch('/api/doctors')
-      .then(r => r.json())
-      .then(d => setDoctors(d.doctors ?? []))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+  const doctors = useMemo(() => data?.doctors ?? [], [data]);
+  const specialties = useMemo(() => Array.from(new Set(doctors.map((d) => d.specialty).filter(Boolean))).sort(), [doctors]);
+  const languages = useMemo(() => Array.from(new Set(doctors.flatMap(langs))).sort(), [doctors]);
 
-  const filtered = doctors.filter(d =>
-    `${d.profiles?.full_name} ${d.specialty}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return doctors
+      .filter((d) => !specialty || d.specialty === specialty)
+      .filter((d) => !language || langs(d).includes(language))
+      .filter((d) => !q || `${d.profiles?.full_name ?? ""} ${d.specialty} ${d.clinic_name ?? ""} ${d.bio ?? ""}`.toLowerCase().includes(q))
+      .sort(SORTS[sort].fn);
+  }, [doctors, specialty, language, query, sort]);
 
-  const hue = (name: string) => {
-    let h = 0;
-    for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
-    return h;
-  };
+  const filtered = !!(query || specialty || language);
 
   return (
-    <div className="fade-enter col gap-7">
-      <div className="row between wrap gap-4">
-        <div>
-          <div className="eyebrow">{loading ? "—" : `${filtered.length} specialists`}</div>
-          <h1 className="h-1">Doctors</h1>
+    <div className="dr">
+      <header className="dr-head">
+        <div className="col" style={{ gap: 4 }}>
+          <h1 className="h-1">Find a doctor</h1>
+          <p className="small">{loading ? "Loading doctors…" : `${doctors.length} verified doctor${doctors.length === 1 ? "" : "s"} across ${specialties.length} specialt${specialties.length === 1 ? "y" : "ies"}.`}</p>
         </div>
-        <div className="search" style={{ minWidth: 320 }}>
-          <Search size={16} style={{ color: "var(--ink-3)" }} />
-          <input placeholder="Search specialists..." value={search} onChange={e => setSearch(e.target.value)} />
+      </header>
+
+      <div className="dl-tools">
+        <label className="search dl-search">
+          <Search size={16} aria-hidden="true" style={{ color: "var(--ink-3)" }} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name, clinic or problem" aria-label="Search doctors" />
+        </label>
+        <div className="dl-selects">
+          {languages.length > 1 && (
+            <select className="input dl-select" value={language} onChange={(e) => setLanguage(e.target.value)} aria-label="Language">
+              <option value="">Any language</option>
+              {languages.map((l) => <option key={l}>{l}</option>)}
+            </select>
+          )}
+          <select className="input dl-select" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sort by">
+            {(Object.keys(SORTS) as SortKey[]).map((k) => <option key={k} value={k}>{SORTS[k].label}</option>)}
+          </select>
         </div>
       </div>
 
-      {loading ? (
-        <div className="bento" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="glass cell" style={{ height: 160, opacity: 0.4 }} />
+      {specialties.length > 1 && (
+        <div className="bk-chips" role="group" aria-label="Filter by specialty">
+          <button type="button" className={cn("bk-chip", !specialty && "on")} aria-pressed={!specialty} onClick={() => setSpecialty(null)}>All</button>
+          {specialties.map((s) => (
+            <button key={s} type="button" className={cn("bk-chip", specialty === s && "on")} aria-pressed={specialty === s} onClick={() => setSpecialty(specialty === s ? null : s)}>
+              {s}
+            </button>
           ))}
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="glass" style={{ padding: 48, textAlign: "center" }}>
-          <div className="h-3" style={{ marginBottom: 8 }}>No doctors found</div>
-          <div className="small">Try a different search or check back later.</div>
+      )}
+
+      {loading ? (
+        <div className="dl-grid" aria-busy="true">
+          {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="bk-skeleton" style={{ minHeight: 220, borderRadius: 22 }} />)}
+        </div>
+      ) : error ? (
+        <div className="bk-empty">
+          <p className="h-4">Doctors couldn’t be loaded</p>
+          <p className="small">{error}.</p>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Try again</button>
+        </div>
+      ) : list.length === 0 ? (
+        <div className="bk-empty">
+          <p className="h-4">{filtered ? "No doctors match" : "No doctors yet"}</p>
+          <p className="small">{filtered ? "Try another specialty or language, or clear the search." : "Doctors appear here once the clinic verifies them."}</p>
+          {filtered && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setQuery(""); setSpecialty(null); setLanguage(""); }}>Clear filters</button>
+          )}
         </div>
       ) : (
-        <div className="bento" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-          {filtered.map(doctor => (
-            <div key={doctor.id} className="glass cell doc-card">
-              <div className="row gap-4">
-                <Headshot name={doctor.profiles?.full_name ?? "?"} hue={hue(doctor.profiles?.full_name ?? "")} size={64} />
-                <div>
-                  <div className="h-4">{doctor.profiles?.full_name}</div>
-                  <div className="small">{doctor.specialty}</div>
-                  {doctor.rating > 0 && (
-                    <div className="row gap-1" style={{ marginTop: 8, color: "var(--accent)" }}>
-                      <Star size={12} fill="currentColor" />
-                      <span className="tiny">{doctor.rating.toFixed(1)} · {doctor.total_reviews} reviews</span>
-                    </div>
-                  )}
+        <ul className="dl-grid">
+          {list.map((d, i) => {
+            const name = doctorName(d.profiles?.full_name);
+            const l = langs(d);
+            return (
+              <motion.li
+                key={d.id}
+                className="dl-card"
+                layout={!reduce}
+                initial={reduce ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: reduce ? 0 : Math.min(i, 8) * 0.04 }}
+              >
+                <Link href={`/client/doctors/${d.id}`} className="dl-main" aria-label={`${name}, ${d.specialty}. View profile`}>
+                  <Headshot name={name} hue={nameHue(name)} size={56} />
+                  <span className="col" style={{ gap: 3, minWidth: 0 }}>
+                    <span className="dl-name">
+                      <span className="mf-ellipsis">{name}</span>
+                      {d.is_verified !== false && <BadgeCheck size={15} className="dl-verified" aria-label="Verified" />}
+                    </span>
+                    <span className="small">{d.specialty}{d.experience_years ? ` · ${d.experience_years} yrs` : ""}</span>
+                    {d.rating && d.total_reviews ? (
+                      <span className="dl-rating"><Star size={12} fill="currentColor" strokeWidth={0} /> {Number(d.rating).toFixed(1)} <span className="tiny">({d.total_reviews})</span></span>
+                    ) : (
+                      <span className="tiny">New on MedFlow</span>
+                    )}
+                  </span>
+                </Link>
+                {(d.clinic_name || l.length > 0) && (
+                  <div className="dl-meta">
+                    {d.clinic_name && <span><MapPin size={13} /> {d.clinic_name}</span>}
+                    {l.length > 0 && <span><Languages size={13} /> {l.join(", ")}</span>}
+                  </div>
+                )}
+                <div className="dl-foot">
+                  <span className="dl-fee">{formatFee(d.consultation_fee)} <span className="tiny">per visit</span></span>
+                  <Link href={`/client/book?doctor=${d.id}`} className="btn btn-primary btn-sm"><CalendarPlus size={14} /> Book</Link>
                 </div>
-              </div>
-              <div className="row between" style={{ marginTop: 20 }}>
-                <span className="pill">${doctor.consultation_fee}/visit</span>
-                <a className="btn btn-primary btn-sm" href={`/client/book`}>
-                  <Video size={12} /> Book
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
+              </motion.li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

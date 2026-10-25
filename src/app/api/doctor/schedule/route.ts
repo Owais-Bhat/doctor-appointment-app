@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { clinicToday } from '@/lib/clinic-time'
 
 export async function GET(request: Request) {
   const auth = await requireUser(request, ['doctor'])
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ appointments: [], doctorProfileId: null }, { status: 200 })
     }
 
-    const today = new Date().toISOString().split('T')[0]
+    const today = clinicToday()
 
     const { data, error } = await supabaseAdmin
       .from('appointments')

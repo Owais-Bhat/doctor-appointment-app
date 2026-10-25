@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const statusBreakdown = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 } as Record<string, number>
+  const statusBreakdown = { pending: 0, confirmed: 0, completed: 0, cancelled: 0, no_show: 0 } as Record<string, number>
   for (const a of appts) {
     if (statusBreakdown[a.status] !== undefined) statusBreakdown[a.status]++
   }

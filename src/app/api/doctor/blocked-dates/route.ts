@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { clinicToday } from '@/lib/clinic-time'
 
 export async function POST(request: Request) {
   const auth = await requireUser(request, ['doctor'])
@@ -16,14 +17,19 @@ export async function POST(request: Request) {
   if (!dp) return NextResponse.json({ error: 'Doctor not found' }, { status: 404 })
 
   const { date, reason } = await request.json()
-  if (!date) return NextResponse.json({ error: 'date required' }, { status: 400 })
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return NextResponse.json({ error: 'Pick a valid date' }, { status: 400 })
+  }
+  if (date < clinicToday()) {
+    return NextResponse.json({ error: 'That date has already passed' }, { status: 400 })
+  }
 
   const { data, error } = await supabaseAdmin
     .from('blocked_dates')
-    .insert({ doctor_id: dp.id, blocked_date: date, reason: reason ?? null })
+    .insert({ doctor_id: dp.id, blocked_date: date, reason: reason ? String(reason).slice(0, 120) : null })
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: 'Could not add the day off' }, { status: 500 })
   return NextResponse.json({ blocked_date: data })
 }

@@ -1,129 +1,218 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Search, UserCheck, UserX } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
+import { Search, Stethoscope } from "lucide-react";
+import { Headshot } from "@/components/medflow/Prototype";
+import { useApi, useAuthedFetch } from "@/lib/use-api";
+import { CURRENCY, nameHue } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type User = {
   id: string;
   full_name: string;
   email: string;
-  role: string;
-  blood_type: string | null;
-  is_active: boolean;
+  phone: string | null;
+  role: "patient" | "doctor" | "super_admin";
+  is_active: boolean | null;
   created_at: string;
 };
+type Filter = "all" | "patient" | "doctor" | "super_admin" | "suspended";
 
-function nameHue(name: string) {
-  let h = 0;
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return h;
-}
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "patient", label: "Patients" },
+  { key: "doctor", label: "Doctors" },
+  { key: "super_admin", label: "Admins" },
+  { key: "suspended", label: "Suspended" },
+];
+const ROLE_LABEL = { patient: "Patient", doctor: "Doctor", super_admin: "Admin" };
+const SPECIALTIES = [
+  "General Medicine", "Cardiology", "Dermatology", "Pediatrics", "Gynecology", "Orthopedics",
+  "Neurology", "ENT", "Ophthalmology", "Psychiatry", "Gastroenterology", "Dentistry",
+];
 
-function Avatar({ name, size }: { name: string; size: number }) {
-  const hue = nameHue(name);
-  const initials = name.split(" ").map(p => p[0]).slice(0, 2).join("");
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%", flexShrink: 0,
-      background: `linear-gradient(135deg, hsl(${hue} 65% 65%), hsl(${(hue + 40) % 360} 60% 40%))`,
-      display: "grid", placeItems: "center", color: "#fff",
-      fontWeight: 700, fontSize: size * 0.33,
-    }}>{initials}</div>
-  );
-}
+type Panel = { kind: "doctor" } | { kind: "patient" } | { kind: "suspend" } | null;
 
-function rolePill(role: string) {
-  if (role === "super_admin") return "bad";
-  if (role === "doctor") return "accent";
-  return "";
-}
+function UserRow({ user, me, onChanged }: { user: User; me: string | undefined; onChanged: () => void }) {
+  const authedFetch = useAuthedFetch();
+  const [panel, setPanel] = useState<Panel>(null);
+  const [specialty, setSpecialty] = useState(SPECIALTIES[0]);
+  const [fee, setFee] = useState("500");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const suspended = user.is_active === false;
+  const isMe = user.id === me;
+  const joined = new Date(user.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 
-export default function UsersPage() {
-  const { user, getToken } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    getToken().then(async token => {
-      if (!token) { setLoading(false); return; }
-      const res = await fetch("/api/super-admin/users", { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      setUsers(data.users ?? []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [user]);
-
-  const filtered = users.filter(u =>
-    `${u.full_name} ${u.email} ${u.role}`.toLowerCase().includes(query.toLowerCase())
-  );
+  const run = async (path: string, method: string, body: object) => {
+    setBusy(true);
+    setError("");
+    try {
+      await authedFetch(path, { method, body: JSON.stringify(body) });
+      setPanel(null);
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <div className="fade-enter col gap-7">
-      <div className="row between wrap gap-4">
-        <div className="col" style={{ gap: 6 }}>
-          <div className="eyebrow">{loading ? "…" : `${users.length} registered`}</div>
-          <h1 className="h-1">Platform users</h1>
-        </div>
-        <div className="search" style={{ minWidth: 280 }}>
-          <Search size={16} style={{ color: "var(--ink-3)" }} />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name or role..." />
-        </div>
-      </div>
+    <li className={cn("ad-row ad-user", suspended && "is-off")}>
+      <Headshot name={user.full_name || user.email} hue={nameHue(user.full_name || user.email)} size={40} />
+      <div className="col" style={{ gap: 2, minWidth: 0 }}>
+        <span className="mf-ellipsis" style={{ fontWeight: 600 }}>
+          {user.full_name || "No name"} {isMe && <span className="tiny">(you)</span>}
+        </span>
+        <span className="tiny mf-ellipsis">{user.email}</span>
+        <span className="row gap-2" style={{ marginTop: 2 }}>
+          <span className={cn("ad-tag", user.role)}>{ROLE_LABEL[user.role]}</span>
+          {suspended && <span className="ad-tag bad">Suspended</span>}
+          <span className="tiny">Joined {joined}</span>
+        </span>
 
-      <div className="glass" style={{ padding: 0, overflow: "hidden" }}>
-        {loading ? (
-          <div className="col gap-3" style={{ padding: 16 }}>
-            {[1, 2, 3, 4, 5].map(i => <div key={i} style={{ height: 52, borderRadius: 10, border: "1px solid var(--line)", opacity: 0.4 }} />)}
+        {panel?.kind === "doctor" && (
+          <div className="vrow-panel" style={{ marginTop: 8 }}>
+            <p className="small">
+              {user.full_name.split(" ")[0]} becomes a verified doctor and can set their hours. You can hide them from search at any time.
+            </p>
+            <div className="ad-form">
+              <label className="col gap-1">
+                <span className="mf-label">Specialty</span>
+                <select className="input" value={specialty} onChange={(e) => setSpecialty(e.target.value)}>
+                  {SPECIALTIES.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </label>
+              <label className="col gap-1">
+                <span className="mf-label">Consultation fee ({CURRENCY})</span>
+                <input className="input" inputMode="decimal" value={fee} onChange={(e) => setFee(e.target.value.replace(/[^\d.]/g, ""))} />
+              </label>
+            </div>
+            <div className="row gap-2">
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy || !fee}
+                onClick={() => run("/api/super-admin/settings/promote", "POST", { userId: user.id, specialty, consultationFee: Number(fee) })}>
+                {busy ? "Saving…" : "Make doctor"}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPanel(null)}>Cancel</button>
+            </div>
           </div>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 0" }}>
-            <div className="small" style={{ color: "var(--ink-3)" }}>{query ? "No results." : "No users found."}</div>
-          </div>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
-            <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
-                {["User", "Email", "Role", "Blood type", "Status", "Joined"].map(h => (
-                  <th key={h} style={{ padding: "12px 16px" }}><span className="eyebrow">{h}</span></th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(u => (
-                <tr key={u.id} style={{ borderTop: "1px solid var(--line)" }}>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div className="row gap-3">
-                      <Avatar name={u.full_name || u.email} size={36} />
-                      <div style={{ fontWeight: 600 }}>{u.full_name || "—"}</div>
-                    </div>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div className="tiny">{u.email}</div>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <span className={`pill ${rolePill(u.role)}`}>{u.role}</span>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div className="small">{u.blood_type ?? "—"}</div>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    {u.is_active !== false
-                      ? <span className="pill good"><UserCheck size={11} /> Active</span>
-                      : <span className="pill bad"><UserX size={11} /> Inactive</span>
-                    }
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div className="tiny">{new Date(u.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         )}
+
+        {panel?.kind === "patient" && (
+          <div className="vrow-panel" style={{ marginTop: 8 }}>
+            <p className="small">They’ll be removed from search and lose the doctor portal. Their past visits stay on record.</p>
+            <div className="row gap-2">
+              <button type="button" className="btn btn-sm vrow-danger" disabled={busy}
+                onClick={() => run("/api/super-admin/settings/promote", "DELETE", { userId: user.id })}>
+                {busy ? "Saving…" : "Change to patient"}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPanel(null)}>Keep as doctor</button>
+            </div>
+          </div>
+        )}
+
+        {panel?.kind === "suspend" && (
+          <div className="vrow-panel" style={{ marginTop: 8 }}>
+            <p className="small">
+              {user.full_name.split(" ")[0] || "This user"} won’t be able to use MedFlow until you reactivate the account.
+              {user.role === "doctor" && " They’ll also be hidden from search."}
+            </p>
+            <div className="row gap-2">
+              <button type="button" className="btn btn-sm vrow-danger" disabled={busy}
+                onClick={() => run("/api/super-admin/users", "PATCH", { userId: user.id, is_active: false })}>
+                {busy ? "Suspending…" : "Suspend account"}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPanel(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {error && <span className="small sc-bad" role="alert">{error}</span>}
       </div>
+
+      {!panel && !isMe && user.role !== "super_admin" && (
+        <div className="ad-actions">
+          {suspended ? (
+            <button type="button" className="btn btn-ghost btn-sm" disabled={busy}
+              onClick={() => run("/api/super-admin/users", "PATCH", { userId: user.id, is_active: true })}>
+              {busy ? "Saving…" : "Reactivate"}
+            </button>
+          ) : (
+            <>
+              {user.role === "patient" && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPanel({ kind: "doctor" })}>
+                  <Stethoscope size={14} /> Make doctor
+                </button>
+              )}
+              {user.role === "doctor" && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPanel({ kind: "patient" })}>
+                  Change to patient
+                </button>
+              )}
+              <button type="button" className="vrow-link" onClick={() => setPanel({ kind: "suspend" })}>Suspend</button>
+            </>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+
+export default function AdminUsers() {
+  const { data, loading, error, reload } = useApi<{ users: User[]; me: string }>("/api/super-admin/users");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
+
+  const users = data?.users ?? [];
+  const matches = (u: User, f: Filter) =>
+    f === "all" ? true : f === "suspended" ? u.is_active === false : u.role === f;
+  const list = users
+    .filter((u) => matches(u, filter))
+    .filter((u) => `${u.full_name} ${u.email} ${u.phone ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()));
+
+  return (
+    <div className="dr">
+      <header className="dr-head">
+        <div className="col gap-2">
+          <h1 className="h-1">Users</h1>
+          <p className="body">Everyone with a MedFlow account. Make doctors and suspend accounts here.</p>
+        </div>
+      </header>
+
+      <div className="row gap-3 wrap" style={{ alignItems: "center" }}>
+        <label className="search" style={{ flex: "1 1 280px", maxWidth: 440 }}>
+          <Search size={16} className="mf-muted" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name, email or phone" aria-label="Search users" />
+        </label>
+        <div className="bk-chips" role="group" aria-label="Filter users">
+          {FILTERS.map((f) => (
+            <button key={f.key} type="button" className={cn("bk-chip", filter === f.key && "on")} onClick={() => setFilter(f.key)} aria-pressed={filter === f.key}>
+              {f.label}
+              {!loading && <span className="ad-n">{users.filter((u) => matches(u, f.key)).length}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="bk-skeleton" style={{ minHeight: 280, borderRadius: 18 }} aria-busy="true" />
+      ) : error ? (
+        <div className="bk-empty">
+          <p className="h-4">Users could not be loaded</p>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Try again</button>
+        </div>
+      ) : list.length === 0 ? (
+        <div className="bk-empty">
+          <p className="h-4">No users match</p>
+          <p className="small">Try another name or clear the filter.</p>
+        </div>
+      ) : (
+        <ul className="ad-list">
+          {list.map((u) => (
+            <UserRow key={u.id} user={u} me={data?.me} onChanged={reload} />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { initials } from "@/lib/format";
 import {
   Activity,
   ArrowRight,
@@ -41,7 +42,7 @@ export const phaseCards = [
 ];
 
 export function Headshot({ name, hue = 210, size = 40 }: { name: string; hue?: number; size?: number }) {
-  const initials = name.split(" ").map((part) => part[0]).slice(0, 2).join("");
+  const letters = initials(name);
   return (
     <div
       style={{
@@ -58,9 +59,9 @@ export function Headshot({ name, hue = 210, size = 40 }: { name: string; hue?: n
         boxShadow: "inset 0 -10px 30px rgba(0,0,0,.18), inset 0 6px 14px rgba(255,255,255,.18)",
         flexShrink: 0,
       }}
-      aria-label={name}
+      aria-hidden="true"
     >
-      {initials}
+      {letters}
     </div>
   );
 }

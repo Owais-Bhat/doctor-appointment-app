@@ -1,26 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CalendarClock, Check, Plus, Trash2 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useEffect, useMemo, useState } from "react";
+import { CalendarOff, Copy, Trash2 } from "lucide-react";
+import { useApi, useAuthedFetch } from "@/lib/use-api";
+import { formatTime, toISODate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+// Schema: 0 = Monday … 6 = Sunday
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const LENGTHS = [10, 15, 20, 30, 45, 60];
 
-type SlotRow = {
+type DayHours = {
   day_of_week: number;
   start_time: string;
   end_time: string;
   slot_duration_minutes: number;
   is_active: boolean;
 };
+type TimeOff = { id: string; blocked_date: string; reason: string | null };
+type Availability = { availability: DayHours[]; blocked_dates: TimeOff[] };
 
-type BlockedDate = {
-  id: string;
-  blocked_date: string;
-  reason: string | null;
-};
-
-const DEFAULT_SLOTS: SlotRow[] = DAY_NAMES.map((_, i) => ({
+const DEFAULT_WEEK: DayHours[] = DAYS.map((_, i) => ({
   day_of_week: i,
   start_time: "09:00",
   end_time: "17:00",
@@ -28,237 +28,246 @@ const DEFAULT_SLOTS: SlotRow[] = DAY_NAMES.map((_, i) => ({
   is_active: i < 5,
 }));
 
+const hhmm = (t: string) => t.substring(0, 5);
+const minutes = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+};
+function slotCount(d: DayHours) {
+  const span = minutes(d.end_time) - minutes(d.start_time);
+  return span > 0 ? Math.floor(span / d.slot_duration_minutes) : 0;
+}
+
 export default function SchedulePage() {
-  const { user, getToken } = useAuth();
-  const [slots, setSlots] = useState<SlotRow[]>(DEFAULT_SLOTS);
-  const [blocked, setBlocked] = useState<BlockedDate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const authedFetch = useAuthedFetch();
+  const { data, loading, error } = useApi<Availability>("/api/doctor/availability");
+
+  const [week, setWeek] = useState<DayHours[]>(DEFAULT_WEEK);
+  const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [newDate, setNewDate] = useState("");
-  const [newReason, setNewReason] = useState("");
-  const [addingDate, setAddingDate] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const [timeOff, setTimeOff] = useState<TimeOff[]>([]);
+  const [offDate, setOffDate] = useState("");
+  const [offReason, setOffReason] = useState("");
+  const [offBusy, setOffBusy] = useState(false);
+  const [offError, setOffError] = useState("");
+
+  // Load saved hours into the editor once
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    getToken().then(async token => {
-      const res = await fetch("/api/doctor/availability", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.availability?.length > 0) {
-        // Merge DB rows into default template
-        const merged = DEFAULT_SLOTS.map(def => {
-          const row = data.availability.find((a: SlotRow) => a.day_of_week === def.day_of_week);
-          return row ? { ...def, ...row } : def;
-        });
-        setSlots(merged);
-      }
-      setBlocked(data.blocked_dates ?? []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [user]);
+    if (!data) return;
+    const saved = data.availability ?? [];
+    setWeek(
+      DEFAULT_WEEK.map((d) => {
+        const row = saved.find((r) => r.day_of_week === d.day_of_week);
+        return row
+          ? { ...d, ...row, start_time: hhmm(row.start_time), end_time: hhmm(row.end_time) }
+          : { ...d, is_active: saved.length === 0 ? d.is_active : false };
+      }),
+    );
+    setTimeOff(data.blocked_dates ?? []);
+  }, [data]);
 
-  const updateSlot = (idx: number, patch: Partial<SlotRow>) => {
-    setSlots(prev => prev.map((s, i) => i === idx ? { ...s, ...patch } : s));
-    setSaved(false);
+  const update = (day: number, patch: Partial<DayHours>) => {
+    setWeek((w) => w.map((d) => (d.day_of_week === day ? { ...d, ...patch } : d)));
+    setDirty(true);
+    setSaveMsg(null);
   };
 
-  const saveAvailability = async () => {
+  const copyToWeekdays = (from: DayHours) => {
+    setWeek((w) =>
+      w.map((d) =>
+        d.day_of_week < 5
+          ? { ...d, start_time: from.start_time, end_time: from.end_time, slot_duration_minutes: from.slot_duration_minutes, is_active: true }
+          : d,
+      ),
+    );
+    setDirty(true);
+    setSaveMsg(null);
+  };
+
+  const invalidDay = week.find((d) => d.is_active && minutes(d.end_time) <= minutes(d.start_time));
+  const weeklySlots = useMemo(() => week.filter((d) => d.is_active).reduce((n, d) => n + slotCount(d), 0), [week]);
+
+  const save = async () => {
+    if (invalidDay) return;
     setSaving(true);
-    setSaved(false);
-    const token = await getToken();
-    await fetch("/api/doctor/availability", {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ slots }),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
-
-  const addBlockedDate = async () => {
-    if (!newDate) return;
-    setAddingDate(true);
-    const token = await getToken();
-    const res = await fetch("/api/doctor/blocked-dates", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ date: newDate, reason: newReason.trim() || null }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setBlocked(prev => [...prev, data.blocked_date].sort((a, b) => a.blocked_date.localeCompare(b.blocked_date)));
-      setNewDate("");
-      setNewReason("");
+    setSaveMsg(null);
+    try {
+      await authedFetch("/api/doctor/availability", { method: "PUT", body: JSON.stringify({ slots: week }) });
+      setDirty(false);
+      setSaveMsg({ ok: true, text: "Hours saved. Patients see the new times right away." });
+    } catch (e) {
+      setSaveMsg({ ok: false, text: `${e instanceof Error ? e.message : "Could not save"}. Your changes are still here; try again.` });
+    } finally {
+      setSaving(false);
     }
-    setAddingDate(false);
   };
 
-  const removeBlockedDate = async (id: string) => {
-    const token = await getToken();
-    const res = await fetch(`/api/doctor/blocked-dates/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) setBlocked(prev => prev.filter(b => b.id !== id));
+  const addTimeOff = async () => {
+    if (!offDate) return;
+    setOffBusy(true);
+    setOffError("");
+    try {
+      const res = await authedFetch<{ blocked_date: TimeOff }>("/api/doctor/blocked-dates", {
+        method: "POST",
+        body: JSON.stringify({ date: offDate, reason: offReason.trim() || null }),
+      });
+      setTimeOff((t) => [...t, res.blocked_date].sort((a, b) => a.blocked_date.localeCompare(b.blocked_date)));
+      setOffDate("");
+      setOffReason("");
+    } catch (e) {
+      setOffError(e instanceof Error ? e.message : "Could not add the day off");
+    } finally {
+      setOffBusy(false);
+    }
   };
 
-  const formatDate = (d: string) =>
-    new Date(d + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-
-  const today = new Date().toISOString().split("T")[0];
+  const removeTimeOff = async (id: string) => {
+    const before = timeOff;
+    setTimeOff((t) => t.filter((x) => x.id !== id));
+    try {
+      await authedFetch(`/api/doctor/blocked-dates/${id}`, { method: "DELETE" });
+    } catch {
+      setTimeOff(before);
+      setOffError("Could not remove that day. Try again.");
+    }
+  };
 
   return (
-    <div className="fade-enter col gap-7">
-      <div className="row between wrap gap-4">
-        <div className="col" style={{ gap: 6 }}>
-          <div className="eyebrow">Capacity management</div>
-          <h1 className="h-1">Schedule control</h1>
-          <p className="body">Set weekly availability, slot duration, and blocked dates.</p>
+    <div className="dr">
+      <header className="dr-head">
+        <div className="col gap-2">
+          <h1 className="h-1">Schedule</h1>
+          <p className="body">Your weekly hours decide which times patients can book.</p>
         </div>
-        <button
-          className={`btn ${saved ? "btn-glass" : "btn-primary"}`}
-          onClick={saveAvailability}
-          disabled={saving}
-        >
-          {saved ? <><Check size={14} /> Saved</> : saving ? "Saving…" : "Save availability"}
-        </button>
-      </div>
+      </header>
 
-      <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 20, alignItems: "start" }}>
-        {/* Weekly slots */}
-        <div className="glass" style={{ padding: 24 }}>
-          <div className="eyebrow" style={{ marginBottom: 18 }}>Weekly availability</div>
-          {loading ? (
-            <div className="col gap-3">
-              {[1, 2, 3].map(i => <div key={i} style={{ height: 60, borderRadius: 12, border: "1px solid var(--line)", opacity: 0.4 }} />)}
-            </div>
-          ) : (
-            <div className="col gap-3">
-              {slots.map((slot, idx) => (
-                <div key={slot.day_of_week} style={{
-                  padding: "14px 18px", borderRadius: 14,
-                  border: `1px solid ${slot.is_active ? "var(--accent)" : "var(--line)"}`,
-                  opacity: slot.is_active ? 1 : 0.5,
-                  transition: "opacity .15s, border-color .15s",
-                }}>
-                  <div className="row between" style={{ alignItems: "center" }}>
-                    <div style={{ fontWeight: 700, width: 36 }}>{DAY_NAMES[slot.day_of_week]}</div>
-                    <div className="row gap-3" style={{ flex: 1, justifyContent: "center" }}>
-                      <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        <span className="tiny" style={{ color: "var(--ink-3)" }}>Open</span>
-                        <input
-                          type="time"
-                          value={slot.start_time}
-                          disabled={!slot.is_active}
-                          onChange={e => updateSlot(idx, { start_time: e.target.value })}
-                          style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "4px 8px", background: "var(--surface-2)", fontSize: 13, fontWeight: 600 }}
-                        />
+      {error && (
+        <div className="bk-empty">
+          <p className="h-4">Your schedule could not be loaded</p>
+          <p className="small">{error}. Refresh the page to try again.</p>
+        </div>
+      )}
+
+      <div className="dr-grid">
+        <section className="col gap-4" aria-labelledby="sc-hours" style={{ minWidth: 0 }}>
+          <div className="row between wrap gap-3">
+            <h2 id="sc-hours" className="h-4">Weekly hours</h2>
+            <span className="small">{weeklySlots} bookable slots a week</span>
+          </div>
+
+          <ul className={cn("sc-week", loading && "bk-skeleton")} aria-busy={loading}>
+            {week.map((d) => {
+              const bad = d.is_active && minutes(d.end_time) <= minutes(d.start_time);
+              return (
+                <li key={d.day_of_week} className={cn("sc-day", !d.is_active && "off")}>
+                  <label className="sc-toggle">
+                    <input
+                      type="checkbox"
+                      checked={d.is_active}
+                      onChange={(e) => update(d.day_of_week, { is_active: e.target.checked })}
+                    />
+                    <span className="sc-switch" aria-hidden="true" />
+                    <span className="sc-dayname">{DAYS[d.day_of_week]}</span>
+                  </label>
+
+                  {d.is_active ? (
+                    <div className="sc-fields">
+                      <label className="sc-field">
+                        <span className="sr-only">{DAYS[d.day_of_week]} start</span>
+                        <input type="time" className="input" value={d.start_time} onChange={(e) => update(d.day_of_week, { start_time: e.target.value })} />
                       </label>
-                      <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        <span className="tiny" style={{ color: "var(--ink-3)" }}>Close</span>
-                        <input
-                          type="time"
-                          value={slot.end_time}
-                          disabled={!slot.is_active}
-                          onChange={e => updateSlot(idx, { end_time: e.target.value })}
-                          style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "4px 8px", background: "var(--surface-2)", fontSize: 13, fontWeight: 600 }}
-                        />
+                      <span className="mf-muted" aria-hidden="true">to</span>
+                      <label className="sc-field">
+                        <span className="sr-only">{DAYS[d.day_of_week]} end</span>
+                        <input type="time" className="input" value={d.end_time} onChange={(e) => update(d.day_of_week, { end_time: e.target.value })} />
                       </label>
-                      <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        <span className="tiny" style={{ color: "var(--ink-3)" }}>Slot (min)</span>
+                      <label className="sc-field">
+                        <span className="sr-only">{DAYS[d.day_of_week]} visit length</span>
                         <select
-                          value={slot.slot_duration_minutes}
-                          disabled={!slot.is_active}
-                          onChange={e => updateSlot(idx, { slot_duration_minutes: Number(e.target.value) })}
-                          style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "4px 8px", background: "var(--surface-2)", fontSize: 13, fontWeight: 600 }}
+                          className="input"
+                          value={d.slot_duration_minutes}
+                          onChange={(e) => update(d.day_of_week, { slot_duration_minutes: Number(e.target.value) })}
                         >
-                          {[15, 20, 30, 45, 60].map(m => <option key={m} value={m}>{m}</option>)}
+                          {LENGTHS.map((m) => (
+                            <option key={m} value={m}>{m} min visits</option>
+                          ))}
                         </select>
                       </label>
+                      <span className={cn("sc-count", bad && "bad")}>
+                        {bad ? "End must be after start" : `${slotCount(d)} slots`}
+                      </span>
+                      {d.day_of_week === 0 && (
+                        <button type="button" className="vrow-link" onClick={() => copyToWeekdays(d)}>
+                          <Copy size={13} /> Copy to weekdays
+                        </button>
+                      )}
                     </div>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={slot.is_active}
-                        onChange={e => updateSlot(idx, { is_active: e.target.checked })}
-                        style={{ width: 16, height: 16, accentColor: "var(--accent)" }}
-                      />
-                      <span className="tiny">{slot.is_active ? "Active" : "Off"}</span>
-                    </label>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                  ) : (
+                    <span className="small mf-muted">Closed</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
 
-        {/* Blocked dates */}
-        <div className="col gap-4">
-          <div className="glass" style={{ padding: 22 }}>
-            <div className="eyebrow" style={{ marginBottom: 14 }}>Blocked dates</div>
-            {blocked.length === 0 && !loading ? (
-              <div className="small" style={{ color: "var(--ink-3)" }}>No upcoming blocked dates.</div>
-            ) : (
-              <div className="col gap-2">
-                {blocked.map(b => (
-                  <div key={b.id} className="row between" style={{ padding: "10px 14px", borderRadius: 12, border: "1px solid var(--line)", alignItems: "center" }}>
-                    <div className="row gap-2" style={{ alignItems: "center" }}>
-                      <CalendarClock size={14} style={{ color: "var(--ink-3)", flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{formatDate(b.blocked_date)}</div>
-                        {b.reason && <div className="tiny" style={{ color: "var(--ink-3)" }}>{b.reason}</div>}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removeBlockedDate(b.id)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", padding: 4 }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
+          <div className="row gap-3 wrap" style={{ alignItems: "center" }}>
+            <button type="button" className="btn btn-primary" disabled={saving || !dirty || !!invalidDay || loading} onClick={save}>
+              {saving ? "Saving…" : "Save hours"}
+            </button>
+            {saveMsg && (
+              <span className={cn("small", saveMsg.ok ? "sc-ok" : "sc-bad")} role="status">
+                {saveMsg.text}
+              </span>
             )}
+            {!saveMsg && dirty && <span className="small mf-muted">Unsaved changes</span>}
+          </div>
+        </section>
+
+        <aside className="col gap-4" aria-labelledby="sc-off">
+          <div className="col gap-1">
+            <h2 id="sc-off" className="h-4">Time off</h2>
+            <p className="small">No one can book you on these days. Visits already booked stay as they are.</p>
           </div>
 
-          {/* Add blocked date */}
-          <div className="glass" style={{ padding: 22 }}>
-            <div className="eyebrow" style={{ marginBottom: 14 }}>Add blocked date</div>
-            <div className="col gap-3">
-              <div>
-                <div className="tiny" style={{ marginBottom: 4, color: "var(--ink-3)" }}>Date</div>
-                <input
-                  type="date"
-                  value={newDate}
-                  min={today}
-                  onChange={e => setNewDate(e.target.value)}
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface-2)", fontSize: 13 }}
-                />
-              </div>
-              <div>
-                <div className="tiny" style={{ marginBottom: 4, color: "var(--ink-3)" }}>Reason (optional)</div>
-                <input
-                  type="text"
-                  value={newReason}
-                  placeholder="e.g. CME Conference"
-                  onChange={e => setNewReason(e.target.value)}
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface-2)", fontSize: 13 }}
-                />
-              </div>
-              <button
-                className="btn btn-primary"
-                style={{ justifyContent: "center" }}
-                onClick={addBlockedDate}
-                disabled={!newDate || addingDate}
-              >
-                <Plus size={14} /> {addingDate ? "Adding…" : "Add date"}
-              </button>
-            </div>
+          <div className="sc-off-form">
+            <label className="col gap-1">
+              <span className="mf-label">Date</span>
+              <input type="date" className="input" min={toISODate(new Date())} value={offDate} onChange={(e) => setOffDate(e.target.value)} />
+            </label>
+            <label className="col gap-1">
+              <span className="mf-label">Reason <span className="mf-muted">(only you see this)</span></span>
+              <input className="input" value={offReason} maxLength={120} onChange={(e) => setOffReason(e.target.value)} placeholder="Conference, leave…" />
+            </label>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={!offDate || offBusy} onClick={addTimeOff}>
+              <CalendarOff size={14} /> {offBusy ? "Adding…" : "Add day off"}
+            </button>
+            {offError && <p className="small sc-bad" role="alert">{offError}</p>}
           </div>
-        </div>
+
+          {timeOff.length > 0 && (
+            <ul className="sc-offs">
+              {timeOff.map((t) => (
+                <li key={t.id}>
+                  <div className="col" style={{ gap: 0 }}>
+                    <span style={{ fontWeight: 600 }}>
+                      {new Date(`${t.blocked_date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                    </span>
+                    {t.reason && <span className="tiny">{t.reason}</span>}
+                  </div>
+                  <button type="button" className="icon-btn" aria-label={`Remove time off on ${t.blocked_date}`} onClick={() => removeTimeOff(t.id)}>
+                    <Trash2 size={15} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="tiny">
+            Example: 9:00 to 13:00 with 30 min visits gives slots at {["09:00", "09:30", "10:00"].map(formatTime).join(", ")} … {formatTime("12:30")}.
+          </p>
+        </aside>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { paymentsEnabled } from '@/lib/payments'
 
 export async function GET(request: Request) {
   const uid = await verifyToken(request)
@@ -19,6 +20,10 @@ export async function GET(request: Request) {
         notes,
         follow_up_date,
         created_at,
+        payment_status,
+        amount_paid,
+        payment_currency,
+        paid_at,
         doctor_profiles!appointments_doctor_id_fkey (
           id,
           specialty,
@@ -40,7 +45,7 @@ export async function GET(request: Request) {
     // Filter out appointments with invalid doctor data
     const validAppointments = (data ?? []).filter(apt => apt.doctor_profiles !== null)
 
-    return NextResponse.json({ appointments: validAppointments })
+    return NextResponse.json({ appointments: validAppointments, paymentsEnabled: paymentsEnabled() })
   } catch (err) {
     console.error('Unexpected error in patient appointments:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

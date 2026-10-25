@@ -1,10 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Edit2, HeartPulse, ShieldCheck, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { Check, HeartPulse, PhoneCall, Stethoscope, UserRound } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
-import { useAuth } from "@/context/AuthContext";
+import { ReminderToggle } from "@/components/shared/ReminderToggle";
+import { SaveBar } from "@/components/shared/SaveBar";
+import { useApi, useAuthedFetch } from "@/lib/use-api";
+import { nameHue } from "@/lib/format";
 
+type Health = {
+  allergies?: string | null;
+  chronic_conditions?: string | null;
+  medications?: string | null;
+  bp?: string | null;
+  weight?: number | null;
+  height?: number | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+};
 type Profile = {
   id: string;
   full_name: string;
@@ -14,276 +28,250 @@ type Profile = {
   date_of_birth: string | null;
   gender: string | null;
   address: string | null;
-  health_stats: Record<string, any> | null;
-  created_at: string;
+  health_stats: Health | null;
 };
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
 
-function nameHue(name: string) {
-  let h = 0;
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return h;
+type Form = Record<
+  | "full_name" | "phone" | "date_of_birth" | "gender" | "address" | "blood_type"
+  | "allergies" | "chronic_conditions" | "medications" | "bp" | "weight" | "height"
+  | "emergency_contact_name" | "emergency_contact_phone",
+  string
+>;
+
+function toForm(p: Profile): Form {
+  const h = p.health_stats ?? {};
+  const s = (v: unknown) => (v === null || v === undefined ? "" : String(v));
+  return {
+    full_name: s(p.full_name), phone: s(p.phone), date_of_birth: s(p.date_of_birth),
+    gender: GENDERS.find((g) => g.toLowerCase() === s(p.gender).toLowerCase()) ?? s(p.gender),
+    address: s(p.address), blood_type: s(p.blood_type),
+    allergies: s(h.allergies), chronic_conditions: s(h.chronic_conditions), medications: s(h.medications),
+    bp: s(h.bp), weight: s(h.weight), height: s(h.height),
+    emergency_contact_name: s(h.emergency_contact_name), emergency_contact_phone: s(h.emergency_contact_phone),
+  };
+}
+
+function age(dob: string) {
+  if (!dob) return null;
+  const d = new Date(`${dob}T00:00:00`);
+  const n = new Date();
+  let a = n.getFullYear() - d.getFullYear();
+  if (n < new Date(n.getFullYear(), d.getMonth(), d.getDate())) a--;
+  return a >= 0 && a < 130 ? a : null;
+}
+
+/** The fields that make a visit go smoother; drives the "x% complete" ring. */
+const KEY_FIELDS: (keyof Form)[] = ["phone", "date_of_birth", "gender", "blood_type", "allergies", "emergency_contact_name", "emergency_contact_phone"];
+
+function Field({ label, hint, children, wide }: { label: string; hint?: string; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <label className={wide ? "fm-field fm-wide" : "fm-field"}>
+      <span className="mf-label">{label}</span>
+      {children}
+      {hint && <span className="tiny">{hint}</span>}
+    </label>
+  );
 }
 
 export default function ClientProfile() {
-  const { user, getToken } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
+  const { data, loading, error, reload } = useApi<{ profile: Profile }>("/api/patient/profile");
+  const authedFetch = useAuthedFetch();
+  const reduce = useReducedMotion();
+  const [saved, setSaved] = useState<Form | null>(null);
+  const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  // Editable form state
-  const [form, setForm] = useState({
-    full_name: "",
-    phone: "",
-    blood_type: "",
-    date_of_birth: "",
-    gender: "",
-    address: "",
-    health_stats: { bp: "", weight: "", height: "" },
-  });
+  const [saveError, setSaveError] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
 
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    getToken().then(token =>
-      fetch("/api/patient/profile", { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.json())
-        .then(d => {
-          const p: Profile = d.profile;
-          setProfile(p);
-          if (p) {
-            setForm({
-              full_name: p.full_name ?? "",
-              phone: p.phone ?? "",
-              blood_type: p.blood_type ?? "",
-              date_of_birth: p.date_of_birth ?? "",
-              gender: p.gender ?? "",
-              address: p.address ?? "",
-              health_stats: {
-                bp: p.health_stats?.bp ?? "",
-                weight: p.health_stats?.weight ?? "",
-                height: p.health_stats?.height ?? "",
-              },
-            });
-          }
-        })
-        .catch(console.error)
-        .finally(() => setLoading(false))
-    );
-  }, [user]);
+    if (data?.profile && !saved) {
+      const f = toForm(data.profile);
+      setSaved(f);
+      setForm(f);
+    }
+  }, [data, saved]);
 
-  const saveProfile = async () => {
+  const dirty = useMemo(() => !!form && !!saved && (Object.keys(form) as (keyof Form)[]).some((k) => form[k] !== saved[k]), [form, saved]);
+  const done = form ? KEY_FIELDS.filter((k) => form[k].trim()).length : 0;
+  const pct = Math.round((done / KEY_FIELDS.length) * 100);
+
+  const clearSaved = useCallback(() => setJustSaved(false), []);
+
+  const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setForm((f) => (f ? { ...f, [k]: e.target.value } : f));
+    setJustSaved(false);
+  };
+
+  const save = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!form) return;
     setSaving(true);
-    const token = await getToken();
-    const res = await fetch("/api/patient/profile", {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        full_name: form.full_name,
-        phone: form.phone || null,
-        blood_type: form.blood_type || null,
-        date_of_birth: form.date_of_birth || null,
-        gender: form.gender || null,
-        address: form.address || null,
-        health_stats: {
-          bp: form.health_stats.bp || null,
-          weight: form.health_stats.weight ? Number(form.health_stats.weight) : null,
-          height: form.health_stats.height ? Number(form.health_stats.height) : null,
-        },
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setProfile(data.profile);
-      setSaved(true);
-      setEditing(false);
-      setTimeout(() => setSaved(false), 3000);
-    }
-    setSaving(false);
-  };
-
-  const cancelEdit = () => {
-    if (profile) {
-      setForm({
-        full_name: profile.full_name ?? "",
-        phone: profile.phone ?? "",
-        blood_type: profile.blood_type ?? "",
-        date_of_birth: profile.date_of_birth ?? "",
-        gender: profile.gender ?? "",
-        address: profile.address ?? "",
-        health_stats: {
-          bp: profile.health_stats?.bp ?? "",
-          weight: profile.health_stats?.weight ?? "",
-          height: profile.health_stats?.height ?? "",
-        },
+    setSaveError("");
+    try {
+      const res = await authedFetch<{ profile: Profile }>("/api/patient/profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          full_name: form.full_name,
+          phone: form.phone || null,
+          date_of_birth: form.date_of_birth || null,
+          gender: form.gender || null,
+          address: form.address || null,
+          blood_type: form.blood_type || null,
+          health_stats: {
+            allergies: form.allergies || null,
+            chronic_conditions: form.chronic_conditions || null,
+            medications: form.medications || null,
+            bp: form.bp || null,
+            weight: form.weight || null,
+            height: form.height || null,
+            emergency_contact_name: form.emergency_contact_name || null,
+            emergency_contact_phone: form.emergency_contact_phone || null,
+          },
+        }),
       });
+      const f = toForm(res.profile);
+      setSaved(f);
+      setForm(f);
+      setJustSaved(true);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Couldn’t save");
+    } finally {
+      setSaving(false);
     }
-    setEditing(false);
   };
 
-  const name = profile?.full_name ?? user?.displayName ?? "Patient";
-  const inputStyle = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface-2)", fontSize: 14, fontFamily: "inherit" };
+  if (loading || (!form && !error)) {
+    return (
+      <div className="dr" aria-busy="true">
+        <div className="bk-skeleton" style={{ minHeight: 150, borderRadius: 24 }} />
+        <div className="bk-skeleton" style={{ minHeight: 420, borderRadius: 24 }} />
+      </div>
+    );
+  }
+  if (error || !form || !data) {
+    return (
+      <div className="bk-empty">
+        <p className="h-4">Your profile couldn’t be loaded</p>
+        <p className="small">{error}.</p>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Try again</button>
+      </div>
+    );
+  }
+
+  const name = form.full_name || "You";
+  const years = age(form.date_of_birth);
+  const r = 22;
+  const circ = 2 * Math.PI * r;
 
   return (
-    <div className="fade-enter col gap-7">
-      {/* Header */}
-      <div className="glass" style={{ padding: 28 }}>
-        <div className="row gap-5">
-          {loading
-            ? <div style={{ width: 96, height: 96, borderRadius: "50%", background: "var(--glass)", flexShrink: 0 }} />
-            : <Headshot name={name} hue={nameHue(name)} size={96} />
-          }
-          <div className="grow">
-            <div className="eyebrow">Patient record</div>
-            <h1 className="h-1" style={{ marginBottom: 6 }}>{loading ? "Loading…" : name}</h1>
-            <p className="body">
-              {profile?.email}
-              {profile?.blood_type ? ` · Blood type ${profile.blood_type}` : ""}
-              {profile?.phone ? ` · ${profile.phone}` : ""}
-            </p>
+    <form className="dr hp" onSubmit={save} noValidate>
+      <header className="hp-head glass-strong">
+        <Headshot name={name} hue={nameHue(name)} size={72} />
+        <div className="col" style={{ gap: 4, minWidth: 0 }}>
+          <h1 className="h-2 mf-ellipsis">{saved?.full_name || "Your profile"}</h1>
+          <p className="small mf-ellipsis">
+            {[data.profile.email, years !== null ? `${years} yrs` : null, saved?.blood_type ? `Blood ${saved.blood_type}` : null].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+        <div className="hp-ring" aria-label={`Profile ${pct}% complete`}>
+          <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
+            <circle cx="28" cy="28" r={r} fill="none" stroke="var(--line-2)" strokeWidth="5" />
+            <motion.circle
+              cx="28" cy="28" r={r} fill="none" stroke={pct === 100 ? "var(--good)" : "var(--accent)"} strokeWidth="5" strokeLinecap="round"
+              strokeDasharray={circ} transform="rotate(-90 28 28)"
+              initial={false} animate={{ strokeDashoffset: circ * (1 - pct / 100) }} transition={{ duration: reduce ? 0 : 0.6, ease: [0.2, 0.8, 0.2, 1] }}
+            />
+          </svg>
+          <span className="hp-pct">{pct === 100 ? <Check size={18} /> : `${pct}%`}</span>
+          <span className="tiny hp-ring-txt">{pct === 100 ? "Profile complete" : "Complete your profile so doctors have what they need"}</span>
+        </div>
+      </header>
+
+      <div className="hp-grid">
+        <section className="hp-card" aria-labelledby="hp-about">
+          <h2 id="hp-about" className="hp-title"><UserRound size={16} /> About you</h2>
+          <div className="fm-grid">
+            <Field label="Full name" wide>
+              <input className="input" value={form.full_name} onChange={set("full_name")} autoComplete="name" required aria-invalid={!form.full_name.trim()} />
+            </Field>
+            <Field label="Mobile number" hint="For visit reminders and the doctor">
+              <input className="input" type="tel" value={form.phone} onChange={set("phone")} autoComplete="tel" placeholder="+91 98765 43210" />
+            </Field>
+            <Field label="Date of birth">
+              <input className="input" type="date" value={form.date_of_birth} onChange={set("date_of_birth")} max={new Date().toISOString().slice(0, 10)} autoComplete="bday" />
+            </Field>
+            <Field label="Gender">
+              <select className="input" value={form.gender} onChange={set("gender")}>
+                <option value="">Select</option>
+                {GENDERS.map((g) => <option key={g}>{g}</option>)}
+              </select>
+            </Field>
+            <Field label="City or address">
+              <input className="input" value={form.address} onChange={set("address")} autoComplete="address-level2" placeholder="Srinagar, J&K" />
+            </Field>
           </div>
-          <div className="row gap-2">
-            {saved && <span className="pill good"><Check size={11} /> Saved</span>}
-            <span className="pill good"><ShieldCheck size={11} /> Verified</span>
-            {!editing ? (
-              <button className="btn btn-glass btn-sm" onClick={() => setEditing(true)}>
-                <Edit2 size={13} /> Edit
-              </button>
-            ) : (
-              <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>
-                <X size={13} /> Cancel
-              </button>
-            )}
+        </section>
+
+        <section className="hp-card" aria-labelledby="hp-med">
+          <h2 id="hp-med" className="hp-title"><Stethoscope size={16} /> Medical details</h2>
+          <p className="tiny" style={{ marginTop: -6 }}>Your doctor sees this before each visit.</p>
+          <div className="fm-grid">
+            <Field label="Blood type">
+              <select className="input" value={form.blood_type} onChange={set("blood_type")}>
+                <option value="">Not sure</option>
+                {BLOOD_TYPES.map((b) => <option key={b}>{b}</option>)}
+              </select>
+            </Field>
+            <Field label="Blood pressure">
+              <input className="input" value={form.bp} onChange={set("bp")} placeholder="120/80" inputMode="numeric" />
+            </Field>
+            <Field label="Weight (kg)">
+              <input className="input" type="number" min={1} max={400} step="0.1" value={form.weight} onChange={set("weight")} placeholder="70" />
+            </Field>
+            <Field label="Height (cm)">
+              <input className="input" type="number" min={30} max={260} value={form.height} onChange={set("height")} placeholder="172" />
+            </Field>
+            <Field label="Allergies" hint="Medicines, food or anything else. Write “None” if you have none." wide>
+              <input className="input" value={form.allergies} onChange={set("allergies")} placeholder="e.g. Penicillin, peanuts" maxLength={300} />
+            </Field>
+            <Field label="Ongoing conditions" wide>
+              <input className="input" value={form.chronic_conditions} onChange={set("chronic_conditions")} placeholder="e.g. Diabetes, asthma" maxLength={300} />
+            </Field>
+            <Field label="Medicines you take" wide>
+              <textarea className="input" rows={2} value={form.medications} onChange={set("medications")} placeholder="Name and dose, e.g. Metformin 500 mg twice a day" maxLength={300} />
+            </Field>
           </div>
+        </section>
+
+        <div className="col gap-5">
+          <section className="hp-card" aria-labelledby="hp-sos">
+            <h2 id="hp-sos" className="hp-title"><PhoneCall size={16} /> Emergency contact</h2>
+            <div className="fm-grid">
+              <Field label="Name" wide>
+                <input className="input" value={form.emergency_contact_name} onChange={set("emergency_contact_name")} placeholder="e.g. Rafiq Bhat (father)" maxLength={80} />
+              </Field>
+              <Field label="Phone" wide>
+                <input className="input" type="tel" value={form.emergency_contact_phone} onChange={set("emergency_contact_phone")} placeholder="+91 …" maxLength={20} />
+              </Field>
+            </div>
+          </section>
+          <ReminderToggle />
+          <p className="tiny hp-privacy"><HeartPulse size={13} /> Only you and the doctors you book with can see your medical details.</p>
         </div>
       </div>
 
-      {editing ? (
-        /* Edit form */
-        <div className="col gap-4">
-          <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-            <div className="glass" style={{ padding: 24 }}>
-              <div className="eyebrow" style={{ marginBottom: 16 }}>Personal info</div>
-              <div className="col gap-3">
-                <div>
-                  <div className="tiny" style={{ marginBottom: 5, color: "var(--ink-3)" }}>Full name</div>
-                  <input style={inputStyle} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
-                </div>
-                <div>
-                  <div className="tiny" style={{ marginBottom: 5, color: "var(--ink-3)" }}>Phone</div>
-                  <input style={inputStyle} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 555 000 0000" />
-                </div>
-                <div>
-                  <div className="tiny" style={{ marginBottom: 5, color: "var(--ink-3)" }}>Date of birth</div>
-                  <input type="date" style={inputStyle} value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} />
-                </div>
-                <div>
-                  <div className="tiny" style={{ marginBottom: 5, color: "var(--ink-3)" }}>Gender</div>
-                  <select style={inputStyle} value={form.gender} onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}>
-                    <option value="">Select…</option>
-                    {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <div className="tiny" style={{ marginBottom: 5, color: "var(--ink-3)" }}>Address</div>
-                  <input style={inputStyle} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="City, State, Country" />
-                </div>
-              </div>
-            </div>
-
-            <div className="glass" style={{ padding: 24 }}>
-              <div className="eyebrow" style={{ marginBottom: 16 }}>Health info</div>
-              <div className="col gap-3">
-                <div>
-                  <div className="tiny" style={{ marginBottom: 5, color: "var(--ink-3)" }}>Blood type</div>
-                  <select style={inputStyle} value={form.blood_type} onChange={e => setForm(f => ({ ...f, blood_type: e.target.value }))}>
-                    <option value="">Select…</option>
-                    {BLOOD_TYPES.map(bt => <option key={bt} value={bt}>{bt}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <div className="tiny" style={{ marginBottom: 5, color: "var(--ink-3)" }}>Blood pressure</div>
-                  <input style={inputStyle} value={form.health_stats.bp} onChange={e => setForm(f => ({ ...f, health_stats: { ...f.health_stats, bp: e.target.value } }))} placeholder="e.g. 120/80" />
-                </div>
-                <div>
-                  <div className="tiny" style={{ marginBottom: 5, color: "var(--ink-3)" }}>Weight (kg)</div>
-                  <input type="number" style={inputStyle} value={form.health_stats.weight} onChange={e => setForm(f => ({ ...f, health_stats: { ...f.health_stats, weight: e.target.value } }))} placeholder="70" />
-                </div>
-                <div>
-                  <div className="tiny" style={{ marginBottom: 5, color: "var(--ink-3)" }}>Height (cm)</div>
-                  <input type="number" style={inputStyle} value={form.health_stats.height} onChange={e => setForm(f => ({ ...f, health_stats: { ...f.health_stats, height: e.target.value } }))} placeholder="175" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <button
-            className="btn btn-primary"
-            style={{ alignSelf: "flex-end", minWidth: 160, justifyContent: "center" }}
-            onClick={saveProfile}
-            disabled={saving}
-          >
-            {saving ? "Saving…" : <><Check size={14} /> Save profile</>}
-          </button>
-        </div>
-      ) : (
-        /* View mode */
-        <div className="admin-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <div className="glass" style={{ padding: 24 }}>
-            <div className="eyebrow" style={{ marginBottom: 16 }}>Personal info</div>
-            <div className="col gap-3">
-              {[
-                ["Full name", profile?.full_name],
-                ["Email", profile?.email],
-                ["Phone", profile?.phone],
-                ["Date of birth", profile?.date_of_birth],
-                ["Gender", profile?.gender],
-                ["Address", profile?.address],
-              ].map(([label, value]) => (
-                <div key={String(label)} style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid var(--line)" }}>
-                  <div className="eyebrow" style={{ marginBottom: 3, fontSize: 10 }}>{label}</div>
-                  <div className="small" style={{ fontWeight: 600 }}>{value || <span style={{ color: "var(--ink-3)" }}>Not set</span>}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="col gap-4">
-            <div className="glass" style={{ padding: 24 }}>
-              <div className="eyebrow" style={{ marginBottom: 16 }}>
-                <HeartPulse size={12} style={{ display: "inline", marginRight: 6 }} />
-                Health stats
-              </div>
-              <div className="bento" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
-                {[
-                  ["Blood type", profile?.blood_type],
-                  ["BP", profile?.health_stats?.bp],
-                  ["Weight", profile?.health_stats?.weight ? `${profile.health_stats.weight} kg` : null],
-                  ["Height", profile?.health_stats?.height ? `${profile.health_stats.height} cm` : null],
-                ].map(([label, value]) => (
-                  <div key={String(label)} className="glass cell" style={{ textAlign: "center", padding: 14 }}>
-                    <div className="eyebrow" style={{ marginBottom: 6, fontSize: 10 }}>{label}</div>
-                    <div style={{ fontWeight: 700, fontSize: 16 }}>{value || <span style={{ color: "var(--ink-3)", fontSize: 14 }}>—</span>}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="glass" style={{ padding: 24 }}>
-              <div className="eyebrow" style={{ marginBottom: 8 }}>
-                <ShieldCheck size={12} style={{ display: "inline", marginRight: 6 }} />
-                Privacy and consent
-              </div>
-              <div className="small" style={{ lineHeight: 1.7 }}>
-                HIPAA/GDPR/CCPA access logs and data sharing preferences are active for your account.
-                Your health data is encrypted at rest and in transit.
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <SaveBar
+        dirty={dirty}
+        saving={saving}
+        saved={justSaved}
+        error={saveError}
+        canSave={!!form.full_name.trim()}
+        onDiscard={() => { setForm(saved); setSaveError(""); }}
+        onSavedShown={clearSaved}
+      />
+    </form>
   );
 }

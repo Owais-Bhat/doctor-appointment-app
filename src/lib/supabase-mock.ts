@@ -59,12 +59,43 @@ class Query implements PromiseLike<Result> {
   ) {}
 
   eq(c: string, v: unknown) { this.filters.push((r) => str(r[c]) === str(v)); return this; }
+  is(c: string, v: null) { this.filters.push((r) => (v === null ? r[c] === null || r[c] === undefined : r[c] === v)); return this; }
   neq(c: string, v: unknown) { this.filters.push((r) => str(r[c]) !== str(v)); return this; }
   in(c: string, vs: unknown[]) { const s = new Set(vs.map(str)); this.filters.push((r) => s.has(str(r[c]))); return this; }
   gt(c: string, v: unknown) { this.filters.push((r) => str(r[c]) > str(v)); return this; }
   gte(c: string, v: unknown) { this.filters.push((r) => str(r[c]) >= str(v)); return this; }
   lt(c: string, v: unknown) { this.filters.push((r) => str(r[c]) < str(v)); return this; }
   lte(c: string, v: unknown) { this.filters.push((r) => str(r[c]) <= str(v)); return this; }
+  /** PostgREST-style `or`, e.g. "date.lt.2026-01-01,status.in.(completed,cancelled)" */
+  or(expr: string) {
+    const parts: string[] = [];
+    let depth = 0, cur = '';
+    for (const ch of expr) {
+      if (ch === '(') depth++;
+      if (ch === ')') depth--;
+      if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; } else cur += ch;
+    }
+    if (cur) parts.push(cur);
+    const tests = parts.map((p) => {
+      const [col, op, ...rest] = p.split('.');
+      const val = rest.join('.');
+      return (r: Row) => {
+        const v = str(r[col]);
+        switch (op) {
+          case 'eq': return v === val;
+          case 'neq': return v !== val;
+          case 'lt': return v < val;
+          case 'lte': return v <= val;
+          case 'gt': return v > val;
+          case 'gte': return v >= val;
+          case 'in': return val.replace(/^\(|\)$/g, '').split(',').includes(v);
+          default: return false;
+        }
+      };
+    });
+    this.filters.push((r) => tests.some((t) => t(r)));
+    return this;
+  }
   order(column: string, opts?: { ascending?: boolean }) { this.sort.push({ column, ascending: opts?.ascending !== false }); return this; }
   limit(n: number) { this.window = { from: 0, to: n - 1 }; return this; }
   range(from: number, to: number) { this.window = { from, to }; return this; }
