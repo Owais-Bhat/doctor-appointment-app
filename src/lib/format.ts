@@ -2,12 +2,13 @@
  * Display helpers shared by the patient, doctor and admin portals.
  */
 
-/** Currency used for display and Stripe charges (ISO 4217, e.g. "USD", "INR"). */
-export const CURRENCY = (process.env.NEXT_PUBLIC_CURRENCY || 'USD').toUpperCase()
+/** Currency for display and online payments (ISO 4217). Razorpay charges in INR. */
+export const CURRENCY = (process.env.NEXT_PUBLIC_CURRENCY || 'INR').toUpperCase()
 
 export function formatFee(amount: number | string | null | undefined): string {
   const value = Number(amount ?? 0)
-  return new Intl.NumberFormat(undefined, {
+  // Indian grouping (₹1,00,000) for rupees, the visitor's locale otherwise
+  return new Intl.NumberFormat(CURRENCY === 'INR' ? 'en-IN' : undefined, {
     style: 'currency',
     currency: CURRENCY,
     maximumFractionDigits: Number.isInteger(value) ? 0 : 2,

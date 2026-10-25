@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, CalendarPlus, ClipboardList, Phone, Stethoscope, UserRound, Video } from "lucide-react";
+import { useState } from "react";
+import { Building2, CalendarPlus, ClipboardList, CreditCard, Phone, Stethoscope, UserRound, Video } from "lucide-react";
+import { PaymentTag, paymentState } from "@/components/shared/PaymentTag";
+import { usePayVisit } from "@/lib/use-pay-visit";
 import { Headshot } from "@/components/medflow/Prototype";
 import { useAuth } from "@/context/AuthContext";
 import { useApi } from "@/lib/use-api";
@@ -25,7 +28,9 @@ type Appointment = {
   status: string;
   consultation_type: string;
   chief_complaint: string | null;
-  doctor_profiles: { id: string; specialty: string; profiles: { full_name: string } | null } | null;
+  payment_status?: string | null;
+  amount_paid?: number | null;
+  doctor_profiles: { id: string; specialty: string; consultation_fee?: number | null; profiles: { full_name: string } | null } | null;
 };
 
 type Notification = { id: string; title: string; message: string; is_read: boolean; created_at: string };
@@ -41,10 +46,14 @@ function timeAgo(iso: string) {
   return days === 1 ? "Yesterday" : `${days} days ago`;
 }
 
-function NextVisit({ appt }: { appt: Appointment }) {
+function NextVisit({ appt: initial, paymentsEnabled }: { appt: Appointment; paymentsEnabled: boolean }) {
+  const [appt, setAppt] = useState(initial);
+  const { pay, payingId, error: payError } = usePayVisit(() => setAppt((a) => ({ ...a, payment_status: "paid" })));
   const name = doctorName(appt.doctor_profiles?.profiles?.full_name);
   const TypeIcon = TYPE_ICON[appt.consultation_type as keyof typeof TYPE_ICON] ?? Stethoscope;
   const confirmed = appt.status === "confirmed";
+  const payment = paymentState({ ...appt, fee: appt.doctor_profiles?.consultation_fee }, paymentsEnabled);
+  const due = payment?.kind === "due";
 
   return (
     <article className="db-next glass-strong" aria-labelledby="db-next-title">
@@ -66,21 +75,28 @@ function NextVisit({ appt }: { appt: Appointment }) {
           <span className="pill">
             <TypeIcon size={13} /> {VISIT_TYPE_LABEL[appt.consultation_type] ?? "Visit"}
           </span>
+          <PaymentTag state={payment} />
         </div>
         {appt.chief_complaint && <p className="small db-next-reason">“{appt.chief_complaint}”</p>}
         <div className="row gap-2 wrap db-next-actions">
-          {confirmed && appt.consultation_type === "video" && canJoinVideo(appt.appointment_date, appt.appointment_time) && (
+          {due && (
+            <button type="button" className="btn btn-primary btn-sm" disabled={payingId === appt.id} onClick={() => pay(appt.id)}>
+              <CreditCard size={14} /> {payingId === appt.id ? "Opening…" : `Pay ${payment.label.replace(" to pay", "")}`}
+            </button>
+          )}
+          {!due && confirmed && appt.consultation_type === "video" && canJoinVideo(appt.appointment_date, appt.appointment_time) && (
             <Link href={`/client/visit/${appt.id}`} className="btn btn-primary btn-sm">
               <Video size={14} /> Join video
             </Link>
           )}
-          <Link href={`/client/intake/${appt.id}`} className="btn btn-primary btn-sm">
+          <Link href={`/client/intake/${appt.id}`} className={cn("btn btn-sm", due ? "btn-ghost" : "btn-primary")}>
             <ClipboardList size={14} /> {appt.chief_complaint ? "Update visit details" : "Add visit details"}
           </Link>
           <Link href="/client/appointments" className="btn btn-ghost btn-sm">
             Manage visit
           </Link>
         </div>
+        {payError && <p className="bk-error" role="alert" style={{ position: "static" }}>{payError.message}</p>}
       </div>
     </article>
   );
@@ -107,7 +123,7 @@ function NoVisits() {
 
 export default function ClientDashboard() {
   const { displayName } = useAuth();
-  const appts = useApi<{ appointments: Appointment[] }>("/api/patient/appointments");
+  const appts = useApi<{ appointments: Appointment[]; paymentsEnabled?: boolean }>("/api/patient/appointments");
   const notes = useApi<{ notifications: Notification[] }>("/api/patient/notifications");
 
   const today = toISODate(new Date());
@@ -156,7 +172,7 @@ export default function ClientDashboard() {
               </button>
             </div>
           ) : next ? (
-            <NextVisit appt={next} />
+            <NextVisit key={next.id} appt={next} paymentsEnabled={!!appts.data?.paymentsEnabled} />
           ) : (
             <NoVisits />
           )}

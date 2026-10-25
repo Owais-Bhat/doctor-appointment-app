@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './supabase-admin'
 import { clinicInstant } from './clinic-time'
+import { paymentRequiredToJoin } from './payments'
 
 export type VisitRole = 'patient' | 'doctor'
 export type VisitRecord = {
@@ -10,6 +11,7 @@ export type VisitRecord = {
   consultation_type: string
   chief_complaint: string | null
   notes: string | null
+  payment_status?: string
   patient_id: string
   doctor_id: string
 }
@@ -21,7 +23,7 @@ export type VisitRecord = {
 export async function loadVisitFor(id: string, uid: string): Promise<{ visit: VisitRecord; role: VisitRole } | null> {
   const { data: visit } = await supabaseAdmin
     .from('appointments')
-    .select('id, appointment_date, appointment_time, status, consultation_type, chief_complaint, notes, patient_id, doctor_id')
+    .select('id, appointment_date, appointment_time, status, consultation_type, chief_complaint, notes, payment_status, patient_id, doctor_id')
     .eq('id', id)
     .maybeSingle()
   if (!visit) return null
@@ -49,11 +51,15 @@ export function joinWindow(visit: Pick<VisitRecord, 'appointment_date' | 'appoin
 
 export function joinState(visit: VisitRecord, role: VisitRole, now = new Date()):
   | { ok: true }
-  | { ok: false; reason: 'not_video' | 'not_confirmed' | 'too_early' | 'ended'; opensAt?: string } {
+  | { ok: false; reason: 'not_video' | 'not_confirmed' | 'unpaid' | 'too_early' | 'ended'; opensAt?: string } {
   if (visit.consultation_type !== 'video') return { ok: false, reason: 'not_video' }
   if (visit.status !== 'confirmed') return { ok: false, reason: 'not_confirmed' }
   const { opensAt, closesAt } = joinWindow(visit, role)
-  if (now < opensAt) return { ok: false, reason: 'too_early', opensAt: opensAt.toISOString() }
   if (now > closesAt) return { ok: false, reason: 'ended' }
+  // The patient pays before the room opens (and may pay early); the doctor can always start
+  if (role === 'patient' && paymentRequiredToJoin(visit.consultation_type) && !['paid', 'waived'].includes(visit.payment_status ?? 'unpaid')) {
+    return { ok: false, reason: 'unpaid' }
+  }
+  if (now < opensAt) return { ok: false, reason: 'too_early', opensAt: opensAt.toISOString() }
   return { ok: true }
 }

@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   CalendarClock,
   Check,
+  CreditCard,
   ExternalLink,
   Mic,
   MicOff,
@@ -17,16 +18,17 @@ import {
 } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
 import { useApi, useAuthedFetch } from "@/lib/use-api";
-import { doctorName, formatDay, formatTime, nameHue } from "@/lib/format";
+import { doctorName, formatDay, formatFee, formatTime, nameHue } from "@/lib/format";
+import { usePayVisit } from "@/lib/use-pay-visit";
 import { cn } from "@/lib/utils";
 
-type JoinState = { ok: true } | { ok: false; reason: "not_video" | "not_confirmed" | "too_early" | "ended"; opensAt?: string };
+type JoinState = { ok: true } | { ok: false; reason: "not_video" | "not_confirmed" | "too_early" | "ended" | "unpaid"; opensAt?: string };
 type VisitResponse = {
   role: "patient" | "doctor";
   provider: "daily" | "jitsi";
   join: JoinState;
   visit: { id: string; date: string; time: string; status: string; type: string; reason: string | null; notes?: string | null };
-  doctor: { name: string; specialty: string | null };
+  doctor: { name: string; specialty: string | null; fee?: number | null };
   patient: { full_name: string; date_of_birth?: string | null; blood_type?: string | null; phone?: string | null; health_stats?: Record<string, unknown> | null } | null;
 };
 type Stage = "lobby" | "joining" | "call" | "left" | "completed";
@@ -206,6 +208,7 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
   const [joinError, setJoinError] = useState("");
   const [camOn, setCamOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
+  const { pay, payingId, error: payError } = usePayVisit(useCallback(() => reload(), [reload]));
   const back = portal === "doctor" ? "/admin/appointments?tab=upcoming" : "/client/appointments";
 
   const countdown = useCountdown(data && !data.join.ok && data.join.reason === "too_early" ? data.join.opensAt : undefined);
@@ -244,7 +247,8 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
     ? [age(data.patient?.date_of_birth) !== null ? `${age(data.patient?.date_of_birth)} yrs` : null, data.patient?.blood_type ? `Blood ${data.patient.blood_type}` : null].filter(Boolean).join(" · ")
     : data.doctor.specialty ?? "";
   const when = `${formatDay(data.visit.date)}, ${formatTime(data.visit.time)}`;
-  const blocked = !data.join.ok && data.join.reason !== "too_early" ? BLOCKED[data.join.reason] : null;
+  const unpaid = !data.join.ok && data.join.reason === "unpaid";
+  const blocked = !data.join.ok && data.join.reason !== "too_early" && !unpaid ? BLOCKED[data.join.reason] : null;
   const allergies = data.patient?.health_stats?.allergies as string | undefined;
 
   const panel = (
@@ -328,7 +332,17 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
             <DeviceCheck camOn={camOn} micOn={micOn} onToggleCam={() => setCamOn((v) => !v)} onToggleMic={() => setMicOn((v) => !v)} />
             <div className="vv-join">
               {panel}
-              {blocked ? (
+              {unpaid ? (
+                <div className="vv-pay">
+                  <span className="mf-label">One step before you join</span>
+                  <p className="body">Pay for your visit to open the video room. It takes under a minute with UPI or a card.</p>
+                  <button type="button" className="btn btn-primary btn-lg" disabled={payingId === data.visit.id} onClick={() => pay(data.visit.id)}>
+                    <CreditCard size={17} /> {payingId === data.visit.id ? "Opening…" : `Pay ${data.doctor.fee ? formatFee(data.doctor.fee) : "now"}`}
+                  </button>
+                  {payError && <p className="bk-error" role="alert" style={{ position: "static" }}>{payError.message}</p>}
+                  <p className="tiny vv-private"><ShieldCheck size={13} /> Secure payment by Razorpay. Cancel the visit and you get a full refund.</p>
+                </div>
+              ) : blocked ? (
                 <div className="bk-empty">
                   <p className="h-4">{blocked.title}</p>
                   <p className="small">{blocked.body}</p>

@@ -8,6 +8,7 @@ import { STATUS_LABEL, VISIT_TYPE_LABEL, formatTime, nameHue, toISODate } from "
 import Link from "next/link";
 import { canJoinVideo } from "@/lib/video";
 import { cn } from "@/lib/utils";
+import { PaymentTag, paymentState } from "@/components/shared/PaymentTag";
 
 export type DoctorVisit = {
   id: string;
@@ -17,6 +18,10 @@ export type DoctorVisit = {
   consultation_type: string;
   chief_complaint: string | null;
   notes: string | null;
+  payment_status?: string | null;
+  amount_paid?: number | null;
+  /** Confirmed but not paid online yet */
+  payment_due?: boolean;
   profiles: {
     id: string;
     full_name: string;
@@ -117,6 +122,11 @@ export function VisitRow({
           </span>
           {status !== "confirmed" && status !== "pending" && (
             <span className={cn("vrow-status", status)}>{STATUS_LABEL[status] ?? status}</span>
+          )}
+          {visit.payment_due ? (
+            <PaymentTag state={{ kind: "due", label: "Awaiting payment" }} />
+          ) : (
+            <PaymentTag state={visit.payment_status && visit.payment_status !== "unpaid" ? paymentState(visit, false) : null} />
           )}
         </div>
 

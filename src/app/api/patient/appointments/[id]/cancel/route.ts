@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { refundIfPaid } from '@/lib/payments'
 
 export async function POST(
   request: Request,
@@ -31,6 +32,8 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: 'Could not cancel appointment' }, { status: 500 })
 
+  const refund = await refundIfPaid(id, 'Cancelled by the patient')
+
   // Let the doctor know the slot is free again
   const { data: doctor } = await supabaseAdmin
     .from('doctor_profiles').select('profile_id').eq('id', appt.doctor_id).maybeSingle()
@@ -54,5 +57,5 @@ export async function POST(
     metadata: { cancelled_by: 'patient', previous_status: appt.status },
   })
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, refund })
 }

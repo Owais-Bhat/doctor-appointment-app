@@ -11,13 +11,14 @@ export const AUDIT_LABEL: Record<string, string> = {
   appointment_completed: 'completed a visit',
   appointment_no_show: 'marked a patient as not attending',
   payment_completed: 'paid for a visit',
+  refund_failed: 'refund failed — refund from the Razorpay dashboard',
 }
 
 export type AuditTone = 'good' | 'bad' | 'neutral'
 
 export function auditTone(action: string): AuditTone {
   if (/approve|reactivate|confirm|complete|payment|promote/.test(action)) return 'good'
-  if (/revoke|suspend|cancel|demote|no_show/.test(action)) return 'bad'
+  if (/revoke|suspend|cancel|demote|no_show|fail/.test(action)) return 'bad'
   return 'neutral'
 }
 

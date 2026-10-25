@@ -8,7 +8,7 @@ import { useApi } from "@/lib/use-api";
 import { doctorName, formatFee, greeting } from "@/lib/format";
 
 type List = { appointments: DoctorVisit[]; counts: { requests: number; today: number } };
-type Stats = { stats: { rating: number; total_reviews: number; revenue_mtd: number; total_patients: number } | null };
+type Stats = { stats: { rating: number; total_reviews: number; revenue_mtd: number; collected_mtd?: number; payments_enabled?: boolean; total_patients: number } | null };
 type Availability = { availability: { is_active: boolean }[] };
 
 export default function DoctorToday() {
@@ -126,6 +126,12 @@ export default function DoctorToday() {
                 <dt>Earned this month</dt>
                 <dd>{s ? formatFee(s.revenue_mtd) : "—"}</dd>
               </div>
+              {s?.payments_enabled && (
+                <div>
+                  <dt>Paid online this month</dt>
+                  <dd>{formatFee(s.collected_mtd ?? 0)}</dd>
+                </div>
+              )}
               <div>
                 <dt>Patients</dt>
                 <dd>{s?.total_patients ?? "—"}</dd>

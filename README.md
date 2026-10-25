@@ -8,7 +8,7 @@ Book doctors, manage clinic schedules, and run the platform — in one Next.js a
 | Doctor | `/admin` | Today's schedule, appointments, availability, blocked dates, patients, analytics |
 | Super Admin | `/super-admin` | Users, doctor verification, roles, platform analytics, audit log |
 
-**Stack:** Next.js 16 (App Router, Turbopack) · React 19 · Tailwind CSS 4 · Supabase (Postgres) · Firebase Auth · Stripe · Gemini
+**Stack:** Next.js 16 (App Router, Turbopack) · React 19 · Tailwind CSS 4 · Supabase (Postgres) · Firebase Auth · Razorpay · Daily/Jitsi · Twilio · Gemini
 
 ## Getting started
 
@@ -32,6 +32,21 @@ Patients and doctors join from the visit page inside MedFlow (`/client/visit/<id
 
 - **Daily (recommended):** set `DAILY_API_KEY` and `DAILY_DOMAIN`. Each visit gets a private room and only its patient and doctor receive a join token. The free plan includes 10,000 participant minutes a month.
 - **Jitsi:** without Daily, set `NEXT_PUBLIC_JITSI_DOMAIN` to your own Jitsi server or JaaS. The public meet.jit.si is fine for trying it out but isn't meant for embedding in production.
+
+## Online payments (Razorpay)
+
+Patients pay for a visit once the doctor confirms it — UPI, cards, netbanking or wallets through Razorpay Checkout. Without Razorpay keys, nothing changes: patients pay at the clinic.
+
+1. Run `supabase/migrations/003_payments.sql`.
+2. Set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` (test keys first: `rzp_test_…`).
+3. In the Razorpay dashboard add a webhook to `https://<your-site>/api/payments/razorpay-webhook` for `order.paid`, `payment.captured` and `refund.processed`, and put its secret in `RAZORPAY_WEBHOOK_SECRET`.
+
+How it works:
+- The server creates the order from the doctor's fee, so the browser can never choose the amount.
+- The Checkout result is checked with its HMAC signature (`/api/payments/verify`); the webhook records the payment too if the patient closes the tab first. Recording is idempotent, so both arriving is fine.
+- **Video visits** must be paid before the patient can join the room. Doctors can always start.
+- **Cancelling** a paid visit (by the patient or the doctor) refunds it in full automatically. If a refund call fails, the visit stays `refund_pending` (and is logged) so it can be refunded from the Razorpay dashboard.
+- Doctors see *Paid* / *Awaiting payment* on each visit and *Paid online this month* on their dashboard.
 
 ## Visit reminders
 
@@ -62,7 +77,7 @@ src/
   app/            pages for each portal + API routes (app/api)
   components/     UI components (ui/ = design-system primitives)
   context/        AuthContext (Firebase session)
-  lib/            api-auth, session, appointments, supabase, firebase, stripe
+  lib/            api-auth, session, appointments, payments, video, reminders, supabase, firebase
   proxy.ts        page access control
 supabase/         schema.sql and migrations
 design/           MedFlow design prototypes (source of truth for the UI)

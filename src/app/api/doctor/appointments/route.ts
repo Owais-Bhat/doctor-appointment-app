@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
 import { clinicToday } from '@/lib/clinic-time'
+import { paymentsEnabled } from '@/lib/payments'
 
 const SCOPES = ['today', 'requests', 'upcoming', 'past'] as const
 type Scope = (typeof SCOPES)[number]
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
     .from('appointments')
     .select(`
       id, appointment_date, appointment_time, status, consultation_type,
-      chief_complaint, notes, created_at,
+      chief_complaint, notes, created_at, payment_status, amount_paid,
       profiles!appointments_patient_id_fkey ( id, full_name, phone, date_of_birth, blood_type )
     `)
     .eq('doctor_id', dp.id)
@@ -72,7 +73,11 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    appointments: data ?? [],
+    // payment_due: confirmed but not yet paid online (only when Razorpay is set up)
+    appointments: (data ?? []).map((a) => ({
+      ...a,
+      payment_due: paymentsEnabled() && a.status === 'confirmed' && (a.payment_status ?? 'unpaid') === 'unpaid',
+    })),
     counts: { requests: requests ?? 0, today: todayCount ?? 0 },
   })
 }

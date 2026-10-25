@@ -7,6 +7,7 @@ import { joinVisit } from '@/lib/video-provider'
 const REASON: Record<string, string> = {
   not_video: 'This visit is not a video visit',
   not_confirmed: 'This visit is not confirmed',
+  unpaid: 'Please pay for this visit to join',
   too_early: 'The video room is not open yet',
   ended: 'This visit has ended',
 }

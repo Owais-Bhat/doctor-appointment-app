@@ -1635,3 +1635,30 @@ body:has(.lp) .chat-widget{ display: none; }
   .vd-ring{ width: 124px; height: 124px; top: calc(50% - 82px); }
   .lp-footer nav{ margin-left: 0; }
 }
+
+/* ── Payments (pay-) ─────────────────────────────────────────── */
+.pay-tag{
+  display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
+  padding: 2px 9px; border-radius: 999px; font-variant-numeric: tabular-nums;
+}
+.pay-due{ color: var(--warn); background: color-mix(in oklab, var(--warn) 12%, transparent); }
+.pay-paid, .pay-waived{ color: var(--good); background: color-mix(in oklab, var(--good) 12%, transparent); }
+.pay-refunding, .pay-refunded{ color: var(--ink-2); background: color-mix(in oklab, var(--ink) 6%, transparent); }
+.vrow-due{ border-left-color: var(--warn); }
+.pay-notice{
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; font-size: 14px;
+  background: color-mix(in oklab, var(--good) 10%, transparent);
+  border: 1px solid color-mix(in oklab, var(--good) 28%, transparent);
+}
+.pay-notice > svg{ color: var(--good); flex-shrink: 0; }
+.pt-stars{ display: flex; gap: 2px; color: var(--warn); }
+.pt-stars button{ background: none; border: 0; padding: 4px; color: inherit; cursor: pointer; border-radius: 8px; }
+.pt-stars button:focus-visible{ outline: 2px solid var(--accent); }
+.vv-pay{ display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.vv-pay .btn{ width: 100%; }
+.dr-money{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.dr-money > div{ padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--glass); display: flex; flex-direction: column; gap: 4px; }
+.dr-money b{ font-size: 22px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+@media (max-width: 820px) {
+  .dr-head > .row{ width: 100%; }
+}

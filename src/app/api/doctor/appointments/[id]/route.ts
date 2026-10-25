@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { refundIfPaid } from '@/lib/payments'
 import { clinicToday } from '@/lib/clinic-time'
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -118,6 +119,8 @@ export async function PATCH(
       })
       if (notifyError) console.error('Notify patient failed:', notifyError)
     }
+
+    if (status === 'cancelled') await refundIfPaid(id, 'Cancelled by the doctor')
 
     await supabaseAdmin.from('audit_logs').insert({
       actor_id: uid,
