@@ -75,6 +75,11 @@ function Sidebar() {
           <LogOut size={15} />
         </button>
       </div>
+      <nav className="mf-sidebar-legal" aria-label="Help and policies">
+        <Link href="/contact">Help</Link>
+        <Link href="/privacy">Privacy</Link>
+        <Link href="/terms">Terms</Link>
+      </nav>
     </aside>
   );
 }

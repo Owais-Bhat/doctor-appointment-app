@@ -24,6 +24,8 @@ function Register() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Health data needs a clear yes before an account exists (DPDP Act)
+  const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
     if (role) router.replace(afterSignIn(role, next));
@@ -33,6 +35,7 @@ function Register() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreed) return setError("Please agree to the terms and privacy policy to continue.");
     if (!name.trim()) return setError("Enter your full name.");
     if (password.length < 8) return setError("Use at least 8 characters for your password.");
     setBusy(true);
@@ -55,6 +58,7 @@ function Register() {
   };
 
   const google = async () => {
+    if (!agreed) return setError("Please agree to the terms and privacy policy to continue.");
     setBusy(true);
     setError("");
     try {
@@ -68,6 +72,13 @@ function Register() {
 
   return (
     <AuthShell title="Create your account" subtitle="Book your first visit in a couple of minutes." aside={ASIDE}>
+      <label className="au-consent">
+        <input type="checkbox" checked={agreed} onChange={(e) => { setAgreed(e.target.checked); setError(""); }} />
+        <span>
+          I am 18 or older and agree to the <Link href="/terms" target="_blank">terms of use</Link> and{" "}
+          <Link href="/privacy" target="_blank">privacy policy</Link>, including MedFlow using my health details to book and run my visits.
+        </span>
+      </label>
       <GoogleButton onClick={google} disabled={busy || isLoading} label="Sign up with Google" />
       <Divider />
       <form className="au-stack" onSubmit={onSubmit} noValidate>
@@ -87,7 +98,6 @@ function Register() {
         <button type="submit" className="btn btn-primary" disabled={busy || isLoading || !name || !email || !password}>
           {busy ? "Creating account…" : "Create account"}
         </button>
-        <p className="tiny">By creating an account you agree to MedFlow’s terms and privacy policy.</p>
       </form>
       <p className="small au-switch">
         Already have an account? <Link href={next ? `/auth/login?next=${encodeURIComponent(next)}` : "/auth/login"}>Sign in</Link>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { verifyToken, unauthorized } from '@/lib/api-auth'
 import { refundIfPaid } from '@/lib/payments'
+import { clinicInstant } from '@/lib/clinic-time'
 
 export async function POST(
   request: Request,
@@ -23,6 +24,10 @@ export async function POST(
 
   if (!['pending', 'confirmed'].includes(appt.status)) {
     return NextResponse.json({ error: `Cannot cancel a ${appt.status} appointment` }, { status: 400 })
+  }
+  // Cancellation (and its full refund) is open until the visit starts — see /refunds
+  if (Date.now() >= clinicInstant(appt.appointment_date, String(appt.appointment_time).substring(0, 5)).getTime()) {
+    return NextResponse.json({ error: 'This visit has already started. If something went wrong, contact us.' }, { status: 409 })
   }
 
   const { error } = await supabaseAdmin

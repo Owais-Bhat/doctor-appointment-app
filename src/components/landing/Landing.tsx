@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { LegalLinks } from "@/components/legal/LegalLinks";
 import { AnimatePresence, MotionConfig, motion, useScroll, useMotionValueEvent, type Variants } from "framer-motion";
 import {
   ArrowRight,
@@ -378,8 +379,8 @@ export function Landing() {
             <nav aria-label="Footer">
               {NAV.map(([label, href]) => <a key={href} href={href}>{label}</a>)}
               <Link href="/auth/login">Sign in</Link>
-              {CONTACT && <a href={`mailto:${CONTACT}`}>Contact</a>}
             </nav>
+            <LegalLinks className="lp-legal" />
             <p className="tiny">MedFlow helps you book doctors. In an emergency, call 112.</p>
           </div>
         </footer>

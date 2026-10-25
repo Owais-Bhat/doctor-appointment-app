@@ -15,6 +15,8 @@ export type AdminDoctor = {
   is_verified: boolean;
   clinic_name: string | null;
   experience_years: number | null;
+  registration_number?: string | null;
+  registration_council?: string | null;
   created_at: string;
   profiles: { full_name: string; email: string; is_active: boolean } | null;
 };
@@ -56,6 +58,11 @@ export function DoctorReviewRow({ doctor, onChanged }: { doctor: AdminDoctor; on
             .join(" · ")}
         </span>
         <span className="tiny mf-ellipsis">{doctor.profiles?.email}</span>
+        <span className={doctor.registration_number ? "tiny mf-ellipsis" : "tiny sc-bad"}>
+          {doctor.registration_number
+            ? `Reg. no. ${doctor.registration_number}${doctor.registration_council ? ` · ${doctor.registration_council}` : ""} — check it on the council’s register before verifying`
+            : "No medical registration number yet"}
+        </span>
         {error && <span className="small sc-bad" role="alert">{error}</span>}
       </div>
       <div className="ad-actions">

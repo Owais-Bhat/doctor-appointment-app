@@ -342,7 +342,7 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
                     <CreditCard size={17} /> {payingId === data.visit.id ? "Opening…" : `Pay ${data.doctor.fee ? formatFee(data.doctor.fee) : "now"}`}
                   </button>
                   {payError && <p className="bk-error" role="alert" style={{ position: "static" }}>{payError.message}</p>}
-                  <p className="tiny vv-private"><ShieldCheck size={13} /> Secure payment by Razorpay. Cancel the visit and you get a full refund.</p>
+                  <p className="tiny vv-private"><ShieldCheck size={13} /> <span>Secure payment by Razorpay. Cancel before the visit starts for a <Link href="/refunds" target="_blank">full refund</Link>.</span></p>
                 </div>
               ) : blocked ? (
                 <div className="bk-empty">

@@ -36,6 +36,8 @@ CREATE TABLE doctor_profiles (
   clinic_address TEXT,
   image_url TEXT,
   languages TEXT[],                -- ['English', 'Urdu']
+  registration_number TEXT,        -- State Medical Council / NMC registration
+  registration_council TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { ArrowLeft, BadgeCheck, CalendarPlus, Languages, MapPin, Star } from "lucide-react";
+import { ArrowLeft, BadgeCheck, CalendarPlus, Languages, MapPin, ShieldCheck, Star } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
 import { useApi } from "@/lib/use-api";
 import { doctorName, formatFee, nameHue } from "@/lib/format";
@@ -18,6 +18,9 @@ type Doctor = {
   total_reviews: number;
   is_verified: boolean;
   clinic_name: string | null;
+  clinic_address?: string | null;
+  registration_number?: string | null;
+  registration_council?: string | null;
   languages: string[] | string | null;
   profiles: { full_name: string } | null;
 };
@@ -107,12 +110,17 @@ export default function DoctorDetailPage({ params }: { params: Promise<{ id: str
         <section className="col gap-3">
           {doctor.clinic_name && (
             <p className="dp-line">
-              <MapPin size={16} /> {doctor.clinic_name}
+              <MapPin size={16} /> {doctor.clinic_name}{doctor.clinic_address ? `, ${doctor.clinic_address}` : ""}
             </p>
           )}
           {languages.length > 0 && (
             <p className="dp-line">
               <Languages size={16} /> Speaks {languages.join(", ")}
+            </p>
+          )}
+          {doctor.registration_number && (
+            <p className="dp-line">
+              <ShieldCheck size={16} /> Reg. no. {doctor.registration_number}{doctor.registration_council ? `, ${doctor.registration_council}` : ""}
             </p>
           )}
         </section>

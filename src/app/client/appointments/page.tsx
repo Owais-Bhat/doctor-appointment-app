@@ -10,6 +10,7 @@ import { PaymentTag, paymentState } from "@/components/shared/PaymentTag";
 import { useApi, useAuthedFetch } from "@/lib/use-api";
 import { usePayVisit } from "@/lib/use-pay-visit";
 import { canJoinVideo } from "@/lib/video";
+import { clinicInstant } from "@/lib/clinic-time";
 import { STATUS_LABEL, VISIT_TYPE_LABEL, doctorName, formatDay, formatTime, nameHue, toISODate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,9 @@ function VisitCard({
   const payment = paymentState({ ...visit, fee: visit.doctor_profiles?.consultation_fee }, paymentsEnabled);
   const canJoin = status === "confirmed" && visit.consultation_type === "video" && canJoinVideo(visit.appointment_date, visit.appointment_time);
   const paid = payment?.kind === "paid";
+  // Patients can cancel (with a full refund) until the visit starts
+  const startsAt = clinicInstant(visit.appointment_date, visit.appointment_time.substring(0, 5)).getTime();
+  const canCancel = (status === "pending" || status === "confirmed") && Date.now() < startsAt;
 
   const cancel = async () => {
     setBusy(true);
@@ -131,7 +135,7 @@ function VisitCard({
           <div className="vrow-panel" role="group" aria-label="Cancel visit">
             <p className="small">
               Cancel your visit with {name}?{" "}
-              {paid ? "Your payment will be refunded in full." : "The doctor will be told and the slot freed."}
+              {paid ? <>Your payment will be refunded in full (<Link href="/refunds" target="_blank">refund policy</Link>).</> : "The doctor will be told and the slot freed."}
             </p>
             <div className="row gap-2 wrap">
               <button type="button" className="btn btn-sm vrow-danger" disabled={busy} onClick={cancel}>{busy ? "Cancelling…" : "Cancel visit"}</button>
@@ -176,7 +180,7 @@ function VisitCard({
               <Link className="btn btn-ghost btn-sm" href={`/client/intake/${visit.id}`}>
                 <ClipboardList size={14} /> {visit.chief_complaint ? "Edit details" : "Add details"}
               </Link>
-              <button type="button" className="vrow-link" onClick={() => setMode("cancel")}><X size={13} /> Cancel visit</button>
+              {canCancel && <button type="button" className="vrow-link" onClick={() => setMode("cancel")}><X size={13} /> Cancel visit</button>}
             </>
           )}
           {status === "completed" && !reviewed && (

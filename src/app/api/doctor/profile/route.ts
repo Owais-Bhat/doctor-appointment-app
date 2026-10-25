@@ -61,6 +61,12 @@ export async function PATCH(request: Request) {
   if (body.bio !== undefined) updates.bio = str(body.bio, 2000) || null
   if (body.clinic_name !== undefined) updates.clinic_name = str(body.clinic_name, 120) || null
   if (body.clinic_address !== undefined) updates.clinic_address = str(body.clinic_address, 300) || null
+  if (body.registration_number !== undefined) {
+    const reg = str(body.registration_number, 40)
+    if (reg && !/^[A-Za-z0-9][A-Za-z0-9/\-. ]{1,39}$/.test(reg)) return bad('Enter your registration number as it appears on your certificate')
+    updates.registration_number = reg || null
+  }
+  if (body.registration_council !== undefined) updates.registration_council = str(body.registration_council, 100) || null
   if (body.qualifications !== undefined) {
     const q = tags(body.qualifications, 12, 60)
     if (!q) return bad('Up to 12 qualifications, 60 characters each')

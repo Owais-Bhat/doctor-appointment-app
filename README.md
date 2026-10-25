@@ -48,6 +48,16 @@ How it works:
 - **Cancelling** a paid visit (by the patient or the doctor) refunds it in full automatically. If a refund call fails, the visit stays `refund_pending` (and is logged) so it can be refunded from the Razorpay dashboard.
 - Doctors see *Paid* / *Awaiting payment* on each visit and *Paid online this month* on their dashboard.
 
+## Legal pages
+
+Public pages at `/about`, `/pricing`, `/contact`, `/terms`, `/privacy`, `/refunds` and `/shipping` (service delivery) — the set Razorpay checks before activating live payments. They describe what the app actually does (which providers receive which data, refunds until the visit starts, no-show = no refund).
+
+1. Fill in the `NEXT_PUBLIC_LEGAL_*`, contact and grievance values in `.env` (a warning lists missing ones in development).
+2. Have a lawyer review the text before launch — especially the refund rules, liability and the doctor terms — and edit the pages in `src/app/(legal)/`. Update `LEGAL.updated` in `src/lib/legal.ts` when they change.
+3. Run `supabase/migrations/005_doctor_registration.sql`. Doctors add their medical registration number on their profile (shown to patients, as the Telemedicine Practice Guidelines require), and admins can't verify a doctor without one.
+
+New accounts must tick a consent box (age 18+, terms, privacy and use of health data) before signing up, including with Google.
+
 ## Visit reminders
 
 Patients get a reminder about 24 hours and 1 hour before each **confirmed** visit: always in the app, and by SMS or WhatsApp when configured. Patients can turn text reminders off on their health profile.

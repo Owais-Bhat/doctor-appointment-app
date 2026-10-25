@@ -17,6 +17,8 @@ export async function GET(request: Request) {
       is_verified,
       clinic_name,
       experience_years,
+      registration_number,
+      registration_council,
       created_at,
       profiles!doctor_profiles_profile_id_fkey (
         full_name,
@@ -46,7 +48,7 @@ export async function PATCH(request: Request) {
 
   const { data: doctor } = await supabaseAdmin
     .from('doctor_profiles')
-    .select('id, profile_id')
+    .select('id, profile_id, registration_number')
     .eq('id', doctorId)
     .maybeSingle()
   if (!doctor) return NextResponse.json({ error: 'Doctor not found' }, { status: 404 })
@@ -56,6 +58,10 @@ export async function PATCH(request: Request) {
       .from('profiles').select('role, is_active').eq('id', doctor.profile_id).maybeSingle()
     if (!account || account.role !== 'doctor') {
       return NextResponse.json({ error: 'This account is no longer a doctor' }, { status: 400 })
+    }
+    // The registration is what verification checks (Telemedicine Practice Guidelines)
+    if (!doctor.registration_number?.trim()) {
+      return NextResponse.json({ error: 'Ask the doctor to add their medical registration number first' }, { status: 400 })
     }
     if (account.is_active === false) {
       return NextResponse.json({ error: 'Reactivate the account before verifying it' }, { status: 400 })

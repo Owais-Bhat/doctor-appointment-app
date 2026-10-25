@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Building2, CalendarPlus, Clock, GraduationCap, Languages, MapPin, Star, UserRound } from "lucide-react";
+import { BadgeCheck, Building2, ShieldCheck, CalendarPlus, Clock, GraduationCap, Languages, MapPin, Star, UserRound } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
 import { SaveBar } from "@/components/shared/SaveBar";
 import { TagInput } from "@/components/shared/TagInput";
@@ -22,6 +22,8 @@ type Profile = {
   clinic_address: string | null;
   qualifications: string[] | null;
   languages: string[] | string | null;
+  registration_number?: string | null;
+  registration_council?: string | null;
   profiles: { full_name: string; email: string } | null;
 };
 
@@ -35,9 +37,12 @@ type Form = {
   bio: string;
   qualifications: string[];
   languages: string[];
+  registration_number: string;
+  registration_council: string;
 };
 
 const LANGS = ["English", "Hindi", "Urdu", "Kashmiri", "Punjabi", "Bengali", "Tamil", "Telugu", "Marathi"];
+const COUNCILS = ["National Medical Commission", "J&K Medical Council", "Delhi Medical Council", "Maharashtra Medical Council", "Karnataka Medical Council", "Tamil Nadu Medical Council", "Punjab Medical Council", "Uttar Pradesh Medical Council"];
 const QUALS = ["MBBS", "MD", "MS", "DNB", "DM", "MCh", "BDS", "MDS"];
 
 function toForm(p: Profile): Form {
@@ -52,6 +57,8 @@ function toForm(p: Profile): Form {
     bio: p.bio ?? "",
     qualifications: p.qualifications ?? [],
     languages: langs,
+    registration_number: p.registration_number ?? "",
+    registration_council: p.registration_council ?? "",
   };
 }
 
@@ -100,6 +107,8 @@ export default function DoctorProfilePage() {
           bio: form.bio,
           qualifications: form.qualifications,
           languages: form.languages,
+          registration_number: form.registration_number,
+          registration_council: form.registration_council,
         }),
       });
       setSaved(form);
@@ -144,7 +153,7 @@ export default function DoctorProfilePage() {
         {p.is_verified ? (
           <span className="pay-tag pay-paid"><BadgeCheck size={13} /> Verified by MedFlow</span>
         ) : (
-          <span className="pay-tag pay-due">Waiting for verification — you’ll appear in search once approved</span>
+          <span className="pay-tag pay-due">{form.registration_number.trim() ? "Waiting for verification — you’ll appear in search once approved" : "Add your medical registration number to get verified"}</span>
         )}
       </header>
 
@@ -181,6 +190,24 @@ export default function DoctorProfilePage() {
                 <label className="mf-label" htmlFor="dp-langs">Languages you consult in</label>
                 <TagInput id="dp-langs" value={form.languages} onChange={(v) => set("languages", v)} placeholder="e.g. English" suggestions={LANGS} />
               </div>
+            </div>
+          </section>
+
+          <section className="hp-card" aria-labelledby="dp-reg">
+            <h2 id="dp-reg" className="hp-title"><ShieldCheck size={16} /> Medical registration</h2>
+            <p className="tiny" style={{ marginTop: -6 }}>Shown on your profile, as the Telemedicine Practice Guidelines require. MedFlow checks it before verifying you.</p>
+            <div className="fm-grid">
+              <label className="fm-field">
+                <span className="mf-label">Registration number</span>
+                <input className="input" value={form.registration_number} onChange={input("registration_number")} placeholder="e.g. JKMC/12345" maxLength={40} aria-invalid={!form.registration_number.trim() && !p.is_verified} />
+              </label>
+              <label className="fm-field">
+                <span className="mf-label">Medical council</span>
+                <input className="input" value={form.registration_council} onChange={input("registration_council")} placeholder="e.g. J&K Medical Council or NMC" maxLength={100} list="dp-councils" />
+                <datalist id="dp-councils">
+                  {COUNCILS.map((c) => <option key={c} value={c} />)}
+                </datalist>
+              </label>
             </div>
           </section>
 
@@ -229,6 +256,7 @@ export default function DoctorProfilePage() {
             {(form.clinic_name || form.languages.length > 0 || form.qualifications.length > 0) && (
               <div className="dl-meta">
                 {form.qualifications.length > 0 && <span><GraduationCap size={13} /> {form.qualifications.join(", ")}</span>}
+                {form.registration_number && <span><ShieldCheck size={13} /> Reg. no. {form.registration_number}</span>}
                 {form.clinic_name && <span><MapPin size={13} /> {form.clinic_name}</span>}
                 {form.languages.length > 0 && <span><Languages size={13} /> {form.languages.join(", ")}</span>}
               </div>
