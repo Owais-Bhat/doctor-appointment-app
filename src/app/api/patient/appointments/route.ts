@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 import { paymentsEnabled } from '@/lib/payments'
 
 export async function GET(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const auth = await requireUser(request, ['patient'])
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   try {
     const { data, error } = await supabaseAdmin

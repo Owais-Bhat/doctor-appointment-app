@@ -43,15 +43,17 @@ export async function requireUser(
   const uid = await verifyToken(request)
   if (!uid) return unauthorized()
 
-  const { data: profile } = await supabaseAdmin
+  const { data: profile, error } = await supabaseAdmin
     .from('profiles')
     .select('role, is_active')
     .eq('id', uid)
     .maybeSingle()
 
-  if (profile && profile.is_active === false) return forbidden()
+  if (error) return NextResponse.json({ error: 'Unable to verify account' }, { status: 503 })
+  if (!profile || profile.is_active === false) return forbidden()
 
-  const role = (profile?.role ?? 'patient') as UserRole
+  const role = profile.role as UserRole
+  if (!['patient', 'doctor', 'super_admin'].includes(role)) return forbidden()
   if (roles && !roles.includes(role)) return forbidden()
 
   return { uid, role }

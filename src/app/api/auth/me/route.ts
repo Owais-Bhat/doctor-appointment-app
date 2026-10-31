@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
     const { data: existing, error: selectError } = await supabaseAdmin
       .from('profiles')
-      .select('id, role, full_name, email')
+      .select('id, role, full_name, email, is_active')
       .eq('id', decoded.uid)
       .single()
 
@@ -30,6 +30,9 @@ export async function GET(request: Request) {
     }
 
     if (existing) {
+      if (existing.is_active === false) {
+        return NextResponse.json({ profile: null, error: 'Account disabled' }, { status: 403 })
+      }
       return NextResponse.json({ profile: existing, uid: decoded.uid })
     }
 

@@ -25,12 +25,12 @@ export function useAuth() {
   return ctx;
 }
 
-async function setSessionCookie(token: string, role: string) {
-  await fetch('/api/auth/session', {
+async function setSessionCookie(token: string) {
+  const response = await fetch('/api/auth/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ role }),
-  }).catch(() => {});
+  });
+  if (!response.ok) throw new Error('Could not establish a session');
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -49,16 +49,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const res = await fetch('/api/auth/me', {
             headers: { Authorization: `Bearer ${token}` },
           });
+          if (!res.ok) throw new Error('Could not verify your account');
           const { profile } = await res.json();
-          const activeRole = (profile?.role ?? 'patient') as UserRole;
+          if (!profile || !['patient', 'doctor', 'super_admin'].includes(profile.role)) throw new Error('Invalid account profile');
+          const activeRole = profile.role as UserRole;
           // Set the signed role cookie first, so pages the user is sent to
           // next aren't bounced back to sign-in by the proxy
-          await setSessionCookie(token, activeRole);
+          await setSessionCookie(token);
           setProfileName(profile?.full_name ?? null);
           setRole(activeRole);
         } catch (error) {
           console.error("Error fetching user role:", error);
-          setRole('patient');
+          setRole(null);
+          setProfileName(null);
+          await signOutFirebase().catch(() => {});
         }
       } else {
         setRole(null);

@@ -10,7 +10,8 @@ export interface TextareaProps
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, label, error, helperText, disabled, ...props }, ref) => {
-    const textareaId = props.id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = React.useId();
+    const textareaId = props.id || `textarea-${generatedId}`;
 
     return (
       <div className="space-y-2">

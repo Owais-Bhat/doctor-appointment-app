@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireUser } from '@/lib/api-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { fetchOrder, fetchOrderPayment, markPaid, verifyCheckoutSignature } from '@/lib/payments'
+import { fetchOrderPayment, markPaid, verifyCheckoutSignature } from '@/lib/payments'
 
 /**
  * POST /api/payments/verify
@@ -30,15 +30,17 @@ export async function POST(request: Request) {
   if (!appt) return NextResponse.json({ error: 'Visit not found' }, { status: 404 })
   if (appt.payment_status !== 'unpaid') return NextResponse.json({ ok: true, appointmentId: appt.id })
 
-  // Amount and currency come from Razorpay, never from the browser
-  // (if the lookup fails, the order's own amount is what was charged)
-  const payment = await fetchOrderPayment(orderId).catch(() => null)
-  const order = payment ? null : await fetchOrder(orderId).catch(() => null)
+  // A signed checkout response identifies the payment, but the captured
+  // transaction must be confirmed with Razorpay before marking a visit paid.
+  const payment = await fetchOrderPayment(orderId, paymentId).catch(() => null)
+  if (payment?.id !== paymentId || !payment.amount || !payment.currency) {
+    return NextResponse.json({ error: 'Payment is still being confirmed. Please try again shortly.' }, { status: 409 })
+  }
   await markPaid({
     orderId,
     paymentId,
-    amount: payment?.amount ?? order?.amount ?? 0,
-    currency: payment?.currency ?? order?.currency ?? '',
+    amount: payment.amount,
+    currency: payment.currency,
   })
   return NextResponse.json({ ok: true, appointmentId: appt.id })
 }
