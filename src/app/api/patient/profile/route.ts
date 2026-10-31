@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 /** Free-text health fields doctors see before a visit, with a length cap each. */
@@ -14,8 +14,9 @@ const HEALTH_TEXT: Record<string, number> = {
 }
 
 export async function GET(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const auth = await requireUser(request, ['patient'])
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const { data, error } = await supabaseAdmin
     .from('profiles')
@@ -37,8 +38,9 @@ function text(v: unknown, max: number): string | null | undefined {
 }
 
 export async function PATCH(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const auth = await requireUser(request, ['patient'])
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid request' }, { status: 400 })

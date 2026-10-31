@@ -1,16 +1,15 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/api-auth';
+import { requireUser } from '@/lib/api-auth';
 import { bookAppointment } from '@/lib/appointments';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { checkRateLimitByUser } from '@/lib/middleware/rateLimiter';
 
 export async function POST(request: Request) {
   try {
-    const userId = await verifyToken(request);
-    if (!userId) {
-      return NextResponse.json({ error: 'User must be logged in to use the assistant.' }, { status: 401 });
-    }
+    const auth = await requireUser(request, ['patient']);
+    if (auth instanceof NextResponse) return auth;
+    const userId = auth.uid;
 
     const { message, doctorId } = await request.json();
 

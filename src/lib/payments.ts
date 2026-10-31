@@ -46,9 +46,10 @@ export async function fetchOrder(orderId: string) {
 }
 
 /** The captured payment of a paid order, if any. */
-export async function fetchOrderPayment(orderId: string) {
+export async function fetchOrderPayment(orderId: string, paymentId?: string) {
   const res = await razorpay<{ items?: { id: string; status: string; amount: number; currency: string }[] }>(`/orders/${orderId}/payments`)
-  return res.data.items?.find((p) => p.status === 'captured') ?? null
+  if (!res.ok) return null
+  return res.data.items?.find((p) => p.status === 'captured' && (!paymentId || p.id === paymentId)) ?? null
 }
 
 export async function createOrder(appointmentId: string, amount: number) {

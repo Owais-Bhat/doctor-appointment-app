@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 import { clinicToday } from '@/lib/clinic-time'
 
 const SEVERITIES = ['mild', 'moderate', 'severe'] as const
 
 /** GET /api/patient/intake?appointmentId=… — the visit plus what the patient already told us. */
 export async function GET(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const auth = await requireUser(request, ['patient'])
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const appointmentId = new URL(request.url).searchParams.get('appointmentId')
   if (!appointmentId) return NextResponse.json({ error: 'appointmentId required' }, { status: 400 })
@@ -50,8 +51,9 @@ function text(v: unknown, max: number): string | null {
  * Only for the patient's own upcoming visits. Never touches the doctor's notes.
  */
 export async function PATCH(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const auth = await requireUser(request, ['patient'])
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const body = await request.json().catch(() => ({}))
   const appointmentId = typeof body.appointmentId === 'string' ? body.appointmentId : ''
