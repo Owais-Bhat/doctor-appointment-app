@@ -83,19 +83,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         try {
           const token = await firebaseUser.getIdToken();
-          const res = await fetch('/api/auth/me', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const { profile } = await res.json();
-          const activeRole = (profile?.role ?? 'patient') as UserRole;
-          // Set the signed role cookie first, so pages the user is sent to
-          // next aren't bounced back to sign-in by the proxy
+          let activeRole: UserRole = 'patient';
+          let name: string | null = null;
+
+          try {
+            const res = await fetch('/api/auth/me', {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              activeRole = (data.profile?.role ?? 'patient') as UserRole;
+              name = data.profile?.full_name ?? null;
+            }
+          } catch (e) {
+            console.error("Error fetching /api/auth/me:", e);
+          }
+
+          // Set the signed role cookie so the proxy allows access to dashboard
           await setSessionCookie(token, activeRole);
-          setProfileName(profile?.full_name ?? null);
+          setProfileName(name);
           setRole(activeRole);
         } catch (error) {
-          console.error("Error fetching user role:", error);
-          setRole('patient');
+          console.error("Error setting up user session:", error);
         }
       } else {
         setRole(null);
