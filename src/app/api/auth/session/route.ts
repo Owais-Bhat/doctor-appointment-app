@@ -22,6 +22,13 @@ export async function POST(request: Request) {
     path: '/',
     maxAge: SESSION_MAX_AGE,
   })
+  res.cookies.set('userRole_plain', auth.role, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: SESSION_MAX_AGE,
+  })
   return res
 }
 

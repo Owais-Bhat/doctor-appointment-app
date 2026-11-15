@@ -26,12 +26,30 @@ function Login() {
   const [busy, setBusy] = useState(false);
 
   // Signed in (now or already): go to the page they came for, or their home
+  // Includes an anti-loop guard so if redirected back by proxy, it won't spin forever
   useEffect(() => {
-    if (role) {
-      const dest = afterSignIn(role, next);
-      if (dest && typeof dest === 'string') {
-        window.location.href = dest;
-      }
+    if (!role) return;
+
+    const dest = afterSignIn(role, next);
+    if (!dest || typeof dest !== 'string') return;
+
+    const lastRedirectKey = 'medflow_last_redirect';
+    const lastRedirect = typeof window !== 'undefined' ? sessionStorage.getItem(lastRedirectKey) : null;
+    const now = Date.now();
+
+    if (lastRedirect) {
+      try {
+        const { url, time } = JSON.parse(lastRedirect);
+        if (url === dest && now - time < 4000) {
+          console.warn('Prevented redirect loop to:', dest);
+          return;
+        }
+      } catch {}
+    }
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(lastRedirectKey, JSON.stringify({ url: dest, time: now }));
+      window.location.href = dest;
     }
   }, [role, next]);
 

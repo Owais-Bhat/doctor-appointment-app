@@ -30,11 +30,28 @@ function AdminLogin() {
   const [sent, setSent] = useState(false);
 
   useEffect(() => {
-    if (role === "super_admin") {
-      const dest = afterSignIn(role, next);
-      if (dest && typeof dest === "string") {
-        window.location.href = dest;
-      }
+    if (role !== "super_admin") return;
+
+    const dest = afterSignIn(role, next);
+    if (!dest || typeof dest !== "string") return;
+
+    const lastRedirectKey = 'medflow_admin_last_redirect';
+    const lastRedirect = typeof window !== 'undefined' ? sessionStorage.getItem(lastRedirectKey) : null;
+    const now = Date.now();
+
+    if (lastRedirect) {
+      try {
+        const { url, time } = JSON.parse(lastRedirect);
+        if (url === dest && now - time < 4000) {
+          console.warn('Prevented admin redirect loop to:', dest);
+          return;
+        }
+      } catch {}
+    }
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(lastRedirectKey, JSON.stringify({ url: dest, time: now }));
+      window.location.href = dest;
     }
   }, [role, next]);
 

@@ -39,6 +39,9 @@ async function setSessionCookie(token: string, role: string): Promise<boolean> {
       console.error(`POST /api/auth/session failed (${res.status}): ${data.details || data.error || 'Unknown error'}`);
       return false;
     }
+    if (typeof document !== 'undefined') {
+      document.cookie = `userRole_plain=${encodeURIComponent(role)}; path=/; max-age=604800; SameSite=Lax`;
+    }
     return true;
   } catch (err) {
     console.error('Network error during setSessionCookie:', err);
