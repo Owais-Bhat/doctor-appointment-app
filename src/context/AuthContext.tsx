@@ -30,6 +30,7 @@ async function setSessionCookie(token: string, role: string): Promise<boolean> {
   try {
     const res = await fetch('/api/auth/session', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ role }),
     });

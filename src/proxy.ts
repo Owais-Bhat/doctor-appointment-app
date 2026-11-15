@@ -36,8 +36,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(login)
   }
 
-  // Signed in to another portal (admins included): go to your own home
-  if (role !== needs) {
+  // Signed in to another portal: super_admin can inspect all portals;
+  // others are sent to their own home.
+  if (role !== needs && role !== 'super_admin') {
     return NextResponse.redirect(new URL(HOME[role], request.url))
   }
 
