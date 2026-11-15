@@ -6,6 +6,8 @@ export const AUDIT_LABEL: Record<string, string> = {
   demote_to_patient: 'changed a doctor back to patient',
   suspend_user: 'suspended an account',
   reactivate_user: 'reactivated an account',
+  create_doctor: 'added a doctor',
+  claim_seeded_admin: 'signed in as the first admin',
   appointment_confirmed: 'confirmed a visit',
   appointment_cancelled: 'cancelled a visit',
   appointment_completed: 'completed a visit',

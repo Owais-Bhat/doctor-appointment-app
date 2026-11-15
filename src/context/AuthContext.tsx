@@ -147,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setRole(null);
       setProfileName(null);
-      await fetch('/api/auth/session', { method: 'DELETE' }).catch(() => {});
+      await fetch('/api/auth/session', { method: 'DELETE' }).catch(() => { });
     }
   };
 

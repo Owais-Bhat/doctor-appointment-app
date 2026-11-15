@@ -62,7 +62,8 @@ export const NAV: Record<Portal, { name: string; home: string; notifications: st
       { label: "Doctors", href: "/super-admin/doctors", icon: Stethoscope, tab: true },
       { label: "Users", href: "/super-admin/users", icon: Users, tab: true },
       { label: "Analytics", href: "/super-admin/analytics", icon: Activity, tab: true },
-      { label: "Audit log", href: "/super-admin/audit-logs", icon: FileClock, tab: true },
+      { label: "Audit log", href: "/super-admin/audit-logs", icon: FileClock },
+      { label: "Account", href: "/super-admin/account", icon: Settings, tab: true },
     ],
   },
 };
