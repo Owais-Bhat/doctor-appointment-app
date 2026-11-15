@@ -35,7 +35,7 @@ async function setSessionCookie(token: string, role: string): Promise<boolean> {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      console.error('POST /api/auth/session failed with status', res.status, data);
+      console.error(`POST /api/auth/session failed (${res.status}): ${data.details || data.error || 'Unknown error'}`);
       return false;
     }
     return true;
@@ -105,6 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const data = await res.json();
               activeRole = (data.profile?.role ?? 'patient') as UserRole;
               name = data.profile?.full_name ?? null;
+            } else {
+              const errData = await res.json().catch(() => ({}));
+              console.error(`GET /api/auth/me failed (${res.status}): ${errData.details || errData.error || 'Unknown error'}`);
             }
           } catch (e) {
             console.error("Error fetching /api/auth/me:", e);
