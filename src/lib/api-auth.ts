@@ -14,7 +14,9 @@ export type AuthedUser = { uid: string; role: UserRole }
  * Never trust user ids or roles sent in headers or request bodies —
  * the token is the only source of identity.
  */
-export async function verifyTokenDetailed(request: Request): Promise<{ uid: string | null; error?: string }> {
+export async function verifyTokenDetailed(
+  request: Request,
+): Promise<{ uid: string | null; email?: string; emailVerified?: boolean; error?: string }> {
   const auth = request.headers.get('authorization')
   if (!auth?.startsWith('Bearer ')) return { uid: null, error: 'Missing or malformed Authorization header' }
   const token = auth.slice(7)
@@ -27,7 +29,7 @@ export async function verifyTokenDetailed(request: Request): Promise<{ uid: stri
 
   try {
     const decoded = await verifyFirebaseToken(token)
-    return { uid: decoded.uid }
+    return { uid: decoded.uid, email: decoded.email, emailVerified: decoded.email_verified === true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('verifyToken failed:', msg)
@@ -68,8 +70,20 @@ export async function requireUser(
 
   if (profile && profile.is_active === false) return forbidden()
 
-  const role = (profile?.role ?? 'patient') as UserRole
-  if (roles && !roles.includes(role)) return forbidden()
+  let role = profile?.role
+  if (!role && result.email && result.emailVerified) {
+    const { data: byEmail } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('email', result.email.trim().toLowerCase())
+      .limit(1)
+    if (byEmail?.[0]?.role) {
+      role = byEmail[0].role
+    }
+  }
 
-  return { uid: result.uid, role }
+  const cleanRole = (role ?? 'patient') as UserRole
+  if (roles && !roles.includes(cleanRole)) return forbidden()
+
+  return { uid: result.uid, role: cleanRole }
 }

@@ -5,6 +5,7 @@ import { Search, Stethoscope } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
 import { useApi, useAuthedFetch } from "@/lib/use-api";
 import { CURRENCY, nameHue } from "@/lib/format";
+import { SPECIALTIES } from "@/lib/specialties";
 import { cn } from "@/lib/utils";
 
 type User = {
@@ -26,10 +27,6 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "suspended", label: "Suspended" },
 ];
 const ROLE_LABEL = { patient: "Patient", doctor: "Doctor", super_admin: "Admin" };
-const SPECIALTIES = [
-  "General Medicine", "Cardiology", "Dermatology", "Pediatrics", "Gynecology", "Orthopedics",
-  "Neurology", "ENT", "Ophthalmology", "Psychiatry", "Gastroenterology", "Dentistry",
-];
 
 type Panel = { kind: "doctor" } | { kind: "patient" } | { kind: "suspend" } | null;
 

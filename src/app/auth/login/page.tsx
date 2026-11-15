@@ -27,7 +27,12 @@ function Login() {
 
   // Signed in (now or already): go to the page they came for, or their home
   useEffect(() => {
-    if (role) router.replace(afterSignIn(role, next));
+    if (role) {
+      const dest = afterSignIn(role, next);
+      if (dest && typeof dest === 'string') {
+        router.replace(dest);
+      }
+    }
   }, [role, next, router]);
 
   const withBusy = async (fn: () => Promise<unknown>) => {
@@ -57,9 +62,15 @@ function Login() {
   };
 
   if (role) {
+    const dest = afterSignIn(role, next);
     return (
       <AuthShell title="Signing you in…" aside={ASIDE}>
         <p className="small">Taking you to your account.</p>
+        <div style={{ marginTop: '1.25rem' }}>
+          <Link href={dest} className="btn btn-primary" style={{ display: 'inline-block' }}>
+            Continue to dashboard &rarr;
+          </Link>
+        </div>
       </AuthShell>
     );
   }

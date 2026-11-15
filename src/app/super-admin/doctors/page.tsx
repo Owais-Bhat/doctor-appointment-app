@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
+import { AddDoctorForm } from "@/components/admin/AddDoctorForm";
 import { DoctorReviewRow, type AdminDoctor } from "@/components/admin/DoctorReviewRow";
 import { useApi } from "@/lib/use-api";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,8 @@ export default function AdminDoctors() {
   const { data, loading, error, reload } = useApi<{ doctors: AdminDoctor[] }>("/api/super-admin/doctors");
   const [filter, setFilter] = useState<Filter>("waiting");
   const [query, setQuery] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const all = data?.doctors ?? [];
   const counts = { waiting: all.filter((d) => !d.is_verified).length, verified: all.filter((d) => d.is_verified).length, all: all.length };
@@ -33,6 +36,11 @@ export default function AdminDoctors() {
           <h1 className="h-1">Doctors</h1>
           <p className="body">Only verified doctors appear in search and can be booked.</p>
         </div>
+        {!adding && (
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setAdding(true); setNotice(""); }}>
+            <Plus size={15} /> Add doctor
+          </button>
+        )}
         <nav className="dr-tabs" aria-label="Filter doctors">
           {FILTERS.map((f) => (
             <button key={f.key} type="button" className={cn("dr-tab", filter === f.key && "on")} onClick={() => setFilter(f.key)} aria-pressed={filter === f.key}>
@@ -42,6 +50,19 @@ export default function AdminDoctors() {
           ))}
         </nav>
       </header>
+
+      {adding && (
+        <AddDoctorForm
+          onCancel={() => setAdding(false)}
+          onAdded={(message) => {
+            setAdding(false);
+            setNotice(message);
+            setFilter("verified");
+            reload();
+          }}
+        />
+      )}
+      {notice && <p className="small" role="status">{notice}</p>}
 
       <label className="search" style={{ maxWidth: 520 }}>
         <Search size={16} className="mf-muted" />
@@ -58,7 +79,7 @@ export default function AdminDoctors() {
       ) : list.length === 0 ? (
         <div className="bk-empty">
           <p className="h-4">{query ? `No doctors match “${query}”` : filter === "waiting" ? "No doctors waiting" : "No doctors yet"}</p>
-          <p className="small">New doctors are added from the Users page with “Make doctor”.</p>
+          <p className="small">Use “Add doctor” above, or “Make doctor” on the Users page for someone who already has an account.</p>
         </div>
       ) : (
         <ul className="ad-list">
