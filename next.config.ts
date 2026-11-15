@@ -18,6 +18,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    cpus: 2,
+  },
   async redirects() {
     // "Make doctor" moved from Settings to the Users page
     return [{ source: "/super-admin/settings", destination: "/super-admin/users", permanent: false }];
