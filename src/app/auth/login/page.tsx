@@ -30,10 +30,10 @@ function Login() {
     if (role) {
       const dest = afterSignIn(role, next);
       if (dest && typeof dest === 'string') {
-        router.replace(dest);
+        window.location.href = dest;
       }
     }
-  }, [role, next, router]);
+  }, [role, next]);
 
   const withBusy = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -63,13 +63,35 @@ function Login() {
 
   if (role) {
     const dest = afterSignIn(role, next);
+    const isSuperAdmin = role === 'super_admin';
     return (
       <AuthShell title="Signing you in…" aside={ASIDE}>
         <p className="small">Taking you to your account.</p>
-        <div style={{ marginTop: '1.25rem' }}>
-          <Link href={dest} className="btn btn-primary" style={{ display: 'inline-block' }}>
-            Continue to dashboard &rarr;
-          </Link>
+        <div className="col gap-2" style={{ marginTop: '1.25rem', width: '100%' }}>
+          <a
+            href={dest}
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.href = dest;
+            }}
+            className="btn btn-primary"
+            style={{ display: 'block', textAlign: 'center' }}
+          >
+            {isSuperAdmin ? 'Open Admin Dashboard →' : 'Continue to dashboard →'}
+          </a>
+          {!isSuperAdmin && (
+            <a
+              href="/super-admin/dashboard"
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/super-admin/dashboard';
+              }}
+              className="btn btn-ghost btn-sm"
+              style={{ display: 'block', textAlign: 'center', marginTop: '0.25rem' }}
+            >
+              Open Admin Portal instead →
+            </a>
+          )}
         </div>
       </AuthShell>
     );

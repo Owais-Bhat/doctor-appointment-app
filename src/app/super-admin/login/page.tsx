@@ -33,10 +33,10 @@ function AdminLogin() {
     if (role === "super_admin") {
       const dest = afterSignIn(role, next);
       if (dest && typeof dest === "string") {
-        router.replace(dest);
+        window.location.href = dest;
       }
     }
-  }, [role, next, router]);
+  }, [role, next]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +117,7 @@ function AdminLogin() {
           </div>
         )}
         <div className="row gap-2 wrap">
-          <button type="button" className="btn btn-primary" onClick={() => router.replace(afterSignIn(role, null))}>
+          <button type="button" className="btn btn-primary" onClick={() => { window.location.href = afterSignIn(role, null); }}>
             Go to my account
           </button>
           <button type="button" className="btn btn-ghost" onClick={signOut}>

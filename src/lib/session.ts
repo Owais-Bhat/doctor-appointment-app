@@ -54,10 +54,18 @@ export async function createSessionValue(role: SessionRole): Promise<string> {
 /** Returns the role if the cookie is valid and unexpired, otherwise null. */
 export async function readSessionRole(value: string | undefined): Promise<SessionRole | null> {
   if (!value) return null
+  let cleanValue = value.trim()
+  if (cleanValue.startsWith('"') && cleanValue.endsWith('"')) {
+    cleanValue = cleanValue.slice(1, -1)
+  }
+  try {
+    cleanValue = decodeURIComponent(cleanValue)
+  } catch {}
+
   const secret = getSecret()
   if (!secret) return null
 
-  const parts = value.split('.')
+  const parts = cleanValue.split('.')
   if (parts.length !== 3) return null
   const [role, exp, sig] = parts
 

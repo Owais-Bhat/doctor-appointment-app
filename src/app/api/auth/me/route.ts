@@ -31,12 +31,39 @@ export async function GET(request: Request) {
       return NextResponse.json({ profile: null, error: 'Database error' }, { status: 500 })
     }
 
+    const email = (result.email ?? '').trim().toLowerCase()
+
     if (existing) {
+      // If the profile has role patient or no email, check if this email was reserved as super_admin
+      if (email) {
+        const { data: adminRows } = await supabaseAdmin
+          .from('profiles')
+          .select('id, role')
+          .eq('email', email)
+
+        const adminRow = (adminRows ?? []).find(r => r.role === 'super_admin')
+        if (adminRow && existing.role !== 'super_admin') {
+          await supabaseAdmin
+            .from('profiles')
+            .update({ role: 'super_admin', email, updated_at: new Date().toISOString() })
+            .eq('id', uid)
+          if (adminRow.id !== uid) {
+            await supabaseAdmin.from('profiles').delete().eq('id', adminRow.id)
+          }
+          existing.role = 'super_admin'
+          existing.email = email
+        } else if (!existing.email) {
+          await supabaseAdmin
+            .from('profiles')
+            .update({ email, updated_at: new Date().toISOString() })
+            .eq('id', uid)
+          existing.email = email
+        }
+      }
       return NextResponse.json({ profile: existing, uid })
     }
 
     // 2. Check if a profile with this email was pre-configured or seeded in MySQL
-    const email = (result.email ?? '').trim().toLowerCase()
     if (email && result.emailVerified) {
       const { data: byEmail } = await supabaseAdmin
         .from('profiles')
@@ -49,10 +76,10 @@ export async function GET(request: Request) {
         // Link this profile to the Firebase UID
         await supabaseAdmin
           .from('profiles')
-          .update({ id: uid, updated_at: new Date().toISOString() })
+          .update({ id: uid, email, updated_at: new Date().toISOString() })
           .eq('id', match.id)
 
-        return NextResponse.json({ profile: { ...match, id: uid }, uid })
+        return NextResponse.json({ profile: { ...match, id: uid, email }, uid })
       }
     }
 

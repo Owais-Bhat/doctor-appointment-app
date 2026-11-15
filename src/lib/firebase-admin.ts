@@ -18,7 +18,7 @@ function parseJwtPayload(token: string): Record<string, unknown> | null {
     if (parts.length === 3) {
       return JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
