@@ -14,27 +14,34 @@ export type AuthedUser = { uid: string; role: UserRole }
  * Never trust user ids or roles sent in headers or request bodies —
  * the token is the only source of identity.
  */
-export async function verifyToken(request: Request): Promise<string | null> {
+export async function verifyTokenDetailed(request: Request): Promise<{ uid: string | null; error?: string }> {
   const auth = request.headers.get('authorization')
-  if (!auth?.startsWith('Bearer ')) return null
+  if (!auth?.startsWith('Bearer ')) return { uid: null, error: 'Missing or malformed Authorization header' }
   const token = auth.slice(7)
 
   const demoEnabled = process.env.NODE_ENV !== 'production' && !process.env.FIREBASE_ADMIN_PRIVATE_KEY
   if (demoEnabled && token.startsWith('demo:')) {
     const uid = token.slice(5)
-    return isDemoUid(uid) ? uid : null
+    return isDemoUid(uid) ? { uid } : { uid: null, error: 'Invalid demo user id' }
   }
 
   try {
     const decoded = await verifyFirebaseToken(token)
-    return decoded.uid
+    return { uid: decoded.uid }
   } catch (err) {
-    console.error('verifyToken failed:', err)
-    return null
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('verifyToken failed:', msg)
+    return { uid: null, error: msg }
   }
 }
 
-export const unauthorized = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function verifyToken(request: Request): Promise<string | null> {
+  const res = await verifyTokenDetailed(request)
+  return res.uid
+}
+
+export const unauthorized = (details?: string) =>
+  NextResponse.json({ error: 'Unauthorized', ...(details ? { details } : {}) }, { status: 401 })
 export const forbidden = () => NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
 /**
@@ -50,13 +57,13 @@ export async function requireUser(
   request: Request,
   roles?: UserRole[],
 ): Promise<AuthedUser | NextResponse> {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  const result = await verifyTokenDetailed(request)
+  if (!result.uid) return unauthorized(result.error)
 
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('role, is_active')
-    .eq('id', uid)
+    .eq('id', result.uid)
     .maybeSingle()
 
   if (profile && profile.is_active === false) return forbidden()
@@ -64,5 +71,5 @@ export async function requireUser(
   const role = (profile?.role ?? 'patient') as UserRole
   if (roles && !roles.includes(role)) return forbidden()
 
-  return { uid, role }
+  return { uid: result.uid, role }
 }

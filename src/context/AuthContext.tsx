@@ -26,12 +26,23 @@ export function useAuth() {
   return ctx;
 }
 
-async function setSessionCookie(token: string, role: string) {
-  await fetch('/api/auth/session', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ role }),
-  }).catch(() => {});
+async function setSessionCookie(token: string, role: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ role }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error('POST /api/auth/session failed with status', res.status, data);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Network error during setSessionCookie:', err);
+    return false;
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -100,9 +111,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           // Set the signed role cookie so the proxy allows access to dashboard
-          await setSessionCookie(token, activeRole);
-          setProfileName(name);
-          setRole(activeRole);
+          const sessionOk = await setSessionCookie(token, activeRole);
+          if (sessionOk) {
+            setProfileName(name);
+            setRole(activeRole);
+          } else {
+            console.error("Session cookie was not set. Check server auth logs.");
+            setRole(null);
+          }
         } catch (error) {
           console.error("Error setting up user session:", error);
         }
