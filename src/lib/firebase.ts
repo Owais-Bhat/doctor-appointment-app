@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, signOut } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
+import { IS_DEMO_AUTH, demoSignIn, demoSignOut } from "./demo-auth";
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "demo-api-key",
@@ -19,11 +20,13 @@ export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
 export const signInWithGoogle = async () => {
+    if (IS_DEMO_AUTH) return demoSignIn("owais.bhat2612@gmail.com", "password123");
     if (auth.currentUser) return auth.currentUser;
     return signInWithPopup(auth, googleProvider);
 };
 
 export const signInWithEmail = async (email: string, pass: string) => {
+    if (IS_DEMO_AUTH) return demoSignIn(email, pass);
     return signInWithEmailAndPassword(auth, email, pass);
 };
 
@@ -31,11 +34,11 @@ export const registerWithEmail = async (email: string, pass: string) => {
     return createUserWithEmailAndPassword(auth, email, pass);
 };
 
-export const signOutFirebase = () => signOut(auth);
+export const signOutFirebase = () => (IS_DEMO_AUTH ? demoSignOut() : signOut(auth));
 
 export const sendPasswordReset = (email: string) => sendPasswordResetEmail(auth, email);
 // Analytics only runs in the browser when a measurement id is configured.
 export let analytics: Analytics | null = null;
-if (typeof window !== "undefined" && firebaseConfig.measurementId) {
+if (typeof window !== "undefined" && firebaseConfig.measurementId && !IS_DEMO_AUTH) {
     isSupported().then((ok) => { if (ok) analytics = getAnalytics(app); }).catch(() => {});
 }

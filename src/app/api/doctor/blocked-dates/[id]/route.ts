@@ -26,6 +26,6 @@ export async function DELETE(
     .eq('id', id)
     .eq('doctor_id', dp.id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: 'Could not remove the day off' }, { status: 500 })
   return NextResponse.json({ success: true })
 }

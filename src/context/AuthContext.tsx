@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { auth, signInWithGoogle, signOutFirebase } from "@/lib/firebase";
+import { DEMO_AUTH_EVENT, getDemoUser, IS_DEMO_AUTH } from "@/lib/demo-auth";
 import type { User } from "firebase/auth";
 
 type UserRole = 'patient' | 'doctor' | 'super_admin';
@@ -40,6 +41,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (IS_DEMO_AUTH) {
+      const syncDemoUser = async () => {
+        const demoUser = getDemoUser();
+        setUser(demoUser as unknown as User | null);
+        if (!demoUser) {
+          setRole(null);
+          setProfileName(null);
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          const token = await demoUser.getIdToken();
+          const res = await fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) throw new Error('Unable to load demo profile');
+          const { profile } = await res.json();
+          const activeRole = (profile?.role ?? 'patient') as UserRole;
+          await setSessionCookie(token, activeRole);
+          setProfileName(profile?.full_name ?? demoUser.displayName);
+          setRole(activeRole);
+        } catch (error) {
+          console.error("Error fetching demo user role:", error);
+          setRole(null);
+          setProfileName(null);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      void syncDemoUser();
+      window.addEventListener(DEMO_AUTH_EVENT, syncDemoUser);
+      return () => window.removeEventListener(DEMO_AUTH_EVENT, syncDemoUser);
+    }
+
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       setUser(firebaseUser);
 
@@ -76,10 +113,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const handleSignOut = async () => {
-    await signOutFirebase();
-    setUser(null);
-    setRole(null);
-    await fetch('/api/auth/session', { method: 'DELETE' }).catch(() => {});
+    try {
+      await signOutFirebase();
+    } finally {
+      setUser(null);
+      setRole(null);
+      setProfileName(null);
+      await fetch('/api/auth/session', { method: 'DELETE' }).catch(() => {});
+    }
   };
 
   return (

@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     .eq('doctor_id', doctorProfile.id)
     .order('appointment_date', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: 'Could not load patients' }, { status: 500 })
 
   // Deduplicate — one row per patient, keeping their most recent appointment
   const seen = new Set<string>()

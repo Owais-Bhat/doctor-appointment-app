@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { adminAuth } from './firebase-admin'
+import { verifyFirebaseToken } from './firebase-admin'
 import { supabaseAdmin } from './supabase-admin'
+import { isDemoUid } from './demo-auth'
 
 export type UserRole = 'patient' | 'doctor' | 'super_admin'
 
@@ -16,8 +17,16 @@ export type AuthedUser = { uid: string; role: UserRole }
 export async function verifyToken(request: Request): Promise<string | null> {
   const auth = request.headers.get('authorization')
   if (!auth?.startsWith('Bearer ')) return null
+  const token = auth.slice(7)
+
+  const demoEnabled = process.env.NODE_ENV !== 'production' && !process.env.FIREBASE_ADMIN_PRIVATE_KEY
+  if (demoEnabled && token.startsWith('demo:')) {
+    const uid = token.slice(5)
+    return isDemoUid(uid) ? uid : null
+  }
+
   try {
-    const decoded = await adminAuth.verifyIdToken(auth.slice(7))
+    const decoded = await verifyFirebaseToken(token)
     return decoded.uid
   } catch {
     return null

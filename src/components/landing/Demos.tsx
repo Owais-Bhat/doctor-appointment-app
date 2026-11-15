@@ -20,12 +20,14 @@ export function VideoDemo() {
         <div className="vd-live">
           <span className="vd-rec" /> {String(Math.floor(secs / 60)).padStart(2, "0")}:{String(secs % 60).padStart(2, "0")}
         </div>
-        <motion.div
-          className="vd-ring"
-          animate={reduce ? undefined : { scale: [1, 1.12, 1], opacity: [0.55, 0.15, 0.55] }}
-          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <span className="vd-face">SQ</span>
+        <div className="vd-avatar">
+          <motion.div
+            className="vd-ring"
+            animate={reduce ? undefined : { scale: [1, 1.12, 1], opacity: [0.55, 0.15, 0.55] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <span className="vd-face">SQ</span>
+        </div>
         <span className="vd-name">Dr. Sana Qureshi</span>
         <div className="vd-bars" aria-hidden="true">
           {Array.from({ length: 5 }).map((_, i) => (

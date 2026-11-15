@@ -16,8 +16,8 @@ export async function POST(request: Request) {
 
   if (!dp) return NextResponse.json({ error: 'Doctor not found' }, { status: 404 })
 
-  const { date, reason } = await request.json()
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  const { date, reason } = await request.json().catch(() => ({}))
+  if (!date || typeof date !== 'string' ||!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: 'Pick a valid date' }, { status: 400 })
   }
   if (date < clinicToday()) {

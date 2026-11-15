@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { adminAuth } from '@/lib/firebase-admin'
+import { verifyFirebaseToken } from '@/lib/firebase-admin'
 
 /**
  * POST /api/auth/register  { token, fullName }
@@ -15,14 +15,14 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
-  const fullName = body.fullName?.trim().slice(0, 120)
-  if (!body.token || !fullName) {
+  const fullName = typeof body.fullName === 'string' ? body.fullName.trim().slice(0, 120) : ''
+  if (typeof body.token !== 'string' || !body.token || !fullName) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
   let decoded: { uid: string; email?: string }
   try {
-    decoded = await adminAuth.verifyIdToken(body.token)
+    decoded = await verifyFirebaseToken(body.token)
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

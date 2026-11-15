@@ -34,6 +34,11 @@ export async function POST(request: Request) {
   // (if the lookup fails, the order's own amount is what was charged)
   const payment = await fetchOrderPayment(orderId).catch(() => null)
   const order = payment ? null : await fetchOrder(orderId).catch(() => null)
+  // A valid signature only proves the payment was attempted. Record it as paid
+  // once Razorpay says the money was captured; otherwise the webhook finishes it.
+  if (!payment && order?.status !== 'paid') {
+    return NextResponse.json({ error: 'Your payment is still being confirmed. Refresh in a minute.' }, { status: 409 })
+  }
   await markPaid({
     orderId,
     paymentId,

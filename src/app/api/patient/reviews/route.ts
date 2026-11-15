@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 
 export async function POST(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  // requireUser also refuses suspended accounts
+  const auth = await requireUser(request)
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
-  const { appointmentId, rating, comment } = await request.json()
+  const body = await request.json().catch(() => ({}))
+  const appointmentId = typeof body.appointmentId === 'string' ? body.appointmentId : ''
+  const rating = body.rating
+  // Free text shown to others: plain string with a length cap
+  const comment = typeof body.comment === 'string' ? body.comment.trim().slice(0, 1000) || null : null
 
   if (!appointmentId || !rating) {
     return NextResponse.json({ error: 'appointmentId and rating required' }, { status: 400 })
@@ -20,7 +26,7 @@ export async function POST(request: Request) {
     .select('id, status, doctor_id')
     .eq('id', appointmentId)
     .eq('patient_id', uid)
-    .single()
+    .maybeSingle()
 
   if (!appt) return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
   if (appt.status !== 'completed') {
@@ -31,7 +37,7 @@ export async function POST(request: Request) {
     .from('reviews')
     .select('id')
     .eq('appointment_id', appointmentId)
-    .single()
+    .maybeSingle()
 
   if (existing) return NextResponse.json({ error: 'Already reviewed this appointment' }, { status: 409 })
 
@@ -40,10 +46,15 @@ export async function POST(request: Request) {
     patient_id: uid,
     doctor_id: appt.doctor_id,
     rating,
-    comment: comment ?? null,
+    comment,
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // 23505 = unique violation: two submissions at once
+    if (error.code === '23505') return NextResponse.json({ error: 'Already reviewed this appointment' }, { status: 409 })
+    console.error('Review insert failed:', error)
+    return NextResponse.json({ error: 'Could not save your review' }, { status: 500 })
+  }
 
   // Update doctor's average rating
   const { data: reviews } = await supabaseAdmin

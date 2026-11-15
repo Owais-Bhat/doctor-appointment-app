@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 /** Free-text health fields doctors see before a visit, with a length cap each. */
@@ -14,8 +14,10 @@ const HEALTH_TEXT: Record<string, number> = {
 }
 
 export async function GET(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  // requireUser also refuses suspended accounts
+  const auth = await requireUser(request)
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const { data, error } = await supabaseAdmin
     .from('profiles')
@@ -23,7 +25,7 @@ export async function GET(request: Request) {
     .eq('id', uid)
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: 'Could not load your profile' }, { status: 500 })
   return NextResponse.json({ profile: data })
 }
 
@@ -37,8 +39,10 @@ function text(v: unknown, max: number): string | null | undefined {
 }
 
 export async function PATCH(request: Request) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  // requireUser also refuses suspended accounts
+  const auth = await requireUser(request)
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
