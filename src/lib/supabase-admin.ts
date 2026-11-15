@@ -1,9 +1,16 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createMysqlClient, mysqlConfigured } from './mysql-client'
 
 let client: SupabaseClient | null = null
 
 function getClient(): SupabaseClient {
   if (client) return client
+
+  // MySQL / MariaDB (e.g. a Hostinger database): same query builder, see mysql-client.ts
+  if (mysqlConfigured()) {
+    client = createMysqlClient() as unknown as SupabaseClient
+    return client
+  }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -17,7 +24,10 @@ function getClient(): SupabaseClient {
   // missing database config must fail loudly instead of silently writing
   // patient data to db.json.
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('Supabase is not configured: set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
+    throw new Error(
+      'No database is configured: set MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD and MYSQL_DATABASE ' +
+        '(or NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)',
+    )
   }
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
