@@ -148,9 +148,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const handleSignIn = async () => {
+    const cred = await signInWithGoogle();
+    const currentUser = cred && typeof cred === 'object' && 'user' in cred ? (cred as { user: User }).user : auth.currentUser;
+    if (currentUser) {
+      setUser(currentUser);
+      const token = await currentUser.getIdToken(true);
+      let activeRole: UserRole = 'patient';
+      let name: string | null = currentUser.displayName;
+
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          activeRole = (data.profile?.role ?? 'patient') as UserRole;
+          name = data.profile?.full_name ?? name;
+        }
+      } catch (e) {
+        console.error("Error fetching /api/auth/me during sign-in:", e);
+      }
+
+      const sessionOk = await setSessionCookie(token, activeRole);
+      if (sessionOk) {
+        setProfileName(name);
+        setRole(activeRole);
+      }
+    }
+    return cred;
+  };
+
   return (
     <AuthContext.Provider value={{
-      user, role, displayName: profileName ?? user?.displayName ?? null, isLoading, signIn: signInWithGoogle, signOut: handleSignOut, getToken,
+      user, role, displayName: profileName ?? user?.displayName ?? null, isLoading, signIn: handleSignIn, signOut: handleSignOut, getToken,
     }}>
       {children}
     </AuthContext.Provider>
