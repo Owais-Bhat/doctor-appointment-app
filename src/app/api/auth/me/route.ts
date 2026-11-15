@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken } from '@/lib/api-auth'
+import { verifyTokenDetailed } from '@/lib/api-auth'
 
 export async function GET(request: Request) {
   try {
@@ -9,10 +9,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ profile: null, error: 'Missing authorization' }, { status: 401 })
     }
 
-    const uid = await verifyToken(request)
-    if (!uid) {
-      return NextResponse.json({ profile: null, error: 'Invalid token' }, { status: 401 })
+    const result = await verifyTokenDetailed(request)
+    if (!result.uid) {
+      return NextResponse.json({ profile: null, error: 'Invalid token', details: result.error }, { status: 401 })
     }
+    const uid = result.uid
 
     const { data: existing, error: selectError } = await supabaseAdmin
       .from('profiles')
