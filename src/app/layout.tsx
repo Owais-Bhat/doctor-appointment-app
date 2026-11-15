@@ -43,7 +43,7 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="mood-clinical density-regular min-h-full">
+      <body suppressHydrationWarning className="mood-clinical density-regular min-h-full">
         <ErrorBoundary>
           <AuthProvider>
             <RealtimeStatusProvider>

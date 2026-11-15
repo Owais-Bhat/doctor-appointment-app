@@ -21,3 +21,17 @@ if (!getApps().length) {
 }
 
 export const adminAuth = getFirebaseAuth();
+
+/**
+ * Verify a Firebase ID token.
+ *
+ * In production the Firebase project must be set explicitly. Without it the
+ * SDK would check tokens against the placeholder project "demo-project", so
+ * anyone owning a Firebase project by that name could sign in as any user.
+ */
+export async function verifyFirebaseToken(token: string) {
+  if (process.env.NODE_ENV === 'production' && !process.env.FIREBASE_ADMIN_PROJECT_ID) {
+    throw new Error('Firebase Admin is not configured: set FIREBASE_ADMIN_PROJECT_ID')
+  }
+  return adminAuth.verifyIdToken(token)
+}

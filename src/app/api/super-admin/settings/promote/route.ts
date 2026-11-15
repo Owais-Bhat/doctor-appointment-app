@@ -8,13 +8,16 @@ export async function POST(request: Request) {
   if (auth instanceof NextResponse) return auth
   const uid = auth.uid
 
-  const { userId, specialty, consultationFee } = await request.json()
+  const body = await request.json().catch(() => ({}))
+  const userId = typeof body.userId === 'string' ? body.userId : ''
+  const specialty = typeof body.specialty === 'string' ? body.specialty.trim().slice(0, 100) : ''
+  const consultationFee = body.consultationFee
   if (!userId || !specialty) return NextResponse.json({ error: 'userId and specialty required' }, { status: 400 })
   if (userId === uid) return NextResponse.json({ error: 'You cannot change your own role' }, { status: 400 })
 
   const fee = Number(consultationFee)
-  if (consultationFee !== undefined && (!Number.isFinite(fee) || fee < 0)) {
-    return NextResponse.json({ error: 'Consultation fee must be a positive number' }, { status: 400 })
+  if (consultationFee !== undefined && (!Number.isFinite(fee) || fee < 0 || fee > 100000)) {
+    return NextResponse.json({ error: 'Consultation fee must be between 0 and 1,00,000' }, { status: 400 })
   }
   const { data: target } = await supabaseAdmin.from('profiles').select('role, is_active').eq('id', userId).maybeSingle()
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 })
@@ -67,8 +70,8 @@ export async function DELETE(request: Request) {
   if (auth instanceof NextResponse) return auth
   const uid = auth.uid
 
-  const { userId } = await request.json()
-  if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 })
+  const { userId } = await request.json().catch(() => ({}))
+  if (!userId || typeof userId !== 'string') return NextResponse.json({ error: 'userId required' }, { status: 400 })
   if (userId === uid) return NextResponse.json({ error: 'You cannot change your own role' }, { status: 400 })
 
   const { data: target } = await supabaseAdmin.from('profiles').select('role').eq('id', userId).maybeSingle()

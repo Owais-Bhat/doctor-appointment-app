@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { verifyToken, unauthorized } from '@/lib/api-auth'
+import { requireUser } from '@/lib/api-auth'
 import { refundIfPaid } from '@/lib/payments'
 import { clinicInstant } from '@/lib/clinic-time'
 
@@ -8,8 +8,10 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const uid = await verifyToken(request)
-  if (!uid) return unauthorized()
+  // requireUser also refuses suspended accounts
+  const auth = await requireUser(request)
+  if (auth instanceof NextResponse) return auth
+  const uid = auth.uid
 
   const { id } = await context.params
 
@@ -30,12 +32,19 @@ export async function POST(
     return NextResponse.json({ error: 'This visit has already started. If something went wrong, contact us.' }, { status: 409 })
   }
 
-  const { error } = await supabaseAdmin
+  // Only if it is still open: a visit the doctor just completed must not be cancelled (and refunded)
+  const { data: cancelled, error } = await supabaseAdmin
     .from('appointments')
     .update({ status: 'cancelled', updated_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('patient_id', uid)
+    .in('status', ['pending', 'confirmed'])
+    .select('id')
 
   if (error) return NextResponse.json({ error: 'Could not cancel appointment' }, { status: 500 })
+  if (!cancelled || cancelled.length === 0) {
+    return NextResponse.json({ error: 'This visit was just changed. Refresh and try again.' }, { status: 409 })
+  }
 
   const refund = await refundIfPaid(id, 'Cancelled by the patient')
 

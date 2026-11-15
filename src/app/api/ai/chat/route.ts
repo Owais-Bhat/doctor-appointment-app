@@ -1,18 +1,25 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/api-auth';
+import { requireUser } from '@/lib/api-auth';
 import { bookAppointment } from '@/lib/appointments';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { checkRateLimitByUser } from '@/lib/middleware/rateLimiter';
 
 export async function POST(request: Request) {
   try {
-    const userId = await verifyToken(request);
-    if (!userId) {
-      return NextResponse.json({ error: 'User must be logged in to use the assistant.' }, { status: 401 });
+    // requireUser also refuses suspended accounts
+    const auth = await requireUser(request);
+    if (auth instanceof NextResponse) {
+      return auth.status === 401
+        ? NextResponse.json({ error: 'User must be logged in to use the assistant.' }, { status: 401 })
+        : auth;
     }
+    const userId = auth.uid;
 
-    const { message, doctorId } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const message = body.message;
+    // The doctor id goes into the model's instructions: accept only an id-shaped value
+    const doctorId = typeof body.doctorId === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(body.doctorId) ? body.doctorId : '';
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
@@ -106,7 +113,10 @@ export async function POST(request: Request) {
         const time = String(args.time ?? '');
         // Strictly override the doctorId with the specific SaaS Tenant ID from context
         const assignedDoctor = String(doctorId || args.doctorId || '');
-        const result = await bookAppointment({ patientId: userId, doctorId: assignedDoctor, date, time });
+        // Same rule as POST /api/appointments: only patients book
+        const result = auth.role === 'patient'
+          ? await bookAppointment({ patientId: userId, doctorId: assignedDoctor, date, time })
+          : { ok: false as const, error: 'Only patient accounts can book appointments.' };
         functionResponseData = result.ok
           ? { success: true, message: 'Appointment requested. It is pending confirmation.' }
           : { success: false, message: result.error };

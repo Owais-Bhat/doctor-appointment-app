@@ -48,7 +48,10 @@ export async function PUT(request: Request) {
 
   if (!dp) return NextResponse.json({ error: 'Doctor not found' }, { status: 404 })
 
-  const { slots } = await request.json()
+  const { slots } = await request.json().catch(() => ({}))
+  if (Array.isArray(slots) && slots.length > 50) {
+    return NextResponse.json({ error: 'Too many availability slots' }, { status: 400 })
+  }
 
   type SlotInput = {
     day_of_week: number
@@ -80,7 +83,7 @@ export async function PUT(request: Request) {
         is_active: s.is_active ?? true,
       }))
     )
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: 'Could not save your hours' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

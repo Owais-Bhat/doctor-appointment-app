@@ -13,10 +13,12 @@ export async function GET(
       id, profile_id, specialty, bio, qualifications,
       experience_years, consultation_fee, rating, total_reviews,
       is_verified, clinic_name, clinic_address, languages, registration_number, registration_council,
-      profiles!doctor_profiles_profile_id_fkey(full_name, email, avatar_url)
+      profiles!doctor_profiles_profile_id_fkey(full_name, avatar_url)
     `)
     .eq('id', id)
-    .single()
+    // Public page: only doctors an admin has verified, and no private contact details
+    .eq('is_verified', true)
+    .maybeSingle()
 
   if (error || !data) return NextResponse.json({ error: 'Doctor not found' }, { status: 404 })
 

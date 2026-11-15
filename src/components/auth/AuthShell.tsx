@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { Check, Eye, EyeOff, ShieldCheck } from "lucide-react";
 
 /** Two-column sign-in layout: a quiet brand panel and the form. */
 export function AuthShell({
@@ -17,9 +18,12 @@ export function AuthShell({
   aside: { heading: string; points: string[] };
   children: React.ReactNode;
 }) {
+  const reduce = useReducedMotion();
   return (
     <div className="au">
       <aside className="au-brand" aria-hidden="true">
+        <span className="au-orb au-orb-one" />
+        <span className="au-orb au-orb-two" />
         <Link href="/" className="logo au-logo" tabIndex={-1}>
           <span className="mark">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
@@ -28,17 +32,24 @@ export function AuthShell({
           </span>
           <span>MedFlow</span>
         </Link>
-        <div className="au-brand-body">
+        <motion.div
+          className="au-brand-body"
+          initial={reduce ? false : { opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <span className="au-brand-pill"><ShieldCheck size={15} /> Private by design</span>
           <p className="au-brand-heading">{aside.heading}</p>
           <ul>
             {aside.points.map((p) => (
-              <li key={p}>{p}</li>
+              <li key={p}><Check size={16} />{p}</li>
             ))}
           </ul>
-        </div>
+        </motion.div>
         <svg className="au-pulse" viewBox="0 0 600 120" preserveAspectRatio="none">
           <path d="M0 60h170l26-44 40 92 30-70 22 22h312" />
         </svg>
+        <p className="au-brand-foot">Secure care, wherever you are.</p>
       </aside>
 
       <main className="au-main">
@@ -52,13 +63,20 @@ export function AuthShell({
             Med<span style={{ color: "var(--accent)" }}>Flow</span>
           </span>
         </Link>
-        <div className="au-form">
+        <motion.div
+          className="au-form"
+          initial={reduce ? false : { opacity: 0, y: 22 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <span className="au-eyebrow"><span /> Secure portal access</span>
           <div className="col gap-2">
             <h1 className="h-2">{title}</h1>
             {subtitle && <p className="body">{subtitle}</p>}
           </div>
           {children}
-        </div>
+          <p className="au-privacy"><ShieldCheck size={14} /> Your session is encrypted and protected.</p>
+        </motion.div>
       </main>
     </div>
   );

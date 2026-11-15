@@ -20,7 +20,6 @@ export async function GET() {
         languages,
         profiles!doctor_profiles_profile_id_fkey (
           full_name,
-          email,
           avatar_url
         )
       `)
