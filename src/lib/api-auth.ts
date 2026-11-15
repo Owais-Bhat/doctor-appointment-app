@@ -28,7 +28,8 @@ export async function verifyToken(request: Request): Promise<string | null> {
   try {
     const decoded = await verifyFirebaseToken(token)
     return decoded.uid
-  } catch {
+  } catch (err) {
+    console.error('verifyToken failed:', err)
     return null
   }
 }
