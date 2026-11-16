@@ -10,6 +10,8 @@ Book doctors, manage clinic schedules, and run the platform — in one Next.js a
 
 **Stack:** Next.js 16 (App Router, Turbopack) · React 19 · Tailwind CSS 4 · Supabase (Postgres) · Firebase Auth · Razorpay · Daily/Jitsi · Twilio · Gemini
 
+**Mobile:** `mobile/` is a React Native (Expo) patient app that uses this app's API. See `mobile/README.md`.
+
 ## Getting started
 
 ```bash
