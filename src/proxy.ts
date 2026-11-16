@@ -26,9 +26,8 @@ export async function proxy(request: NextRequest) {
   const needs = portalOf(path)
   if (!needs) return NextResponse.next()
 
-  // Only trust a role cookie carrying a valid server signature or role cookie
-  const cookieVal = request.cookies.get(SESSION_COOKIE)?.value || request.cookies.get('userRole_plain')?.value
-  const role = await readSessionRole(cookieVal)
+  // Only trust the role cookie when it carries a valid server signature
+  const role = await readSessionRole(request.cookies.get(SESSION_COOKIE)?.value)
 
   // Signed out: sign in, then come back here
   if (!role) {

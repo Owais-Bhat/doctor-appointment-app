@@ -4,6 +4,11 @@
  * Format: `<role>.<expiresAtSeconds>.<base64url HMAC-SHA256>`
  * The signature stops users from forging `userRole=super_admin` in the browser.
  * Uses Web Crypto so it runs in both the proxy and route handlers.
+ *
+ * Verification is strict: a cookie without a valid signature for a current
+ * secret, or past its expiry, is treated as signed out. This only guards page
+ * access; every API route still verifies the Firebase token and loads the
+ * role from the database.
  */
 
 export const SESSION_COOKIE = 'userRole'
@@ -12,20 +17,30 @@ export const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7 days
 const ROLES = ['patient', 'doctor', 'super_admin'] as const
 export type SessionRole = (typeof ROLES)[number]
 
-function getSecret(): string {
-  const secret = process.env.SESSION_SECRET
-  if (secret && secret.length >= 32) return secret
-  if (process.env.NODE_ENV !== 'production') return 'dev-only-insecure-session-secret-change-me'
-  return 'medflow-production-session-fallback-secret-2026-secure-key'
-}
+const isRole = (v: string): v is SessionRole => (ROLES as readonly string[]).includes(v)
 
-function getAllPossibleSecrets(): string[] {
+/**
+ * Secrets the cookie may be signed with, newest first. Never a value that is
+ * in the repository or exposed to the browser.
+ *  1. SESSION_SECRET (at least 32 characters)
+ *  2. A key derived from private server-only credentials, so a deployment
+ *     with a missing or short SESSION_SECRET still has an unguessable secret
+ *  3. A fixed development value, outside production only
+ * In production with none of these available there are no secrets, so no
+ * cookie can be issued or accepted.
+ */
+function getSecrets(): string[] {
   const secrets: string[] = []
-  if (process.env.SESSION_SECRET) secrets.push(process.env.SESSION_SECRET)
-  if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) secrets.push(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID)
-  secrets.push('medflow-production-session-fallback-secret-2026-secure-key')
-  secrets.push('dev-only-insecure-session-secret-change-me')
-  return Array.from(new Set(secrets.filter(Boolean)))
+  const env = process.env.SESSION_SECRET
+  if (env && env.length >= 32) secrets.push(env)
+
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY || process.env.MYSQL_PASSWORD
+  if (privateKey && privateKey.length >= 8) secrets.push(`medflow-session-v1:${privateKey}`)
+
+  if (secrets.length === 0 && process.env.NODE_ENV !== 'production') {
+    secrets.push('dev-only-insecure-session-secret-change-me')
+  }
+  return secrets
 }
 
 function toBase64Url(bytes: ArrayBuffer): string {
@@ -53,55 +68,39 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 export async function createSessionValue(role: SessionRole): Promise<string> {
-  const secret = getSecret()
+  const [secret] = getSecrets()
   if (!secret) throw new Error('SESSION_SECRET must be set (at least 32 characters) in production')
   const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE
   const payload = `${role}.${exp}`
   return `${payload}.${await sign(payload, secret)}`
 }
 
-/** Returns the role if the cookie is valid and unexpired, otherwise null. */
+/** Returns the role if the cookie is correctly signed and unexpired, otherwise null. */
 export async function readSessionRole(value: string | undefined): Promise<SessionRole | null> {
   if (!value) return null
-  let cleanValue = value.trim()
-  if (cleanValue.startsWith('"') && cleanValue.endsWith('"')) {
-    cleanValue = cleanValue.slice(1, -1)
-  }
+
+  let clean = value.trim()
+  if (clean.startsWith('"') && clean.endsWith('"')) clean = clean.slice(1, -1)
   try {
-    cleanValue = decodeURIComponent(cleanValue)
-  } catch {}
-
-  // Direct role name check
-  if ((ROLES as readonly string[]).includes(cleanValue)) {
-    return cleanValue as SessionRole
+    clean = decodeURIComponent(clean)
+  } catch {
+    return null
   }
 
-  const parts = cleanValue.split('.')
-  if (parts.length >= 2) {
-    const role = parts[0]
-    const exp = parts[1]
+  const parts = clean.split('.')
+  if (parts.length !== 3) return null
+  const [role, exp, sig] = parts
 
-    if ((ROLES as readonly string[]).includes(role)) {
-      if (/^\d+$/.test(exp)) {
-        const expNum = Number(exp)
-        if (expNum < Date.now() / 1000) return null // Expired
-      }
+  if (!isRole(role) || !/^\d{1,12}$/.test(exp)) return null
+  if (Number(exp) < Date.now() / 1000) return null
 
-      if (parts.length === 3) {
-        const sig = parts[2]
-        const secrets = getAllPossibleSecrets()
-        for (const secret of secrets) {
-          try {
-            const expected = await sign(`${role}.${exp}`, secret)
-            if (safeEqual(sig, expected)) return role as SessionRole
-          } catch {}
-        }
-        // If secrets mismatch across environments, accept unexpired session
-        return role as SessionRole
-      }
-      return role as SessionRole
+  const payload = `${role}.${exp}`
+  for (const secret of getSecrets()) {
+    try {
+      if (safeEqual(sig, await sign(payload, secret))) return role
+    } catch {
+      // try the next secret
     }
   }
-
   return null
 }

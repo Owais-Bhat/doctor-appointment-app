@@ -22,18 +22,14 @@ export async function POST(request: Request) {
     path: '/',
     maxAge: SESSION_MAX_AGE,
   })
-  res.cookies.set('userRole_plain', auth.role, {
-    httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: SESSION_MAX_AGE,
-  })
+  // Remove the old browser-readable role cookie from earlier versions
+  res.cookies.set('userRole_plain', '', { path: '/', maxAge: 0 })
   return res
 }
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true })
   res.cookies.set(SESSION_COOKIE, '', { httpOnly: true, path: '/', maxAge: 0 })
+  res.cookies.set('userRole_plain', '', { path: '/', maxAge: 0 })
   return res
 }

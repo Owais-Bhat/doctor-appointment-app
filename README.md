@@ -67,6 +67,12 @@ Patients get a reminder about 24 hours and 1 hour before each **confirmed** visi
 3. Call `GET /api/cron/reminders` every 15 minutes with `Authorization: Bearer <CRON_SECRET>`.
    `vercel.json` schedules this on Vercel; per-15-minute cron jobs need a Vercel Pro plan. On the free plan use Supabase `pg_cron` or a free service such as cron-job.org instead.
 
+**On Hostinger** `vercel.json` does nothing. In hPanel → Advanced → Cron Jobs add one that runs every 15 minutes:
+
+```
+*/15 * * * * curl -fsS -H "Authorization: Bearer <CRON_SECRET>" https://app.nestfy.in/api/cron/reminders
+```
+
 Each reminder is claimed in the database before sending, so overlapping runs never send it twice.
 For India: SMS needs DLT-registered sender and templates; WhatsApp outside a 24-hour chat window needs an approved message template in Twilio.
 
