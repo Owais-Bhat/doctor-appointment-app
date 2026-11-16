@@ -30,7 +30,7 @@ type TapProps = {
 /** Anything tappable: springs down while pressed and gives a light haptic tick. */
 export function Tap({ onPress, children, style, disabled, scaleTo = 0.96, buzz = true, label, hitSlop }: TapProps) {
   const scale = useSharedValue(1);
-  const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
   return (
     <AnimatedPressable
       accessibilityRole="button"
@@ -38,8 +38,8 @@ export function Tap({ onPress, children, style, disabled, scaleTo = 0.96, buzz =
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       hitSlop={hitSlop}
-      onPressIn={() => (scale.value = withSpring(scaleTo, { damping: 15, stiffness: 400 }))}
-      onPressOut={() => (scale.value = withSpring(1, { damping: 12, stiffness: 300 }))}
+      onPressIn={() => scale.set(withSpring(scaleTo, { damping: 15, stiffness: 400 }))}
+      onPressOut={() => scale.set(withSpring(1, { damping: 12, stiffness: 300 }))}
       style={[style, anim, disabled && { opacity: 0.5 }]}
       onPress={() => {
         if (buzz) haptic('light');

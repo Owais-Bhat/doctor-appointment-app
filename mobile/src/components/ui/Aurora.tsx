@@ -8,10 +8,10 @@ import { useTheme } from '@/hooks/use-theme';
 function Blob({ color, size, x, y, dx, dy, duration }: { color: string; size: number; x: number; y: number; dx: number; dy: number; duration: number }) {
   const t = useSharedValue(0);
   useEffect(() => {
-    t.value = withRepeat(withSequence(withTiming(1, { duration, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration, easing: Easing.inOut(Easing.sin) })), -1);
+    t.set(withRepeat(withSequence(withTiming(1, { duration, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration, easing: Easing.inOut(Easing.sin) })), -1));
   }, [duration, t]);
   const style = useAnimatedStyle(() => ({
-    transform: [{ translateX: dx * t.value }, { translateY: dy * t.value }, { scale: 1 + 0.12 * t.value }],
+    transform: [{ translateX: dx * t.get() }, { translateY: dy * t.get() }, { scale: 1 + 0.12 * t.get() }],
   }));
   return (
     <Animated.View

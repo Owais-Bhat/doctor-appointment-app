@@ -25,7 +25,7 @@ Until the Firebase values are set, the login screen says so instead of failing s
 | Book (centre tab) | Pick a specialty → doctors |
 | Doctors | Search + specialty chips |
 | Doctor → Book | 14-day date strip, free slots from the server, visit type, reason → request sent |
-| Visits | Upcoming / past, cancel (two-tap confirm) |
+| Visits | Upcoming / past, cancel (two-tap confirm), **pay online**, **join video visit** |
 | Notifications | List, mark one or all read |
 | Me | Health profile (read-only for now), sign out |
 
@@ -43,12 +43,26 @@ Doctor and admin accounts see a "use the web portal" screen; those portals stay 
 
 To add an icon, add its paths to `ICONS` in `paths.ts`; it is available everywhere by name.
 
-## Not built yet (need a development build, not Expo Go)
+## Payments and video
 
-- Online payment (Razorpay) after the doctor confirms
-- Video visits (Daily)
-- Push notifications (needs a device-token table and `/api/push` on the web app)
+Both use the web app's existing endpoints and work in Expo Go (no native SDK).
+
+- **Pay** — shown on a confirmed, unpaid visit when the server has Razorpay keys.
+  `POST /api/payments/order` → Razorpay Checkout → `POST /api/payments/verify`. On phones Checkout
+  runs in a WebView sheet (`src/components/Checkout.tsx`); the web build uses the normal overlay
+  (`Checkout.web.tsx`). The amount always comes from the server. UPI app links (`upi://`,
+  `phonepe://`, Android `intent://`) are handed to the phone to open.
+- **Join video** — shown from 15 minutes before a confirmed video visit until the end of that day.
+  `POST /api/visits/:id/join` returns the private Daily/Jitsi room link, opened in the in-app
+  browser, which asks for camera and microphone itself. Unpaid video visits must be paid first.
+
+Test payments with Razorpay **test keys** (`rzp_test_…`) on the server before going live.
+
+## Not built yet
+
+- Push notifications (needs an EAS project, a device-token table and a send step on the web app)
 - Google sign-in, editing the health profile, medical records / prescriptions
+- Optional: Razorpay's native SDK and Daily's native SDK for a store build (need a development build)
 
 ```bash
 npx eas-cli@latest build --profile development --platform android

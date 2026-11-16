@@ -10,13 +10,13 @@ export function LogoMark({ size = 84 }: { size?: number }) {
   const breathe = useSharedValue(0);
 
   useEffect(() => {
-    pop.value = withSpring(1, { damping: 11, stiffness: 120 });
-    breathe.value = withDelay(1200, withRepeat(withSequence(withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 1100, easing: Easing.inOut(Easing.sin) })), -1));
+    pop.set(withSpring(1, { damping: 11, stiffness: 120 }));
+    breathe.set(withDelay(1200, withRepeat(withSequence(withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 1100, easing: Easing.inOut(Easing.sin) })), -1)));
   }, [pop, breathe]);
 
   const style = useAnimatedStyle(() => ({
-    opacity: pop.value,
-    transform: [{ scale: (0.5 + 0.5 * pop.value) * (1 + 0.04 * breathe.value) }, { rotate: `${(1 - pop.value) * -12}deg` }],
+    opacity: pop.get(),
+    transform: [{ scale: (0.5 + 0.5 * pop.get()) * (1 + 0.04 * breathe.get()) }, { rotate: `${(1 - pop.get()) * -12}deg` }],
   }));
 
   return (

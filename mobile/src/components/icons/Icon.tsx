@@ -74,9 +74,9 @@ function DrawnPart({
   strokeWidth: number;
 }) {
   const props = useAnimatedProps(() => ({
-    strokeDashoffset: DASH * (1 - progress.value),
+    strokeDashoffset: DASH * (1 - progress.get()),
     // The tint fades in once the outline is nearly drawn
-    fillOpacity: part.f ? 0.16 * interpolate(progress.value, [0.25, 0.5], [0, 1], 'clamp') : 0,
+    fillOpacity: part.f ? 0.16 * interpolate(progress.get(), [0.25, 0.5], [0, 1], 'clamp') : 0,
   }));
   return (
     <AnimatedPath
@@ -121,14 +121,14 @@ export function AnimatedIcon({
   const scale = useSharedValue(1);
 
   useEffect(() => {
-    if (draw) progress.value = withDelay(delay, withTiming(1, { duration: 1400, easing: Easing.out(Easing.cubic) }));
+    if (draw) progress.set(withDelay(delay, withTiming(1, { duration: 1400, easing: Easing.out(Easing.cubic) })));
   }, [draw, delay, name, progress]);
 
   useEffect(() => {
-    if (active) scale.value = withSequence(withSpring(1.22, { damping: 6, stiffness: 320 }), withSpring(1, { damping: 10 }));
+    if (active) scale.set(withSequence(withSpring(1.22, { damping: 6, stiffness: 320 }), withSpring(1, { damping: 10 })));
   }, [active, scale]);
 
-  const pop = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const pop = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
 
   return (
     <Animated.View style={[pop, style]}>

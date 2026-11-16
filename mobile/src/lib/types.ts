@@ -34,6 +34,8 @@ export type Appointment = {
   chief_complaint: string | null;
   notes: string | null;
   payment_status: 'unpaid' | 'paid' | 'refund_pending' | 'refunded' | 'waived';
+  /** Smallest currency unit (paise), once paid */
+  amount_paid?: number | null;
   doctor_profiles: {
     id: string;
     specialty: string;

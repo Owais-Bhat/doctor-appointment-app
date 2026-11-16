@@ -34,14 +34,14 @@ export function TabBar({ state, navigateToTab }: BottomTabBarProps) {
   const x = useSharedValue(0);
   const pulse = useSharedValue(0);
   useEffect(() => {
-    pulse.value = withRepeat(withSequence(withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 1400, easing: Easing.inOut(Easing.sin) })), -1);
+    pulse.set(withRepeat(withSequence(withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 1400, easing: Easing.inOut(Easing.sin) })), -1));
   }, [pulse]);
 
   useEffect(() => {
-    x.value = withSpring(state.index * slot, { damping: 16, stiffness: 190 });
+    x.set(withSpring(state.index * slot, { damping: 16, stiffness: 190 }));
   }, [state.index, slot, x]);
-  const indicator = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }], width: slot }));
-  const halo = useAnimatedStyle(() => ({ opacity: 0.35 * (1 - pulse.value), transform: [{ scale: 1 + 0.5 * pulse.value }] }));
+  const indicator = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }], width: slot }));
+  const halo = useAnimatedStyle(() => ({ opacity: 0.35 * (1 - pulse.get()), transform: [{ scale: 1 + 0.5 * pulse.get() }] }));
 
   return (
     <View style={[styles.outer, { bottom: Math.max(insets.bottom, 12) }]} pointerEvents="box-none">

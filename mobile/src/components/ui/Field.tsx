@@ -19,9 +19,9 @@ export function Field({ label, icon, error, secure, style, onFocus, onBlur, ...r
   const focus = useSharedValue(0);
 
   const ring = useAnimatedStyle(() => ({
-    borderColor: error ? t.bad : interpolateColor(focus.value, [0, 1], [t.line2, t.accent]),
-    borderWidth: 1 + focus.value * 0.8,
-    backgroundColor: interpolateColor(focus.value, [0, 1], [t.card, t.cardSolid]),
+    borderColor: error ? t.bad : interpolateColor(focus.get(), [0, 1], [t.line2, t.accent]),
+    borderWidth: 1 + focus.get() * 0.8,
+    backgroundColor: interpolateColor(focus.get(), [0, 1], [t.card, t.cardSolid]),
   }));
 
   return (
@@ -37,11 +37,11 @@ export function Field({ label, icon, error, secure, style, onFocus, onBlur, ...r
           secureTextEntry={secure ? hidden : rest.secureTextEntry}
           placeholderTextColor={t.ink3}
           onFocus={(e) => {
-            focus.value = withTiming(1, { duration: 180 });
+            focus.set(withTiming(1, { duration: 180 }));
             onFocus?.(e);
           }}
           onBlur={(e) => {
-            focus.value = withTiming(0, { duration: 180 });
+            focus.set(withTiming(0, { duration: 180 }));
             onBlur?.(e);
           }}
           style={[styles.input, { color: t.ink, fontFamily: Fonts.sans }, style, { outlineStyle: 'none' } as object]}

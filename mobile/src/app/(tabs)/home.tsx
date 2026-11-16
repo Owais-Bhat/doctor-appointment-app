@@ -17,6 +17,7 @@ import { useAuth } from '@/context/auth';
 import { useTheme } from '@/hooks/use-theme';
 import { clinicNow } from '@/lib/clinic-time';
 import { formatDate, formatTime, greeting, parseDate } from '@/lib/format';
+import { paymentState } from '@/lib/payments';
 import { doctorName, one, withDr, type Appointment, type AppNotification, type Doctor } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 
@@ -30,7 +31,7 @@ const ACTIONS: { icon: IconName; label: string; hint: string; go: () => void }[]
 export default function Home() {
   const t = useTheme();
   const { profile } = useAuth();
-  const appts = useApi<{ appointments: Appointment[] }>('/api/patient/appointments');
+  const appts = useApi<{ appointments: Appointment[]; paymentsEnabled?: boolean }>('/api/patient/appointments');
   const doctors = useApi<{ doctors: Doctor[] }>('/api/doctors', { auth: false });
   const notes = useApi<{ notifications: AppNotification[] }>('/api/patient/notifications');
 
@@ -38,6 +39,7 @@ export default function Home() {
   const upcoming = (appts.data?.appointments ?? []).find(
     (a) => ['pending', 'confirmed'].includes(a.status) && `${a.appointment_date} ${a.appointment_time.slice(0, 5)}` >= now,
   );
+  const due = upcoming ? paymentState(upcoming, !!appts.data?.paymentsEnabled)?.kind === 'due' : false;
   const unread = (notes.data?.notifications ?? []).filter((n) => !n.is_read).length;
   const first = profile?.full_name?.split(' ')[0] ?? '';
 
@@ -82,6 +84,7 @@ export default function Home() {
               </View>
               <Text variant="small" tone="onAccent" style={{ opacity: 0.85 }}>
                 {upcoming.status === 'pending' ? 'Waiting for the doctor to confirm' : daysAway(upcoming.appointment_date)}
+                {due ? ' · Payment due, tap to pay' : ''}
               </Text>
             </LinearGradient>
           </Tap>

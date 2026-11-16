@@ -21,9 +21,9 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
 
   // Follow the selection (and re-measure after layout)
   useEffect(() => {
-    x.value = withSpring(index * slot, { damping: 18, stiffness: 220 });
+    x.set(withSpring(index * slot, { damping: 18, stiffness: 220 }));
   }, [index, slot, x]);
-  const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }], width: slot }));
+  const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }], width: slot }));
 
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width - 8)} style={[styles.wrap, { backgroundColor: t.line, borderColor: t.line }]}>

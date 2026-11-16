@@ -18,16 +18,16 @@ export function SuccessCheck({ size = 120 }: { size?: number }) {
   const scale = useSharedValue(0.6);
 
   useEffect(() => {
-    ring.value = withTiming(1, { duration: 650, easing: Easing.out(Easing.cubic) });
-    tick.value = withDelay(500, withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) }));
-    scale.value = withSpring(1, { damping: 9, stiffness: 140 });
+    ring.set(withTiming(1, { duration: 650, easing: Easing.out(Easing.cubic) }));
+    tick.set(withDelay(500, withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) })));
+    scale.set(withSpring(1, { damping: 9, stiffness: 140 }));
     const id = setTimeout(() => haptic('success'), 520);
     return () => clearTimeout(id);
   }, [ring, tick, scale]);
 
-  const ringProps = useAnimatedProps(() => ({ strokeDashoffset: RING * (1 - ring.value) }));
-  const tickProps = useAnimatedProps(() => ({ strokeDashoffset: 60 * (1 - tick.value) }));
-  const pop = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const ringProps = useAnimatedProps(() => ({ strokeDashoffset: RING * (1 - ring.get()) }));
+  const tickProps = useAnimatedProps(() => ({ strokeDashoffset: 60 * (1 - tick.get()) }));
+  const pop = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
 
   return (
     <Animated.View style={pop}>
