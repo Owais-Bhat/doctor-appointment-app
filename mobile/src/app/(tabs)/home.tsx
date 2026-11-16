@@ -7,6 +7,7 @@ import { Header } from '@/components/Header';
 import { AnimatedIcon, Icon } from '@/components/icons/Icon';
 import type { IconName } from '@/components/icons/paths';
 import { ErrorNote } from '@/components/States';
+import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Reveal } from '@/components/ui/Reveal';
 import { Screen } from '@/components/ui/Screen';
@@ -20,6 +21,7 @@ import { formatDate, formatTime, greeting, parseDate } from '@/lib/format';
 import { paymentState } from '@/lib/payments';
 import { doctorName, one, withDr, type Appointment, type AppNotification, type Doctor } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
+import { usePush } from '@/lib/use-push';
 
 const ACTIONS: { icon: IconName; label: string; hint: string; go: () => void }[] = [
   { icon: 'calendarPlus', label: 'Book a visit', hint: 'Pick a specialty', go: () => router.navigate('/book') },
@@ -31,6 +33,7 @@ const ACTIONS: { icon: IconName; label: string; hint: string; go: () => void }[]
 export default function Home() {
   const t = useTheme();
   const { profile } = useAuth();
+  const push = usePush();
   const appts = useApi<{ appointments: Appointment[]; paymentsEnabled?: boolean }>('/api/patient/appointments');
   const doctors = useApi<{ doctors: Doctor[] }>('/api/doctors', { auth: false });
   const notes = useApi<{ notifications: AppNotification[] }>('/api/patient/notifications');
@@ -97,6 +100,23 @@ export default function Home() {
           </GlassCard>
         )}
       </Reveal>
+
+      {push.status === 'undetermined' ? (
+        <Reveal index={2}>
+          <GlassCard padding={16}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <AnimatedIcon name="bell" size={30} strokeWidth={1.6} />
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyStrong">Turn on notifications</Text>
+                <Text variant="small" tone="ink2">
+                  Know the moment your doctor confirms, and get visit reminders.
+                </Text>
+              </View>
+              <Button size="sm" title="Turn on" loading={push.busy} onPress={push.enable} />
+            </View>
+          </GlassCard>
+        </Reveal>
+      ) : null}
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         {ACTIONS.map((a, i) => (

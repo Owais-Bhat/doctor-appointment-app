@@ -10,7 +10,7 @@ accounts — no separate backend.
 cd mobile
 cp .env.example .env     # add the Firebase values from the web app's NEXT_PUBLIC_FIREBASE_*
 npm install
-npx expo start           # press a/i, or scan the QR code with Expo Go
+npm run start:go         # Expo Go: scan the QR code (plain `npx expo start` targets a development build)
 ```
 
 Until the Firebase values are set, the login screen says so instead of failing silently.
@@ -58,15 +58,50 @@ Both use the web app's existing endpoints and work in Expo Go (no native SDK).
 
 Test payments with Razorpay **test keys** (`rzp_test_…`) on the server before going live.
 
+## Push notifications
+
+Every in-app notification (booking request, doctor confirmed, payment received, reminders…) is
+also pushed to the phone. Tapping it opens Visits or Notifications. The patient is asked once,
+from a card on Home; signing out stops pushes to that phone.
+
+Pushes need a **development or store build** (Expo Go cannot receive them on Android) and this
+one-time setup:
+
+1. **Server table** — import `mysql/migrations/001_push_tokens.sql` in phpMyAdmin (see the web
+   README). Until then phones cannot register (the server answers 503) and nothing else is affected.
+2. **Expo project** — creates `extra.eas.projectId` in `app.json`; commit that change.
+   ```bash
+   npx eas-cli@latest login
+   npx eas-cli@latest init
+   ```
+3. **Android (Firebase Cloud Messaging)** — in the Firebase console of the project the web app
+   already uses:
+   - Project settings → *Your apps* → Add app → Android, package `in.nestfy.medflow` → download
+     `google-services.json` into `mobile/` and add `"googleServicesFile": "./google-services.json"`
+     under `expo.android` in `app.json`. This file is safe to commit.
+   - Project settings → *Service accounts* → Generate new private key. Upload that JSON at
+     expo.dev → project → Credentials → Android → *FCM V1 service account key*. **Never commit
+     this file.**
+4. **Firebase values for the build** — fill the empty `EXPO_PUBLIC_FIREBASE_*` values in
+   `eas.json` (the same public values as the web app's `NEXT_PUBLIC_FIREBASE_*`). `.env` is
+   git-ignored, so cloud builds do not see it.
+5. **Build and install**
+   ```bash
+   npx eas-cli@latest build --profile development --platform android
+   ```
+   Install the APK, run `npx expo start`, sign in, tap **Turn on** on Home. To test, book a visit
+   or send one from https://expo.dev/notifications.
+
+iOS additionally needs a paid Apple Developer account; `eas build --platform ios` sets up the
+push key when it asks.
+
+Code: `src/lib/push.ts` (phone side), `src/lib/use-push.ts`, and on the server `src/lib/push.ts`,
+`src/lib/notify.ts`, `/api/push/register`.
+
 ## Not built yet
 
-- Push notifications (needs an EAS project, a device-token table and a send step on the web app)
 - Google sign-in, editing the health profile, medical records / prescriptions
-- Optional: Razorpay's native SDK and Daily's native SDK for a store build (need a development build)
-
-```bash
-npx eas-cli@latest build --profile development --platform android
-```
+- Optional: Razorpay's native SDK and Daily's native SDK for a store build
 
 ## Layout
 

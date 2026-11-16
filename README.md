@@ -78,6 +78,19 @@ Patients get a reminder about 24 hours and 1 hour before each **confirmed** visi
 Each reminder is claimed in the database before sending, so overlapping runs never send it twice.
 For India: SMS needs DLT-registered sender and templates; WhatsApp outside a 24-hour chat window needs an approved message template in Twilio.
 
+## Push notifications (mobile app)
+
+Whatever appears in someone's in-app notifications is also pushed to their phone, through Expo's
+push service. All notifications are created in one place, `notify()` in `src/lib/notify.ts`.
+
+1. Create the table: import `mysql/migrations/001_push_tokens.sql` in phpMyAdmin (Supabase:
+   `supabase/migrations/006_push_tokens.sql`). Safe to run twice.
+2. Set up the app side (Expo project, Firebase Cloud Messaging) as described in `mobile/README.md`.
+
+No key is needed on the server. Phones that uninstall the app are forgotten automatically: at send
+time, and from Expo's delivery receipts, which the reminders cron job reads. Without the table
+nothing is pushed and everything else works as before.
+
 ## How security works
 
 - **Identity** comes only from the Firebase ID token (`Authorization: Bearer <token>`), verified on the server. User ids or roles sent in headers or request bodies are never trusted.

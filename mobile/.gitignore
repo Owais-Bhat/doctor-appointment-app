@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Firebase service account (private key) used for push credentials: never commit
+*-firebase-adminsdk-*.json

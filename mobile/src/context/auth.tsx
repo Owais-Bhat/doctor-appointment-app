@@ -10,6 +10,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import { api, setTokenGetter } from '@/lib/api';
 import { firebaseConfigured, getFirebaseAuth } from '@/lib/firebase';
+import { unregisterPhone } from '@/lib/push';
 import type { Profile } from '@/lib/types';
 
 type Status = 'loading' | 'signedOut' | 'ready';
@@ -100,6 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // While still signed in: this phone stops getting the account's notifications
+    await unregisterPhone();
     const auth = getFirebaseAuth();
     if (auth) await firebaseSignOut(auth);
     setProfile(null);

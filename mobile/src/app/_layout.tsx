@@ -1,12 +1,21 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthProvider } from '@/context/auth';
+import { onPushOpened, showPushesInForeground } from '@/lib/push';
 
 export default function RootLayout() {
   const scheme = useColorScheme();
+
+  // Tapping a push notification opens the screen it is about
+  useEffect(() => {
+    void showPushesInForeground();
+    return onPushOpened((path) => router.push(path === '/visits' ? '/visits' : '/notifications'));
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>

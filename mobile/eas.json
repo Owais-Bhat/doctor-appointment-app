@@ -1,0 +1,36 @@
+{
+  "cli": {
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://app.nestfy.in",
+        "EXPO_PUBLIC_TIME_ZONE": "Asia/Kolkata",
+        "EXPO_PUBLIC_CURRENCY": "INR",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": ""
+      }
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true
+    }
+  }
+}
