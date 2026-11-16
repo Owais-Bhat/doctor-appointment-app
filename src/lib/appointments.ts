@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './supabase-admin'
 import { clinicInstant } from './clinic-time'
+import { notify, type Notice } from './notify'
 
 export type ConsultationType = 'video' | 'phone' | 'in_person'
 export const CONSULTATION_TYPES: ConsultationType[] = ['video', 'phone', 'in_person']
@@ -140,11 +141,11 @@ export async function bookAppointment(input: BookingInput): Promise<BookingResul
   const patientName = patient?.full_name ?? 'A patient'
   const when = `${date} at ${hhmm(time)}`
 
-  const notifications = [
+  const notifications: Notice[] = [
     {
       user_id: patientId,
       title: 'Appointment Requested',
-      message: `Your appointment with Dr. ${doctorName} on ${when} is pending confirmation.`,
+      message: `Your appointment with ${/^dr\.?\s/i.test(doctorName) || doctorName === 'your doctor' ? doctorName : `Dr. ${doctorName}`} on ${when} is pending confirmation.`,
       type: 'info',
       related_appointment_id: data.id,
     },
@@ -159,7 +160,7 @@ export async function bookAppointment(input: BookingInput): Promise<BookingResul
     })
   }
 
-  const { error: notifyError } = await supabaseAdmin.from('notifications').insert(notifications)
+  const { error: notifyError } = await notify(notifications)
   if (notifyError) console.error('Error creating notifications:', notifyError)
 
   return { ok: true, appointment: data }

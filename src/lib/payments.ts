@@ -11,6 +11,7 @@
 import crypto from 'crypto'
 import { supabaseAdmin } from './supabase-admin'
 import { CURRENCY } from './format'
+import { notify } from './notify'
 
 const API = 'https://api.razorpay.com/v1'
 
@@ -124,7 +125,7 @@ export async function markPaid(p: {
   const appt = rows?.[0]
   if (!appt) return null
 
-  await supabaseAdmin.from('notifications').insert({
+  await notify({
     user_id: appt.patient_id,
     title: 'Payment received',
     message: 'Thanks, your payment is confirmed. You’ll find the receipt in your visits.',
@@ -172,7 +173,7 @@ export async function refundIfPaid(appointmentId: string, reason: string): Promi
       .from('appointments')
       .update({ razorpay_refund_id: res.data.id, ...(done ? { payment_status: 'refunded', refunded_at: new Date().toISOString() } : {}) })
       .eq('id', appointmentId)
-    await supabaseAdmin.from('notifications').insert({
+    await notify({
       user_id: appt.patient_id,
       title: 'Refund started',
       message: 'Your payment for the cancelled visit is being refunded. Banks usually take 5–7 working days.',

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
+import { notify } from '@/lib/notify'
 
 // POST — promote user to doctor
 export async function POST(request: Request) {
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
       .eq('profile_id', userId)
   }
 
-  await supabaseAdmin.from('notifications').insert({
+  await notify({
     user_id: userId,
     title: 'Welcome to MedFlow for doctors',
     message: 'Your doctor account is ready. Set your weekly hours so patients can book you.',

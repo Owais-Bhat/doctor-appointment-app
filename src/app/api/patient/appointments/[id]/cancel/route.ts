@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
 import { refundIfPaid } from '@/lib/payments'
 import { clinicInstant } from '@/lib/clinic-time'
+import { notify } from '@/lib/notify'
 
 export async function POST(
   request: Request,
@@ -54,7 +55,7 @@ export async function POST(
   const doctorUserId = doctor?.profile_id
   if (doctorUserId) {
     const { data: patient } = await supabaseAdmin.from('profiles').select('full_name').eq('id', uid).maybeSingle()
-    await supabaseAdmin.from('notifications').insert({
+    await notify({
       user_id: doctorUserId,
       title: 'Appointment cancelled',
       message: `${patient?.full_name ?? 'A patient'} cancelled their visit on ${appt.appointment_date} at ${String(appt.appointment_time).substring(0, 5)}.`,

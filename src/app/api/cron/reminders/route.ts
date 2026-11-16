@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { runReminders } from '@/lib/reminders'
+import { checkPushReceipts } from '@/lib/push'
 
 /**
  * GET /api/cron/reminders
@@ -19,7 +20,9 @@ export async function GET(request: Request) {
   try {
     const summary = await runReminders()
     if (summary.failures.length) console.error('Reminder delivery failures:', summary.failures)
-    return NextResponse.json(summary)
+    // Same schedule: forget phones that no longer accept push notifications
+    const push = await checkPushReceipts()
+    return NextResponse.json({ ...summary, push })
   } catch (e) {
     console.error('Reminder run failed:', e)
     return NextResponse.json({ error: 'Reminder run failed' }, { status: 500 })

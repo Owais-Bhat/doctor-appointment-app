@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
 import { refundIfPaid } from '@/lib/payments'
 import { clinicToday } from '@/lib/clinic-time'
+import { notify, type Notice } from '@/lib/notify'
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
@@ -13,7 +14,7 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
 }
 
 /** What the patient is told when the doctor changes a visit. */
-const PATIENT_MESSAGE: Record<string, { title: string; type: string; text: (doctor: string, when: string) => string }> = {
+const PATIENT_MESSAGE: Record<string, { title: string; type: Notice['type']; text: (doctor: string, when: string) => string }> = {
   confirmed: {
     title: 'Appointment confirmed',
     type: 'success',
@@ -110,7 +111,7 @@ export async function PATCH(
       const raw = me?.full_name?.trim()
       const doctor = !raw ? 'Your doctor' : /^dr\.?\s/i.test(raw) ? raw : `Dr. ${raw}`
       const when = `${appt.appointment_date} at ${String(appt.appointment_time).substring(0, 5)}`
-      const { error: notifyError } = await supabaseAdmin.from('notifications').insert({
+      const { error: notifyError } = await notify({
         user_id: appt.patient_id,
         title: message.title,
         message: message.text(doctor, when),

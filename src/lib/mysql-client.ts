@@ -30,6 +30,7 @@ const TABLES: Record<string, { uuidId: boolean; json: string[]; createdAt: boole
   reviews: { uuidId: true, json: [], createdAt: true, updatedAt: false },
   notifications: { uuidId: true, json: [], createdAt: true, updatedAt: false },
   audit_logs: { uuidId: true, json: ['metadata'], createdAt: true, updatedAt: false },
+  push_tokens: { uuidId: true, json: [], createdAt: true, updatedAt: true },
 }
 
 /** Foreign keys used as embedded relations, e.g. `profiles!appointments_patient_id_fkey(full_name)`. */

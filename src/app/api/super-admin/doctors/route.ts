@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
 import { AccountError, createEmailAccount } from '@/lib/firebase-admin'
+import { notify } from '@/lib/notify'
 
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'The account was created, but the doctor profile could not be saved. Use “Make doctor” on the Users page.' }, { status: 500 })
   }
 
-  await supabaseAdmin.from('notifications').insert({
+  await notify({
     user_id: account.uid,
     title: 'Welcome to MedFlow for doctors',
     message: 'Your doctor account is ready. Set your weekly hours so patients can book you.',
@@ -170,7 +171,7 @@ export async function PATCH(request: Request) {
     .eq('id', doctorId)
   if (error) return NextResponse.json({ error: 'Could not update the doctor' }, { status: 500 })
 
-  await supabaseAdmin.from('notifications').insert({
+  await notify({
     user_id: doctor.profile_id,
     title: is_verified ? 'Your profile is live' : 'Your profile is hidden',
     message: is_verified

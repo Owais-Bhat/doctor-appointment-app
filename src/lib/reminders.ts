@@ -1,6 +1,7 @@
 import { supabaseAdmin } from './supabase-admin'
 import { addDays, clinicInstant, clinicToday } from './clinic-time'
 import { configuredChannel, sendMessage, toE164 } from './messaging'
+import { notify } from './notify'
 
 type Kind = '24h' | '1h'
 type Row = {
@@ -121,7 +122,7 @@ export async function runReminders(now = new Date()): Promise<ReminderSummary> {
       appUrl,
     })
 
-    await supabaseAdmin.from('notifications').insert({
+    await notify({
       user_id: row.patient_id,
       title: msg.title,
       message: msg.message,

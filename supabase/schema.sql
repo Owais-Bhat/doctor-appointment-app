@@ -125,6 +125,25 @@ CREATE TABLE notifications (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- PUSH TOKENS (mobile app)
+-- Phones that receive push notifications (mobile app). One row per phone;
+-- last_ticket_* is the most recent push, kept until its delivery receipt is read.
+CREATE TABLE push_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  token TEXT NOT NULL UNIQUE,          -- ExponentPushToken[...]
+  platform TEXT,                       -- android, ios
+  last_ticket_id TEXT,
+  last_ticket_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX push_tokens_user_idx   ON push_tokens (user_id);
+CREATE INDEX push_tokens_ticket_idx ON push_tokens (last_ticket_at);
+
+-- Server routes only (service role key); the public anon key cannot read tokens
+ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
+
 -- AUDIT LOGS (super admin)
 CREATE TABLE audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -26,6 +26,7 @@ const EMPTY_DB: Db = {
   reviews: [],
   notifications: [],
   audit_logs: [],
+  push_tokens: [],
 };
 
 function readDb(): Db {

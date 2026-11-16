@@ -155,6 +155,24 @@ CREATE TABLE IF NOT EXISTS notifications (
   CONSTRAINT notifications_appointment_id_fkey FOREIGN KEY (related_appointment_id) REFERENCES appointments (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Phones that receive push notifications (mobile app). One row per phone;
+-- last_ticket_* is the most recent push, kept until its delivery receipt is read.
+CREATE TABLE IF NOT EXISTS push_tokens (
+  id             CHAR(36)     CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  user_id        VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  token          VARCHAR(200) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,  -- ExponentPushToken[...]
+  platform       VARCHAR(10)  NULL,                                            -- android, ios
+  last_ticket_id VARCHAR(64)  NULL,
+  last_ticket_at DATETIME(3)  NULL,
+  created_at     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  UNIQUE KEY push_tokens_token_unique (token),
+  KEY push_tokens_user_idx (user_id),
+  KEY push_tokens_ticket_idx (last_ticket_at),
+  CONSTRAINT push_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- What admins, doctors and patients did (shown to the super admin)
 CREATE TABLE IF NOT EXISTS audit_logs (
   id           CHAR(36)     CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
