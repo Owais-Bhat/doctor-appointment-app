@@ -15,6 +15,17 @@ function portalOf(path: string): SessionRole | null {
   return null
 }
 
+/**
+ * Portal pages are prerendered, so Next.js would send them with a one-year
+ * shared-cache lifetime. A CDN or host cache that stored one would serve it
+ * (or a redirect) to the next visitor without running the check below, so
+ * every answer for a portal path is marked as not storable.
+ */
+function uncached(response: NextResponse): NextResponse {
+  response.headers.set('Cache-Control', 'private, no-store')
+  return response
+}
+
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
 
@@ -33,16 +44,16 @@ export async function proxy(request: NextRequest) {
   if (!role) {
     const login = new URL(needs === 'super_admin' ? '/super-admin/login' : '/auth/login', request.url)
     login.searchParams.set('next', path + request.nextUrl.search)
-    return NextResponse.redirect(login)
+    return uncached(NextResponse.redirect(login))
   }
 
   // Signed in to another portal: super_admin can inspect all portals;
   // others are sent to their own home.
   if (role !== needs && role !== 'super_admin') {
-    return NextResponse.redirect(new URL(HOME[role], request.url))
+    return uncached(NextResponse.redirect(new URL(HOME[role], request.url)))
   }
 
-  return NextResponse.next()
+  return uncached(NextResponse.next())
 }
 
 export const config = {
