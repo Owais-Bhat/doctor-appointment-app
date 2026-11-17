@@ -12,7 +12,7 @@ import { api, setTokenGetter } from '@/lib/api';
 import { firebaseConfigured, getFirebaseAuth } from '@/lib/firebase';
 import { GoogleSignInError, googleSignIn } from '@/lib/google';
 import { unregisterPhone } from '@/lib/push';
-import type { Profile } from '@/lib/types';
+import { normalizeRole, type Profile } from '@/lib/types';
 
 type Status = 'loading' | 'signedOut' | 'ready';
 
@@ -52,6 +52,9 @@ export function authErrorMessage(err: unknown): string {
   return 'Unable to sign in. Please try again.';
 }
 
+/** Clean the role the server sent, so every screen can trust it. */
+const cleanProfile = (p: Profile | null): Profile | null => (p ? { ...p, role: normalizeRole(p.role) } : null);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>(firebaseConfigured ? 'loading' : 'signedOut');
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -78,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await api('/api/auth/register', { method: 'POST', auth: false, body: { token, fullName: name } }).catch(() => undefined);
           res = await api<{ profile: Profile | null }>('/api/auth/me');
         }
-        setProfile(res.profile);
+        setProfile(cleanProfile(res.profile));
         setStatus(res.profile ? 'ready' : 'signedOut');
       } catch {
         // Server unreachable or the account is suspended
@@ -108,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Creates the MedFlow profile (always a patient) with the name they typed
     await api('/api/auth/register', { method: 'POST', auth: false, body: { token, fullName } });
     const res = await api<{ profile: Profile | null }>('/api/auth/me');
-    setProfile(res.profile);
+    setProfile(cleanProfile(res.profile));
     setStatus(res.profile ? 'ready' : 'signedOut');
   }, []);
 

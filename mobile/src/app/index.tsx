@@ -29,7 +29,7 @@ export default function Index() {
 
   if (!held && status !== 'loading') {
     if (status === 'signedOut') return <Redirect href="/login" />;
-    return <Redirect href={HOME[profile?.role ?? 'patient']} />;
+    return <Redirect href={HOME[profile?.role ?? 'patient'] ?? '/home'} />;
   }
 
   return (

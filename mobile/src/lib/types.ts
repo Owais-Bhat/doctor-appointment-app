@@ -4,6 +4,18 @@ export type Role = 'patient' | 'doctor' | 'super_admin';
 
 export type Profile = { id: string; role: Role; full_name: string; email: string };
 
+/**
+ * The account's role in the words the app knows. Same rule as the website's
+ * `normalizeRole`, so "admin", "Super Admin" or "super" all open the admin app
+ * and anything unknown is a patient, never an undefined route.
+ */
+export function normalizeRole(role: unknown): Role {
+  const r = String(role ?? '').trim().toLowerCase().replace(/[-_\s]/g, '');
+  if (r === 'admin' || r.startsWith('super')) return 'super_admin';
+  if (r === 'doctor') return 'doctor';
+  return 'patient';
+}
+
 export type Doctor = {
   id: string;
   profile_id: string | null;
