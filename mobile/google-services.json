@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "177924298151",
+    "project_id": "appointment-ca392",
+    "storage_bucket": "appointment-ca392.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:177924298151:android:abbcbb345b1fe97f9f5282",
+        "android_client_info": {
+          "package_name": "in.nestfy.medflow"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "177924298151-jhv4j0eo5i0pn3pi91ba8o4stfonelt5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCw07dMCErli_h-DQ4jlDYa8pSoBK2JaSY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "177924298151-jhv4j0eo5i0pn3pi91ba8o4stfonelt5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -83,13 +83,13 @@ For India: SMS needs DLT-registered sender and templates; WhatsApp outside a 24-
 Whatever appears in someone's in-app notifications is also pushed to their phone, through Expo's
 push service. All notifications are created in one place, `notify()` in `src/lib/notify.ts`.
 
-1. Create the table: import `mysql/migrations/001_push_tokens.sql` in phpMyAdmin (Supabase:
-   `supabase/migrations/006_push_tokens.sql`). Safe to run twice.
+1. The table: on MySQL the app creates `push_tokens` by itself the first time it is needed
+   (`mysql/migrations/001_push_tokens.sql` is the same statement, if you prefer to import it).
+   On Supabase run `supabase/migrations/006_push_tokens.sql`.
 2. Set up the app side (Expo project, Firebase Cloud Messaging) as described in `mobile/README.md`.
 
 No key is needed on the server. Phones that uninstall the app are forgotten automatically: at send
-time, and from Expo's delivery receipts, which the reminders cron job reads. Without the table
-nothing is pushed and everything else works as before.
+time, and from Expo's delivery receipts, which the reminders cron job reads.
 
 ## How security works
 

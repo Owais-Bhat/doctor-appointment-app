@@ -6,9 +6,10 @@
  * app creates an in-app notification (lib/notify.ts) the same title and
  * message are pushed to that person's phones.
  *
- * Needs the push_tokens table (mysql/migrations/001_push_tokens.sql or
- * supabase/migrations/006_push_tokens.sql). Without it nothing is sent and
- * registration answers 503; everything else keeps working.
+ * Uses the push_tokens table. On MySQL the database client creates it on
+ * first use; on Supabase run supabase/migrations/006_push_tokens.sql. If it
+ * cannot be used, nothing is sent and registration answers 503; everything
+ * else keeps working.
  *
  * EXPO_ACCESS_TOKEN is only needed if "enhanced security for push" is turned
  * on for the Expo project. EXPO_PUSH_URL points at a different push service

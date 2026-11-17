@@ -33,6 +33,32 @@ const TABLES: Record<string, { uuidId: boolean; json: string[]; createdAt: boole
   push_tokens: { uuidId: true, json: [], createdAt: true, updatedAt: true },
 }
 
+/**
+ * Tables the app creates by itself the first time they are used, so a feature
+ * added to a live site needs no phpMyAdmin import. Each statement is the same
+ * as in mysql/schema.sql — change both together.
+ */
+const CREATE_WHEN_MISSING: Record<string, string> = {
+  push_tokens: `
+CREATE TABLE IF NOT EXISTS push_tokens (
+  id             CHAR(36)     CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  user_id        VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  token          VARCHAR(200) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,  -- ExponentPushToken[...]
+  platform       VARCHAR(10)  NULL,                                            -- android, ios
+  last_ticket_id VARCHAR(64)  NULL,
+  last_ticket_at DATETIME(3)  NULL,
+  created_at     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  UNIQUE KEY push_tokens_token_unique (token),
+  KEY push_tokens_user_idx (user_id),
+  KEY push_tokens_ticket_idx (last_ticket_at),
+  CONSTRAINT push_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+}
+/** MySQL's error number for "table doesn't exist". */
+const NO_SUCH_TABLE = 1146
+
 /** Foreign keys used as embedded relations, e.g. `profiles!appointments_patient_id_fkey(full_name)`. */
 const RELATIONS: Record<string, { column: string; table: string }> = {
   doctor_profiles_profile_id_fkey: { column: 'profile_id', table: 'profiles' },
@@ -397,17 +423,28 @@ class Query implements PromiseLike<Result> {
     return []
   }
 
+  private async run(): Promise<{ rows: Row[]; count: number | null }> {
+    if (this.op === 'select') return this.runSelect()
+    if (this.op === 'insert') return { rows: await this.runInsert(), count: null }
+    if (this.op === 'update') return { rows: await this.runUpdate(), count: null }
+    return { rows: await this.runDelete(), count: null }
+  }
+
   private async execute(): Promise<Result> {
     try {
       if (this.problem) throw this.problem
       if (!TABLES[this.table]) throw new Error(`Unknown table: ${this.table}`)
 
       let rows: Row[]
-      let count: number | null = null
-      if (this.op === 'select') ({ rows, count } = await this.runSelect())
-      else if (this.op === 'insert') rows = await this.runInsert()
-      else if (this.op === 'update') rows = await this.runUpdate()
-      else rows = await this.runDelete()
+      let count: number | null
+      try {
+        ;({ rows, count } = await this.run())
+      } catch (e) {
+        const create = CREATE_WHEN_MISSING[this.table]
+        if (!create || (e as { errno?: number })?.errno !== NO_SUCH_TABLE) throw e
+        await getPool().query(create)
+        ;({ rows, count } = await this.run())
+      }
 
       if (this.options.head) return { data: null, error: null, count }
       if (this.op !== 'select' && !this.returning) return { data: null, error: null, count }

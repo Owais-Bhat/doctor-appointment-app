@@ -67,30 +67,26 @@ from a card on Home; signing out stops pushes to that phone.
 Pushes need a **development or store build** (Expo Go cannot receive them on Android) and this
 one-time setup:
 
-1. **Server table** — import `mysql/migrations/001_push_tokens.sql` in phpMyAdmin (see the web
-   README). Until then phones cannot register (the server answers 503) and nothing else is affected.
+1. **Server table** — nothing to do on MySQL: the web app creates `push_tokens` on first use.
 2. **Expo project** — creates `extra.eas.projectId` in `app.json`; commit that change.
    ```bash
    npx eas-cli@latest login
    npx eas-cli@latest init
    ```
-3. **Android (Firebase Cloud Messaging)** — in the Firebase console of the project the web app
-   already uses:
-   - Project settings → *Your apps* → Add app → Android, package `in.nestfy.medflow` → download
-     `google-services.json` into `mobile/` and add `"googleServicesFile": "./google-services.json"`
-     under `expo.android` in `app.json`. This file is safe to commit.
-   - Project settings → *Service accounts* → Generate new private key. Upload that JSON at
-     expo.dev → project → Credentials → Android → *FCM V1 service account key*. **Never commit
-     this file.**
-4. **Firebase values for the build** — fill the empty `EXPO_PUBLIC_FIREBASE_*` values in
-   `eas.json` (the same public values as the web app's `NEXT_PUBLIC_FIREBASE_*`). `.env` is
-   git-ignored, so cloud builds do not see it.
+3. **Android (Firebase Cloud Messaging)** — `google-services.json` for package
+   `in.nestfy.medflow` is already in `mobile/` and referenced from `app.json`. What remains: in the
+   Firebase console → Project settings → *Service accounts* → Generate new private key, and upload
+   that JSON at expo.dev → project → Credentials → Android → *FCM V1 service account key*.
+   **Never commit this file.**
+4. **Firebase values for the build** — already filled in `eas.json` (the same public values the
+   website ships). `.env` is git-ignored, so cloud builds read them from there instead.
 5. **Build and install**
    ```bash
-   npx eas-cli@latest build --profile development --platform android
+   npx eas-cli@latest build --profile preview --platform android
    ```
-   Install the APK, run `npx expo start`, sign in, tap **Turn on** on Home. To test, book a visit
-   or send one from https://expo.dev/notifications.
+   `preview` gives an APK that runs on its own; `development` gives one that loads the code from
+   `npx expo start` on your computer. Install it, sign in, tap **Turn on** on Home. To test, book
+   a visit or send one from https://expo.dev/notifications.
 
 iOS additionally needs a paid Apple Developer account; `eas build --platform ios` sets up the
 push key when it asks.
