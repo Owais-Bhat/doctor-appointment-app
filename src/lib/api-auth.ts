@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyFirebaseToken } from './firebase-admin'
 import { supabaseAdmin } from './supabase-admin'
 import { isDemoUid } from './demo-auth'
+import { normalizeRole } from './auth-flow'
 
 export type UserRole = 'patient' | 'doctor' | 'super_admin'
 
@@ -82,7 +83,8 @@ export async function requireUser(
     }
   }
 
-  const cleanRole = (role ?? 'patient') as UserRole
+  // Same tolerant reading of the stored role as the sign-in pages ("admin", "Super Admin" ...)
+  const cleanRole: UserRole = normalizeRole(role)
   if (roles && !roles.includes(cleanRole)) return forbidden()
 
   return { uid: result.uid, role: cleanRole }

@@ -14,7 +14,7 @@ const AREA: Record<Role, string> = {
 
 export function normalizeRole(role: unknown): Role {
   const r = String(role || '').trim().toLowerCase().replace(/[-_\s]/g, '')
-  if (r === 'superadmin' || r === 'admin') return 'super_admin'
+  if (r === 'admin' || r.startsWith('super')) return 'super_admin'
   if (r === 'doctor') return 'doctor'
   return 'patient'
 }
