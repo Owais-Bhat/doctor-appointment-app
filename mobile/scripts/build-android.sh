@@ -33,7 +33,10 @@ PY
 )"
 
 echo "==> Generating the native Android project"
+# prebuild rewrites the "android"/"ios" scripts in package.json; put the file back afterwards
+PKG_BACKUP="$(mktemp)"; cp package.json "$PKG_BACKUP"
 npx expo prebuild --platform android --no-install --clean
+cp "$PKG_BACKUP" package.json; rm -f "$PKG_BACKUP"
 
 echo "==> Setting up signing"
 python3 - <<'PY'
