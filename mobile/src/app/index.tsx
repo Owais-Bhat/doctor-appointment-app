@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, Text as RNText, View } from 'react-native';
 import { Reveal } from '@/components/ui/Reveal';
 
 import { LogoMark } from '@/components/LogoMark';
@@ -12,13 +12,19 @@ const HOME = { patient: '/home', doctor: '/clinic/today', super_admin: '/admin/o
 
 /** Animated splash while we find out who is signed in, then route by role. */
 export default function Index() {
-  const { status, profile } = useAuth();
+  const { status, profile, signOut } = useAuth();
   const [held, setHeld] = useState(true);
+  const [stuck, setStuck] = useState(false);
 
   // Let the logo animation play even when the session resolves instantly
   useEffect(() => {
     const id = setTimeout(() => setHeld(false), 1500);
-    return () => clearTimeout(id);
+    // If we are still here after a while, say what the app is waiting for
+    const stuckId = setTimeout(() => setStuck(true), 9000);
+    return () => {
+      clearTimeout(id);
+      clearTimeout(stuckId);
+    };
   }, []);
 
   if (!held && status !== 'loading') {
@@ -34,6 +40,16 @@ export default function Index() {
           <Text variant="title">MedFlow</Text>
           <Text tone="ink2">Your doctor, one tap away</Text>
         </Reveal>
+        {stuck ? (
+          <View style={{ position: 'absolute', bottom: 48, left: 24, right: 24, alignItems: 'center', gap: 10 }}>
+            <RNText style={{ color: '#8f98b8', fontSize: 12, textAlign: 'center' }}>
+              Taking longer than usual… status: {status} · role: {profile?.role ?? 'none'}
+            </RNText>
+            <Pressable onPress={() => void signOut()} accessibilityRole="button" style={{ paddingVertical: 10, paddingHorizontal: 18, borderRadius: 14, backgroundColor: '#2a3250' }}>
+              <RNText style={{ color: '#fff', fontWeight: '700' }}>Sign out and start over</RNText>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
     </Backdrop>
   );
