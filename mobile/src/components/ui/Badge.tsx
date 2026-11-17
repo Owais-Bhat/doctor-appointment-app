@@ -11,8 +11,8 @@ export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }
   const t = useTheme();
   const color = tone === 'neutral' ? t.ink2 : t[tone];
   return (
-    <View style={{ alignSelf: 'flex-start', backgroundColor: `${color}22`, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
-      <Text variant="small" style={{ color, fontWeight: '700', fontSize: 12 }}>
+    <View style={{ alignSelf: 'flex-start', backgroundColor: `${color}26`, borderWidth: 1, borderColor: `${color}45`, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 }}>
+      <Text variant="small" style={{ color, fontWeight: '800', fontSize: 12 }}>
         {label}
       </Text>
     </View>

@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { Reveal } from '@/components/ui/Reveal';
 
 import { LogoMark } from '@/components/LogoMark';
-import { Aurora } from '@/components/ui/Aurora';
+import { Backdrop } from '@/components/ui/Backdrop';
 import { Text } from '@/components/ui/Text';
 import { useAuth } from '@/context/auth';
 
@@ -25,13 +25,14 @@ export default function Index() {
   }
 
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 22 }}>
-      <Aurora />
-      <LogoMark size={96} />
-      <Reveal index={4} style={{ alignItems: 'center', gap: 4 }}>
-        <Text variant="title">MedFlow</Text>
-        <Text tone="ink2">Your doctor, one tap away</Text>
-      </Reveal>
-    </View>
+    <Backdrop>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 22 }}>
+        <LogoMark size={96} />
+        <Reveal index={4} style={{ alignItems: 'center', gap: 4 }}>
+          <Text variant="title">MedFlow</Text>
+          <Text tone="ink2">Your doctor, one tap away</Text>
+        </Reveal>
+      </View>
+    </Backdrop>
   );
 }

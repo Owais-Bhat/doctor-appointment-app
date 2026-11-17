@@ -8,15 +8,12 @@ import { EmptyState, ErrorNote, ListSkeleton } from '@/components/States';
 import { Field } from '@/components/ui/Field';
 import { Reveal } from '@/components/ui/Reveal';
 import { Screen } from '@/components/ui/Screen';
-import { Tap } from '@/components/ui/Tap';
-import { Text } from '@/components/ui/Text';
-import { useTheme } from '@/hooks/use-theme';
+import { GlassChip } from '@/components/ui/GlassChip';
 import { SPECIALTIES } from '@/lib/config';
 import { doctorName, type Doctor } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 
 export default function Doctors() {
-  const t = useTheme();
   const params = useLocalSearchParams<{ specialty?: string }>();
   const { data, loading, error, refreshing, refresh, reload } = useApi<{ doctors: Doctor[] }>('/api/doctors', { auth: false });
   const [query, setQuery] = useState('');
@@ -47,13 +44,7 @@ export default function Doctors() {
           {[null, ...SPECIALTIES].map((s) => {
             const on = (s ?? null) === specialty;
             return (
-              <Tap key={s ?? 'all'} onPress={() => setPicked(s ?? '')} scaleTo={0.92} label={s ?? 'All'}>
-                <View style={{ paddingHorizontal: 16, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.accent : t.card, borderWidth: 1, borderColor: on ? t.accent : t.line }}>
-                  <Text variant="small" tone={on ? 'onAccent' : 'ink2'} style={{ fontWeight: '700' }}>
-                    {s ?? 'All'}
-                  </Text>
-                </View>
-              </Tap>
+              <GlassChip key={s ?? 'all'} label={s ?? 'All'} selected={on} height={42} onPress={() => setPicked(s ?? '')} />
             );
           })}
         </ScrollView>

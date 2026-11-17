@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
@@ -11,12 +10,13 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassChip } from '@/components/ui/GlassChip';
+import { GlossCard } from '@/components/ui/GlossCard';
 import { Reveal } from '@/components/ui/Reveal';
 import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { SuccessCheck } from '@/components/ui/SuccessCheck';
-import { Tap } from '@/components/ui/Tap';
 import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/hooks/use-theme';
 import { api, ApiError } from '@/lib/api';
@@ -100,7 +100,8 @@ export default function DoctorScreen() {
         ) : (
           <>
             <Reveal index={1}>
-              <LinearGradient colors={[t.accent, t.accent2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 28, padding: 20, gap: 16 }}>
+              <GlossCard padding={20}>
+                <View style={{ gap: 16 }}>
                 <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
                   <Avatar name={name} uri={one(d.profiles)?.avatar_url} size={72} />
                   <View style={{ flex: 1, gap: 4 }}>
@@ -125,7 +126,8 @@ export default function DoctorScreen() {
                   <Stat label="Rating" value={d.total_reviews > 0 ? `${d.rating.toFixed(1)} ★` : 'New'} />
                   <Stat label="Fee" value={formatMoney(d.consultation_fee)} />
                 </View>
-              </LinearGradient>
+                </View>
+              </GlossCard>
             </Reveal>
 
             {d.bio ? (
@@ -151,26 +153,28 @@ export default function DoctorScreen() {
                 {days.map((day) => {
                   const on = day.ymd === date;
                   return (
-                    <Tap
+                    <GlassChip
                       key={day.ymd}
                       label={`${day.day} ${day.date} ${day.month}`}
+                      selected={on}
+                      height={84}
+                      minWidth={66}
                       onPress={() => {
                         setDate(day.ymd);
                         setTime(null);
-                      }}
-                      scaleTo={0.92}>
-                      <View style={{ width: 62, height: 78, borderRadius: 20, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: on ? t.accent : t.card, borderWidth: 1, borderColor: on ? t.accent : t.line }}>
-                        <Text variant="small" tone={on ? 'onAccent' : 'ink3'} style={{ fontWeight: '600' }}>
+                      }}>
+                      <View style={{ alignItems: 'center', gap: 2 }}>
+                        <Text variant="small" style={{ fontWeight: '700', color: on ? '#fff' : t.ink3 }}>
                           {day.day}
                         </Text>
-                        <Text variant="h2" tone={on ? 'onAccent' : 'ink'}>
+                        <Text variant="h2" style={{ color: on ? '#fff' : t.ink }}>
                           {day.date}
                         </Text>
-                        <Text variant="small" tone={on ? 'onAccent' : 'ink3'} style={{ fontSize: 11 }}>
+                        <Text variant="small" style={{ fontSize: 11, color: on ? '#ffffffcc' : t.ink3 }}>
                           {day.month}
                         </Text>
                       </View>
-                    </Tap>
+                    </GlassChip>
                   );
                 })}
               </ScrollView>
@@ -196,13 +200,7 @@ export default function DoctorScreen() {
                     const on = s === time;
                     return (
                       <Reveal key={s} index={Math.floor(i / 2)}>
-                        <Tap onPress={() => setTime(s)} scaleTo={0.9} label={formatTime(s)}>
-                          <View style={{ minWidth: 86, height: 44, paddingHorizontal: 14, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.accent : t.card, borderWidth: 1, borderColor: on ? t.accent : t.line2 }}>
-                            <Text variant="small" tone={on ? 'onAccent' : 'ink'} style={{ fontWeight: '700' }}>
-                              {formatTime(s)}
-                            </Text>
-                          </View>
-                        </Tap>
+                        <GlassChip label={formatTime(s)} selected={on} minWidth={92} onPress={() => setTime(s)} />
                       </Reveal>
                     );
                   })}

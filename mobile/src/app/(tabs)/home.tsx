@@ -1,14 +1,14 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { FlatList, View } from 'react-native';
 
 import { DoctorCard } from '@/components/DoctorCard';
-import { Header } from '@/components/Header';
+import { GlassIconButton, Header } from '@/components/Header';
 import { AnimatedIcon, Icon } from '@/components/icons/Icon';
 import type { IconName } from '@/components/icons/paths';
 import { ErrorNote } from '@/components/States';
 import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { GlossCard } from '@/components/ui/GlossCard';
 import { Reveal } from '@/components/ui/Reveal';
 import { Screen } from '@/components/ui/Screen';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -57,10 +57,10 @@ export default function Home() {
           title={first ? `${greeting()}, ${first}` : greeting()}
           subtitle="How can we help you today?"
           right={
-            <Tap onPress={() => router.push('/notifications')} label="Notifications" style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: t.card, borderWidth: 1, borderColor: t.line }}>
+            <GlassIconButton onPress={() => router.push('/notifications')} label="Notifications">
               <AnimatedIcon name="bell" size={24} delay={300} />
-              {unread > 0 ? <View style={{ position: 'absolute', top: 10, right: 11, width: 10, height: 10, borderRadius: 5, backgroundColor: t.bad, borderWidth: 2, borderColor: t.bg }} /> : null}
-            </Tap>
+              {unread > 0 ? <View style={{ position: 'absolute', top: 11, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: t.bad, borderWidth: 2, borderColor: t.bg }} /> : null}
+            </GlassIconButton>
           }
         />
       </Reveal>
@@ -71,8 +71,8 @@ export default function Home() {
         ) : appts.error ? (
           <ErrorNote message={appts.error} onRetry={appts.reload} />
         ) : upcoming ? (
-          <Tap onPress={() => router.navigate('/visits')} scaleTo={0.98} label="Next visit">
-            <LinearGradient colors={[t.accent, t.accent2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 28, padding: 22, gap: 14 }}>
+          <GlossCard onPress={() => router.navigate('/visits')} label="Next visit">
+            <View style={{ gap: 14 }}>
               <Text variant="caption" tone="onAccent" style={{ opacity: 0.8 }}>
                 Next visit
               </Text>
@@ -89,8 +89,8 @@ export default function Home() {
                 {upcoming.status === 'pending' ? 'Waiting for the doctor to confirm' : daysAway(upcoming.appointment_date)}
                 {due ? ' · Payment due, tap to pay' : ''}
               </Text>
-            </LinearGradient>
-          </Tap>
+            </View>
+          </GlossCard>
         ) : (
           <GlassCard padding={22}>
             <View style={{ gap: 6 }}>

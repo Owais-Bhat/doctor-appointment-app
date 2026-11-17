@@ -21,6 +21,7 @@ export function DoctorCard({ doctor, compact = false }: { doctor: Doctor; compac
       label={`${name}, ${doctor.specialty}`}
       onPress={() => router.push({ pathname: '/doctor/[id]', params: { id: doctor.id } })}
       style={compact ? { width: 236 } : undefined}
+      shadow={!compact}
       padding={16}>
       <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
         <Avatar name={name} uri={avatar} size={compact ? 50 : 58} />

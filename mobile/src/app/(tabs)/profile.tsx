@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { View } from 'react-native';
 
+import { AppearanceCard } from '@/components/AppearanceCard';
 import { Header } from '@/components/Header';
 import { Icon } from '@/components/icons/Icon';
 import type { IconName } from '@/components/icons/paths';
@@ -77,7 +78,11 @@ export default function Profile() {
         )}
       </Reveal>
 
-      <Reveal index={3} style={{ gap: 10 }}>
+      <Reveal index={3}>
+        <AppearanceCard />
+      </Reveal>
+
+      <Reveal index={4} style={{ gap: 10 }}>
         <Button title="Notifications" icon="bell" variant="soft" onPress={() => router.push('/notifications')} />
         <Button title="Sign out" icon="logout" variant="danger" onPress={signOut} />
         <Text variant="small" tone="ink3" style={{ textAlign: 'center', marginTop: 4 }}>
