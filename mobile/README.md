@@ -1,6 +1,6 @@
-# MedFlow mobile (patients)
+# MedFlow mobile
 
-React Native app (Expo SDK 58, Expo Router) for the MedFlow patient portal. It talks to the same
+React Native app (Expo SDK 58, Expo Router) for all three MedFlow roles — patient, doctor and platform admin. The role comes from the account, so the same app opens the right screens after sign-in. It talks to the same
 `/api/*` routes as the web app at `https://app.nestfy.in`, signed in with the same Firebase
 accounts — no separate backend.
 
@@ -16,32 +16,25 @@ npm run start:go         # Expo Go: scan the QR code (plain `npx expo start` tar
 Until the Firebase values are set, the login screen says so instead of failing silently.
 `npx tsc --noEmit` type-checks; `npx expo export --platform android` checks the native bundle.
 
-## What is in Phase 1
+## What is in the app
 
-| Screen | What it does |
-|---|---|
-| Splash, Sign in, Create account | Firebase email/password, consent checkbox (same as web), password reset |
-| Home | Next visit, quick actions, unread dot, top-rated doctors |
-| Book (centre tab) | Pick a specialty → doctors |
-| Doctors | Search + specialty chips |
-| Doctor → Book | 14-day date strip, free slots from the server, visit type, reason → request sent |
-| Visits | Upcoming / past, cancel (two-tap confirm), **pay online**, **join video visit** |
-| Notifications | List, mark one or all read |
-| Me | Health profile (read-only for now), sign out |
+**Everyone:** sign in with Google or email, create an account (with the consent tick), reset a password, notifications, and an **Auto / Light / Dark** theme switch (on the sign-in screens and on each "Me" tab). The choice is remembered.
 
-Doctor and admin accounts see a "use the web portal" screen; those portals stay on the web.
+**Patient** (`/home`, `/visits`, `/book`, `/doctors`, `/profile`) — next visit, specialty picker, doctor search, slot booking, visits with cancel, pay online and join video visits, health profile.
 
-## Design and animation
+**Doctor** (`/clinic/*`) — *Today* (stats, requests waiting, today's visits), *Visits* (requests / upcoming / today / past with confirm, decline, complete, video join), *Hours* (weekly hours, minutes per visit, days off), *Patients*, *Me* (edit profile, 6-month chart). Visit detail has the patient's intake and notes.
 
-- `src/constants/theme.ts` — the web app's palette (light + dark, follows the phone).
-- `src/components/icons/` — the MedFlow icon set: 35 duotone icons drawn on a 24-grid
-  (`paths.ts`). `AnimatedIcon` draws each outline in with Reanimated and pops when active.
-- `src/components/ui/` — `Aurora` (drifting blurred blobs), `GlassCard`, `Tap` (spring press +
-  haptic), `Button`, `Field` (animated focus ring), `Segmented` (sliding pill), `Reveal`
-  (staggered entrance), `Skeleton`, `SuccessCheck` (ring and tick draw).
-- `src/components/TabBar.tsx` — floating glass tab bar with a sliding highlight and a pulsing centre button.
+**Platform admin** (`/admin/*`) — *Overview* (numbers and charts), *Doctors* (verify or hide, add a doctor), *Users* (search, suspend, make doctor, back to patient), *Activity* (paged audit log).
 
-To add an icon, add its paths to `ICONS` in `paths.ts`; it is available everywhere by name.
+## Design: Liquid Glass
+
+Everything translucent is built from `src/components/ui/GlassSurface.tsx`: a real blur of what is behind it, a faint tint, a bright specular sheen, a light edge that fades across the surface and a soft shadow. It sits on a vivid animated backdrop (`Backdrop.tsx`), because glass only reads as glass over something colourful. On Android the backdrop is an `expo-blur` `BlurTargetView` that each glass surface blurs.
+
+- `theme.ts` — light and dark palettes; `lib/theme-pref.ts` — the Auto / Light / Dark choice.
+- `GlassCard`, `GlassChip`, `GlassSwitch`, `Segmented` (a lens that slides and stretches), `Field`, `Button` (glossy accent glass), `GlossCard` (the one hero card per screen).
+- `TabBar.tsx` — floating glass bar with a sliding lens and a raised glowing centre button; each role passes its own tabs.
+- `components/icons/` — the MedFlow icon set: duotone icons that draw themselves in (`AnimatedIcon`).
+- Reanimated drives the motion on the UI thread; entrances stagger with `Reveal`.
 
 ## Payments and video
 
@@ -94,9 +87,32 @@ push key when it asks.
 Code: `src/lib/push.ts` (phone side), `src/lib/use-push.ts`, and on the server `src/lib/push.ts`,
 `src/lib/notify.ts`, `/api/push/register`.
 
+## Google sign-in
+
+The native Google account picker gives a Google token, which Firebase turns into the same account the website uses (`src/lib/google.ts`). It needs two things on Google's side, once:
+
+1. In the Firebase console → Project settings → Your apps → the Android app `in.nestfy.medflow` → **Add fingerprint**, and paste the **SHA-1 of the keystore that signs the APK** (`keytool -list -v -keystore medflow-release.jks -alias medflow`). Until this is done the app says "Google does not recognise this build yet".
+2. Firebase console → Authentication → Sign-in method → **Google** must be enabled (the website already needs this).
+
+New Google accounts become patients, like on the web. An account that already has an email + password sign-in with the same address must use that password.
+
+## Build without Expo
+
+`scripts/build-android.sh` makes a signed release APK on your own machine; no Expo account or cloud build is involved (Expo's open-source tooling still generates the native project). You need JDK 17, the Android SDK (platform 37, build-tools 37.0.0, NDK 27.1.12297006, CMake 3.22.1) and a release keystore:
+
+```bash
+keytool -genkeypair -keystore medflow-release.jks -alias medflow -keyalg RSA -keysize 2048 -validity 10000
+export ANDROID_HOME=$HOME/android-sdk MEDFLOW_KEYSTORE=$PWD/medflow-release.jks MEDFLOW_KEYSTORE_PASSWORD=...
+./scripts/build-android.sh
+```
+
+The first build takes 10–25 minutes; the APK lands in `dist/`. **Keep the keystore and its password safe and out of git** — every update must be signed with the same key, and Google sign-in is tied to its SHA-1.
+
+Push notifications need an Expo project id and so do not run in a build made this way (the card is hidden); everything else works.
+
 ## Not built yet
 
-- Google sign-in, editing the health profile, medical records / prescriptions
+- Editing the patient health profile, medical records and prescriptions
 - Optional: Razorpay's native SDK and Daily's native SDK for a store build
 
 ## Layout

@@ -44,3 +44,9 @@ example
 
 # Firebase service account (private key) used for push credentials: never commit
 *-firebase-adminsdk-*.json
+
+# local release builds
+/dist
+*.jks
+*.keystore
+!debug.keystore
