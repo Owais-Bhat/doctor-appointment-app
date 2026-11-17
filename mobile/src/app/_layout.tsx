@@ -8,6 +8,9 @@ import { onPushOpened, showPushesInForeground } from '@/lib/push';
 import { loadThemePref } from '@/lib/theme-pref';
 import { useTheme } from '@/hooks/use-theme';
 
+/** A render error shows a readable message instead of a blank screen. */
+export { ErrorBoundary } from '@/components/CrashScreen';
+
 void loadThemePref();
 
 export default function RootLayout() {

@@ -4,6 +4,9 @@ import { GlassTabBar, type TabsConfig } from '@/components/TabBar';
 import { Backdrop } from '@/components/ui/Backdrop';
 import { useAuth } from '@/context/auth';
 
+/** A render error shows a readable message instead of a blank screen. */
+export { ErrorBoundary } from '@/components/CrashScreen';
+
 const TABS: TabsConfig = {
   home: { label: 'Home', icon: 'home' },
   visits: { label: 'Visits', icon: 'calendar' },
