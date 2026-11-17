@@ -13,7 +13,8 @@
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "appointment-ca392",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "appointment-ca392.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "177924298151",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:177924298151:web:657a42a956e3866b9f5282"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:177924298151:web:657a42a956e3866b9f5282",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "177924298151-jhv4j0eo5i0pn3pi91ba8o4stfonelt5.apps.googleusercontent.com"
       }
     },
     "development": {

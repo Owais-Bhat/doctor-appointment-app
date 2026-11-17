@@ -10,6 +10,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import { api, setTokenGetter } from '@/lib/api';
 import { firebaseConfigured, getFirebaseAuth } from '@/lib/firebase';
+import { GoogleSignInError, googleSignIn } from '@/lib/google';
 import { unregisterPhone } from '@/lib/push';
 import type { Profile } from '@/lib/types';
 
@@ -20,6 +21,8 @@ type AuthValue = {
   profile: Profile | null;
   firebaseConfigured: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  /** Resolves false when the person closed the Google picker. */
+  signInWithGoogle: () => Promise<boolean>;
   register: (fullName: string, email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -43,6 +46,8 @@ export function authErrorMessage(err: unknown): string {
   if (code.includes('too-many-requests')) return 'Too many attempts. Wait a few minutes or reset your password.';
   if (code.includes('network-request-failed')) return 'No connection. Check your internet and try again.';
   if (code.includes('user-disabled')) return 'This account has been suspended. Contact support.';
+  if (err instanceof GoogleSignInError) return err.message;
+  if (code.includes('account-exists-with-different-credential')) return 'This email already has a password sign-in. Sign in with your password instead.';
   if (err instanceof Error && code && !code.startsWith('auth/')) return err.message;
   return 'Unable to sign in. Please try again.';
 }
@@ -65,7 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       try {
         // Also creates the profile on a first sign-in
-        const res = await api<{ profile: Profile | null }>('/api/auth/me');
+        let res = await api<{ profile: Profile | null }>('/api/auth/me');
+        // A first Google sign-in creates the profile as "New User": give it their Google name
+        const name = user.displayName?.trim();
+        if (res.profile?.full_name === 'New User' && name) {
+          const token = await user.getIdToken();
+          await api('/api/auth/register', { method: 'POST', auth: false, body: { token, fullName: name } }).catch(() => undefined);
+          res = await api<{ profile: Profile | null }>('/api/auth/me');
+        }
         setProfile(res.profile);
         setStatus(res.profile ? 'ready' : 'signedOut');
       } catch {
@@ -80,6 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error('Sign-in is not set up yet.');
     await signInWithEmailAndPassword(auth, email.trim(), password);
+  }, []);
+
+  const signInWithGoogle = useCallback(async () => {
+    const auth = getFirebaseAuth();
+    if (!auth) throw new Error('Sign-in is not set up yet.');
+    return googleSignIn(auth);
   }, []);
 
   const register = useCallback(async (fullName: string, email: string, password: string) => {
@@ -110,8 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, profile, firebaseConfigured, signIn, register, resetPassword, signOut }),
-    [status, profile, signIn, register, resetPassword, signOut],
+    () => ({ status, profile, firebaseConfigured, signIn, signInWithGoogle, register, resetPassword, signOut }),
+    [status, profile, signIn, signInWithGoogle, register, resetPassword, signOut],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

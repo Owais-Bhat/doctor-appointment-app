@@ -65,3 +65,25 @@ export function relativeTime(iso: string, now = Date.now()): string {
   if (mins < 60 * 24) return `${Math.round(mins / 60)}h ago`;
   return `${Math.round(mins / 60 / 24)}d ago`;
 }
+
+/** Age in whole years from "YYYY-MM-DD", or null. */
+export function ageFromDob(dob: string | null | undefined, now = new Date()): number | null {
+  if (!dob) return null;
+  const d = parseDate(dob);
+  if (Number.isNaN(d.getTime())) return null;
+  let age = now.getFullYear() - d.getFullYear();
+  if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) age--;
+  return age >= 0 && age < 130 ? age : null;
+}
+
+/** "09:00:00" → minutes since midnight. */
+export function minutesOf(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + (m || 0);
+}
+
+/** Minutes since midnight → "HH:MM". */
+export function hhmm(mins: number): string {
+  const c = Math.max(0, Math.min(23 * 60 + 59, mins));
+  return `${String(Math.floor(c / 60)).padStart(2, '0')}:${String(c % 60).padStart(2, '0')}`;
+}

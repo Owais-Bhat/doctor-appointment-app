@@ -8,6 +8,8 @@ import { Backdrop } from '@/components/ui/Backdrop';
 import { Text } from '@/components/ui/Text';
 import { useAuth } from '@/context/auth';
 
+const HOME = { patient: '/home', doctor: '/clinic/today', super_admin: '/admin/overview' } as const;
+
 /** Animated splash while we find out who is signed in, then route by role. */
 export default function Index() {
   const { status, profile } = useAuth();
@@ -21,7 +23,7 @@ export default function Index() {
 
   if (!held && status !== 'loading') {
     if (status === 'signedOut') return <Redirect href="/login" />;
-    return <Redirect href={profile?.role === 'patient' ? '/home' : '/web-only'} />;
+    return <Redirect href={HOME[profile?.role ?? 'patient']} />;
   }
 
   return (

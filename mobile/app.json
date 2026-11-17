@@ -46,7 +46,8 @@
           "color": "#007AFF",
           "defaultChannel": "default"
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,

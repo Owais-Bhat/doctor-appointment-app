@@ -27,6 +27,8 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false, animation: 'fade_from_bottom', contentStyle: { backgroundColor: 'transparent' } }}>
             <Stack.Screen name="index" options={{ animation: 'fade' }} />
             <Stack.Screen name="doctor/[id]" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="add-doctor" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="visit/[id]" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
           </Stack>
         </AuthProvider>

@@ -1,8 +1,11 @@
 import { Link, Redirect } from 'expo-router';
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 
+import { GoogleButton } from '@/components/GoogleButton';
 import { LogoMark } from '@/components/LogoMark';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -11,9 +14,12 @@ import { Screen } from '@/components/ui/Screen';
 import { Tap } from '@/components/ui/Tap';
 import { Text } from '@/components/ui/Text';
 import { authErrorMessage, useAuth } from '@/context/auth';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function Login() {
-  const { status, signIn, resetPassword, firebaseConfigured } = useAuth();
+  const t = useTheme();
+  const insets = useSafeAreaInsets();
+  const { status, signIn, signInWithGoogle, resetPassword, firebaseConfigured } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,6 +41,16 @@ export default function Login() {
     }
   }
 
+  async function google() {
+    setError(null);
+    setInfo(null);
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      setError(authErrorMessage(e));
+    }
+  }
+
   async function forgot() {
     setError(null);
     if (!email.trim()) return setError('Type your email first, then tap “Forgot password?”.');
@@ -49,6 +65,9 @@ export default function Login() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen contentStyle={{ justifyContent: 'center', flexGrow: 1, gap: 22 }}>
+        <View style={{ position: 'absolute', top: insets.top + 6, right: 20, zIndex: 2 }}>
+          <ThemeToggle />
+        </View>
         <View style={{ alignItems: 'center', gap: 14, marginTop: 12 }}>
           <LogoMark size={76} />
           <Reveal index={1} style={{ alignItems: 'center', gap: 4 }}>
@@ -65,6 +84,14 @@ export default function Login() {
                   Sign-in isn’t configured: add the EXPO_PUBLIC_FIREBASE_* values to mobile/.env.
                 </Text>
               ) : null}
+              <GoogleButton onPress={google} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: t.line2 }} />
+                <Text variant="small" tone="ink3" style={{ fontWeight: '700' }}>
+                  or with email
+                </Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: t.line2 }} />
+              </View>
               <Field label="Email" icon="mail" value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="you@example.com" />
               <Field label="Password" icon="lock" secure value={password} onChangeText={setPassword} autoComplete="current-password" placeholder="Your password" onSubmitEditing={submit} />
               {error ? (
@@ -89,7 +116,11 @@ export default function Login() {
           </GlassCard>
         </Reveal>
 
-        <Reveal index={3} style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+        <Reveal index={3} style={{ gap: 14 }}>
+          <Text variant="small" tone="ink3" style={{ textAlign: 'center' }}>
+            By continuing you confirm you are 18 or older and agree to the terms of use and privacy policy, including use of your health information to provide care.
+          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
           <Text tone="ink2">New to MedFlow?</Text>
           <Link href="/register" asChild>
             <Tap buzz={false} hitSlop={8}>
@@ -98,6 +129,7 @@ export default function Login() {
               </Text>
             </Tap>
           </Link>
+          </View>
         </Reveal>
       </Screen>
     </KeyboardAvoidingView>

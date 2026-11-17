@@ -25,7 +25,7 @@ export function Field({ label, icon, error, secure, style, onFocus, onBlur, mult
       <Text variant="small" tone="ink2" style={{ marginLeft: 6, fontWeight: '700' }}>
         {label}
       </Text>
-      <GlassSurface radius={Radius.field} shadow={false} style={multiline ? undefined : { height: 56 }}>
+      <GlassSurface radius={Radius.field} shadow={false} contentStyle={multiline ? undefined : { height: 56 }}>
         <View style={[styles.box, multiline && { minHeight: 96, alignItems: 'flex-start', paddingVertical: 14 }]}>
           {icon ? <Icon name={icon} size={21} color={t.ink3} accent={t.ink3} style={multiline ? { marginTop: 2 } : undefined} /> : null}
           <TextInput

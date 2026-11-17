@@ -18,7 +18,7 @@ export function setTokenGetter(fn: TokenGetter) {
   getToken = fn;
 }
 
-type Options = { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; auth?: boolean; signal?: AbortSignal };
+type Options = { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; auth?: boolean; signal?: AbortSignal };
 
 /**
  * Calls the MedFlow web API. Identity is the Firebase ID token in the

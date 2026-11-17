@@ -1,9 +1,12 @@
 import { Link, Redirect } from 'expo-router';
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 
 import { Icon } from '@/components/icons/Icon';
+import { GoogleButton } from '@/components/GoogleButton';
 import { LogoMark } from '@/components/LogoMark';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -16,7 +19,8 @@ import { authErrorMessage, useAuth } from '@/context/auth';
 
 export default function Register() {
   const t = useTheme();
-  const { status, register } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { status, register, signInWithGoogle } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,6 +49,9 @@ export default function Register() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen contentStyle={{ justifyContent: 'center', flexGrow: 1, gap: 20 }}>
+        <View style={{ position: 'absolute', top: insets.top + 6, right: 20, zIndex: 2 }}>
+          <ThemeToggle />
+        </View>
         <View style={{ alignItems: 'center', gap: 12, marginTop: 8 }}>
           <LogoMark size={64} />
           <Reveal index={1} style={{ alignItems: 'center', gap: 4 }}>
@@ -56,6 +63,26 @@ export default function Register() {
         <Reveal index={2}>
           <GlassCard padding={20}>
             <View style={{ gap: 14 }}>
+              <GoogleButton
+                label="Sign up with Google"
+                onPress={async () => {
+                  setError(null);
+                  // Same consent as the web app, also for Google
+                  if (!agreed) return setError('Please accept the terms and privacy policy to continue.');
+                  try {
+                    await signInWithGoogle();
+                  } catch (e) {
+                    setError(authErrorMessage(e));
+                  }
+                }}
+              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: t.line2 }} />
+                <Text variant="small" tone="ink3" style={{ fontWeight: '700' }}>
+                  or with email
+                </Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: t.line2 }} />
+              </View>
               <Field label="Full name" icon="user" value={name} onChangeText={setName} autoComplete="name" placeholder="Your name" />
               <Field label="Email" icon="mail" value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="you@example.com" />
               <Field label="Password" icon="lock" secure value={password} onChangeText={setPassword} autoComplete="new-password" placeholder="At least 8 characters" />
