@@ -4,7 +4,7 @@ import { Suspense, useCallback, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Building2, CalendarPlus, Check, ClipboardList, CreditCard, Phone, Pill, Star, Video, X } from "lucide-react";
+import { Building2, CalendarClock, CalendarPlus, Check, ClipboardList, CreditCard, Phone, Pill, Star, Video, X } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
 import { PaymentTag, paymentState } from "@/components/shared/PaymentTag";
 import { useApi, useAuthedFetch } from "@/lib/use-api";
@@ -38,6 +38,58 @@ const REFUND_MSG: Record<string, string> = {
   failed: "We couldn’t start your refund automatically. Our team will process it and let you know.",
 };
 
+/** Pick another open time with the same doctor. The visit keeps its status and any payment. */
+function ReschedulePanel({ visit, onDone, onCancel }: { visit: Visit; onDone: (date: string, time: string) => void; onCancel: () => void }) {
+  const authedFetch = useAuthedFetch();
+  const doctorId = visit.doctor_profiles?.id;
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const slots = useApi<{ slots: string[] }>(doctorId && date ? `/api/doctors/${doctorId}/slots?date=${date}` : null, { auth: false });
+  const today = toISODate(new Date());
+
+  const move = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await authedFetch(`/api/patient/appointments/${visit.id}/reschedule`, { method: "POST", body: JSON.stringify({ date, time }) });
+      onDone(date, time);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn’t move the visit");
+      setTime("");
+      slots.reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="vrow-panel" role="group" aria-label="Reschedule visit">
+      <span className="mf-label">Pick a new day</span>
+      <input type="date" className="input" style={{ maxWidth: 220 }} min={today} value={date} onChange={(e) => { setDate(e.target.value); setTime(""); setError(""); }} aria-label="New date" />
+      {date && (
+        slots.loading ? <p className="tiny">Looking for open times…</p>
+        : (slots.data?.slots.length ?? 0) === 0 ? <p className="small">No open times that day. Try another day.</p>
+        : (
+          <div className="bk-chips" role="radiogroup" aria-label="New time">
+            {slots.data?.slots.map((t) => (
+              <button key={t} type="button" role="radio" aria-checked={time === t} className={cn("bk-chip", time === t && "on")} onClick={() => setTime(t)}>
+                {formatTime(t)}
+              </button>
+            ))}
+          </div>
+        )
+      )}
+      {error && <p className="bk-error" role="alert" style={{ position: "static" }}>{error}</p>}
+      <div className="row gap-2 wrap">
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy || !date || !time} onClick={move}>{busy ? "Moving…" : "Move my visit"}</button>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={onCancel}>Keep the current time</button>
+      </div>
+    </div>
+  );
+}
+
 function VisitCard({
   visit,
   paymentsEnabled,
@@ -56,7 +108,7 @@ function VisitCard({
   onNotice: (msg: string) => void;
 }) {
   const authedFetch = useAuthedFetch();
-  const [mode, setMode] = useState<"idle" | "cancel" | "review">("idle");
+  const [mode, setMode] = useState<"idle" | "cancel" | "review" | "reschedule">("idle");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [rating, setRating] = useState(5);
@@ -145,6 +197,18 @@ function VisitCard({
           </div>
         )}
 
+        {mode === "reschedule" && (
+          <ReschedulePanel
+            visit={visit}
+            onCancel={() => setMode("idle")}
+            onDone={(d, t) => {
+              onChange({ appointment_date: d, appointment_time: t });
+              onNotice(`Moved to ${formatDay(d)}, ${formatTime(t)}.`);
+              setMode("idle");
+            }}
+          />
+        )}
+
         {mode === "review" && (
           <div className="vrow-panel" role="group" aria-label={`Review ${name}`}>
             <span className="mf-label">How was your visit?</span>
@@ -181,6 +245,7 @@ function VisitCard({
               <Link className="btn btn-ghost btn-sm" href={`/client/intake/${visit.id}`}>
                 <ClipboardList size={14} /> {visit.chief_complaint ? "Edit details" : "Add details"}
               </Link>
+              {canCancel && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode("reschedule")}><CalendarClock size={14} /> Reschedule</button>}
               {canCancel && <button type="button" className="vrow-link" onClick={() => setMode("cancel")}><X size={13} /> Cancel visit</button>}
             </>
           )}

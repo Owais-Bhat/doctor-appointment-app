@@ -40,6 +40,7 @@ export default function RootLayout() {
             <Stack.Screen name="add-doctor" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="visit/[id]" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="reschedule/[id]" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="rate/[id]" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
           </Stack>

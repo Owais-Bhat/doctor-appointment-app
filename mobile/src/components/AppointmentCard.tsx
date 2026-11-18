@@ -119,6 +119,15 @@ export function AppointmentCard({ appointment: a, payment, cancellable = false, 
 
         {cancellable && (showPay || showJoin || onCancel) ? (
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
+            {onCancel && doctor?.id ? (
+              <Button
+                size="sm"
+                variant="soft"
+                icon="calendar"
+                title="Reschedule"
+                onPress={() => router.push({ pathname: '/reschedule/[id]', params: { id: a.id, doctorId: doctor.id, date: a.appointment_date, time: a.appointment_time } })}
+              />
+            ) : null}
             {onCancel ? (
               <Button
                 size="sm"
