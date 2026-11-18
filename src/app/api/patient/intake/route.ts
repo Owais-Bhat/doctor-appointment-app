@@ -67,7 +67,7 @@ export async function PATCH(request: Request) {
 
   const { data: appt } = await supabaseAdmin
     .from('appointments')
-    .select('id, status, appointment_date')
+    .select('id, status, appointment_date, intake')
     .eq('id', appointmentId)
     .eq('patient_id', uid)
     .maybeSingle()
@@ -81,6 +81,8 @@ export async function PATCH(request: Request) {
     severity,
     medications: text(body.medications, 300),
     allergies: text(body.allergies, 300),
+    // Who the visit is for (a family member) was set when booking: keep it
+    ...(appt.intake?.booked_for ? { booked_for: appt.intake.booked_for } : {}),
     updated_at: new Date().toISOString(),
   }
   const { error } = await supabaseAdmin
@@ -91,7 +93,8 @@ export async function PATCH(request: Request) {
   if (error) return NextResponse.json({ error: 'Couldn’t save your details' }, { status: 500 })
 
   // Keep the health profile in step so the next visit is prefilled
-  if (body.saveToProfile === true && (intake.medications || intake.allergies)) {
+  // A family member's details do not belong in the account holder's own health profile
+  if (body.saveToProfile === true && !intake.booked_for && (intake.medications || intake.allergies)) {
     const { data: me } = await supabaseAdmin.from('profiles').select('health_stats').eq('id', uid).maybeSingle()
     const hs = { ...(me?.health_stats ?? {}) }
     if (intake.medications) hs.medications = intake.medications

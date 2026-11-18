@@ -1,6 +1,7 @@
 import { supabaseAdmin } from './supabase-admin'
 import { clinicInstant } from './clinic-time'
 import { notify, type Notice } from './notify'
+import { loadFamilyMember } from './family'
 
 export type ConsultationType = 'video' | 'phone' | 'in_person'
 export const CONSULTATION_TYPES: ConsultationType[] = ['video', 'phone', 'in_person']
@@ -67,6 +68,8 @@ export type BookingInput = {
   time: string
   consultationType?: string
   chiefComplaint?: string | null
+  /** Book for one of the account's family members instead of the account holder. */
+  familyMemberId?: string | null
 }
 
 export type BookingResult =
@@ -104,6 +107,10 @@ export async function bookAppointment(input: BookingInput): Promise<BookingResul
     return { ok: false, status: 400, error: 'You cannot book an appointment with yourself' }
   }
 
+  // Who the visit is for: the account holder, or one of their family members
+  const member = input.familyMemberId ? await loadFamilyMember(patientId, input.familyMemberId) : null
+  if (input.familyMemberId && !member) return { ok: false, status: 404, error: 'That family member was not found' }
+
   const slots = await getAvailableSlots(doctorId, date)
   if (!slots.includes(hhmm(time))) {
     return { ok: false, status: 409, error: 'This time slot is not available' }
@@ -119,6 +126,7 @@ export async function bookAppointment(input: BookingInput): Promise<BookingResul
       status: 'pending',
       consultation_type: consultationType,
       chief_complaint: input.chiefComplaint ?? null,
+      ...(member ? { intake: { booked_for: member } } : {}),
     })
     .select()
     .single()
@@ -138,7 +146,9 @@ export async function bookAppointment(input: BookingInput): Promise<BookingResul
   const doctorProfile = doctor.profiles as { full_name?: string } | { full_name?: string }[] | null
   const doctorName =
     (Array.isArray(doctorProfile) ? doctorProfile[0]?.full_name : doctorProfile?.full_name) ?? 'your doctor'
-  const patientName = patient?.full_name ?? 'A patient'
+  const holderName = patient?.full_name ?? 'A patient'
+  // The doctor should know when the visit is for someone else
+  const patientName = member ? `${member.full_name}${member.relation ? ` (${member.relation} of ${holderName})` : ` (booked by ${holderName})`}` : holderName
   const when = `${date} at ${hhmm(time)}`
 
   const notifications: Notice[] = [

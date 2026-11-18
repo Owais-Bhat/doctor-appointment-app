@@ -23,6 +23,7 @@ export async function GET(request: Request) {
         notes,
         follow_up_date,
         prescription,
+        intake,
         created_at,
         payment_status,
         amount_paid,
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
     // The list only needs to know a prescription exists; the visit screen loads it
     const validAppointments = (data ?? [])
       .filter(apt => apt.doctor_profiles !== null)
-      .map(({ prescription, ...apt }) => ({ ...apt, has_prescription: !!parsePrescription(prescription), reviewed: reviewed.has(apt.id) }))
+      .map(({ prescription, intake, ...apt }) => ({ ...apt, booked_for: intake?.booked_for ? { name: intake.booked_for.full_name, relation: intake.booked_for.relation ?? null } : null, has_prescription: !!parsePrescription(prescription), reviewed: reviewed.has(apt.id) }))
 
     return NextResponse.json({ appointments: validAppointments, paymentsEnabled: paymentsEnabled() })
   } catch (err) {

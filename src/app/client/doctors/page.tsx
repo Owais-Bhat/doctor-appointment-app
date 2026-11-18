@@ -3,9 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { BadgeCheck, CalendarPlus, Languages, MapPin, Search, Star } from "lucide-react";
+import { BadgeCheck, CalendarPlus, Heart, Languages, MapPin, Search, Star } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
-import { useApi } from "@/lib/use-api";
+import { useApi, useAuthedFetch } from "@/lib/use-api";
 import { doctorName, formatFee, nameHue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +43,22 @@ export default function DoctorsPage() {
   const [language, setLanguage] = useState("");
   const [sort, setSort] = useState<SortKey>("rating");
 
+  // Favourites: the saved list, with taps applied at once and undone if the server says no
+  const favs = useApi<{ doctorIds: string[] }>("/api/patient/favorites");
+  const authedFetch = useAuthedFetch();
+  const [tapped, setTapped] = useState<Record<string, boolean>>({});
+  const [onlyFavs, setOnlyFavs] = useState(false);
+  const isFav = (id: string) => (id in tapped ? tapped[id] : (favs.data?.doctorIds.includes(id) ?? false));
+  const toggleFav = async (id: string) => {
+    const next = !isFav(id);
+    setTapped((t) => ({ ...t, [id]: next }));
+    try {
+      await authedFetch("/api/patient/favorites", { method: next ? "POST" : "DELETE", body: JSON.stringify({ doctorId: id }) });
+    } catch {
+      setTapped((t) => ({ ...t, [id]: !next }));
+    }
+  };
+
   const doctors = useMemo(() => data?.doctors ?? [], [data]);
   const specialties = useMemo(() => Array.from(new Set(doctors.map((d) => d.specialty).filter(Boolean))).sort(), [doctors]);
   const languages = useMemo(() => Array.from(new Set(doctors.flatMap(langs))).sort(), [doctors]);
@@ -50,11 +66,13 @@ export default function DoctorsPage() {
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return doctors
+      .filter((d) => !onlyFavs || isFav(d.id))
       .filter((d) => !specialty || d.specialty === specialty)
       .filter((d) => !language || langs(d).includes(language))
       .filter((d) => !q || `${d.profiles?.full_name ?? ""} ${d.specialty} ${d.clinic_name ?? ""} ${d.bio ?? ""}`.toLowerCase().includes(q))
       .sort(SORTS[sort].fn);
-  }, [doctors, specialty, language, query, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctors, specialty, language, query, sort, onlyFavs, tapped, favs.data]);
 
   const filtered = !!(query || specialty || language);
 
@@ -87,7 +105,8 @@ export default function DoctorsPage() {
 
       {specialties.length > 1 && (
         <div className="bk-chips" role="group" aria-label="Filter by specialty">
-          <button type="button" className={cn("bk-chip", !specialty && "on")} aria-pressed={!specialty} onClick={() => setSpecialty(null)}>All</button>
+          <button type="button" className={cn("bk-chip", !specialty && !onlyFavs && "on")} aria-pressed={!specialty && !onlyFavs} onClick={() => { setSpecialty(null); setOnlyFavs(false); }}>All</button>
+          <button type="button" className={cn("bk-chip", onlyFavs && "on")} aria-pressed={onlyFavs} onClick={() => setOnlyFavs((v) => !v)}><Heart size={12} style={{ display: "inline", verticalAlign: -1 }} /> Favourites</button>
           {specialties.map((s) => (
             <button key={s} type="button" className={cn("bk-chip", specialty === s && "on")} aria-pressed={specialty === s} onClick={() => setSpecialty(specialty === s ? null : s)}>
               {s}
@@ -128,6 +147,9 @@ export default function DoctorsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: reduce ? 0 : Math.min(i, 8) * 0.04 }}
               >
+                <button type="button" className={cn("dl-fav", isFav(d.id) && "on")} aria-pressed={isFav(d.id)} aria-label={isFav(d.id) ? `Remove ${name} from favourites` : `Add ${name} to favourites`} onClick={() => void toggleFav(d.id)}>
+                  <Heart size={16} fill={isFav(d.id) ? "currentColor" : "none"} />
+                </button>
                 <Link href={`/client/doctors/${d.id}`} className="dl-main" aria-label={`${name}, ${d.specialty}. View profile`}>
                   <Headshot name={name} hue={nameHue(name)} size={56} />
                   <span className="col" style={{ gap: 3, minWidth: 0 }}>

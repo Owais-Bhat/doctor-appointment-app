@@ -33,7 +33,8 @@ type Visit = {
   patient: { full_name: string; date_of_birth?: string | null; blood_type?: string | null; phone?: string | null } | null;
 };
 
-const INTAKE_LABEL: Record<keyof Intake, string> = { duration: 'How long', severity: 'How bad', medications: 'Taking', allergies: 'Allergies' };
+type IntakeKey = 'duration' | 'severity' | 'medications' | 'allergies';
+const INTAKE_LABEL: Record<IntakeKey, string> = { duration: 'How long', severity: 'How bad', medications: 'Taking', allergies: 'Allergies' };
 
 /** One visit for the doctor: the patient, what they told us, notes, and the next step. */
 export default function VisitScreen() {
@@ -125,6 +126,19 @@ export default function VisitScreen() {
             </GlassCard>
           </Reveal>
 
+          {v.intake?.booked_for ? (
+            <Reveal index={2}>
+              <GlassCard padding={18}>
+                <View style={{ gap: 4 }}>
+                  <Text variant="bodyStrong">Visit is for {v.intake.booked_for.full_name}</Text>
+                  <Text variant="small" tone="ink2">
+                    {[v.intake.booked_for.relation ? `${v.intake.booked_for.relation} of ${patient?.full_name ?? 'the account holder'}` : `Booked by ${patient?.full_name ?? 'the account holder'}`, v.intake.booked_for.date_of_birth, v.intake.booked_for.gender, v.intake.booked_for.blood_type ? `Blood ${v.intake.booked_for.blood_type}` : null].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+              </GlassCard>
+            </Reveal>
+          ) : null}
+
           {v.reason || v.intake ? (
             <Reveal index={2}>
               <GlassCard padding={18}>
@@ -132,7 +146,7 @@ export default function VisitScreen() {
                   <Text variant="bodyStrong">What the patient said</Text>
                   {v.reason ? <Text tone="ink2">“{v.reason}”</Text> : null}
                   {v.intake
-                    ? (Object.keys(INTAKE_LABEL) as (keyof Intake)[])
+                    ? (Object.keys(INTAKE_LABEL) as IntakeKey[])
                         .filter((k) => v.intake?.[k])
                         .map((k) => (
                           <View key={k} style={{ flexDirection: 'row', gap: 10 }}>

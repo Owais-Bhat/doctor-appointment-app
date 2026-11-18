@@ -22,7 +22,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { api, ApiError } from '@/lib/api';
 import { CONSULTATION_TYPES, type ConsultationType } from '@/lib/config';
 import { formatDate, formatMoney, formatTime, nextDays } from '@/lib/format';
-import { doctorName, one, withDr, type Doctor } from '@/lib/types';
+import { doctorName, one, withDr, type Doctor, type FamilyMember } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 
 export default function DoctorScreen() {
@@ -40,6 +40,8 @@ export default function DoctorScreen() {
   const [booked, setBooked] = useState<{ date: string; time: string } | null>(null);
 
   const slots = useApi<{ slots: string[] }>(`/api/doctors/${id}/slots?date=${date}`, { auth: false });
+  const family = useApi<{ members: FamilyMember[] }>('/api/patient/family');
+  const [memberId, setMemberId] = useState<string | null>(null);
 
   const d = doctor.data?.doctor;
   const name = d ? doctorName(d) : '';
@@ -51,7 +53,7 @@ export default function DoctorScreen() {
     try {
       await api('/api/appointments', {
         method: 'POST',
-        body: { doctorId: id, date, time, consultationType: type, chiefComplaint: complaint.trim() || undefined },
+        body: { doctorId: id, date, time, consultationType: type, chiefComplaint: complaint.trim() || undefined, familyMemberId: memberId || undefined },
       });
       setBooked({ date, time });
     } catch (e) {
@@ -209,6 +211,14 @@ export default function DoctorScreen() {
             </Reveal>
 
             <Reveal index={5} style={{ gap: 12 }}>
+              <Text variant="h2">Who is this visit for?</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <GlassChip label="Me" height={40} selected={memberId === null} onPress={() => setMemberId(null)} />
+                {(family.data?.members ?? []).map((m) => (
+                  <GlassChip key={m.id} label={m.relation ? `${m.full_name} · ${m.relation}` : m.full_name} height={40} selected={memberId === m.id} onPress={() => setMemberId(m.id)} />
+                ))}
+                <GlassChip label="+ Add a person" height={40} onPress={() => router.push('/family')} />
+              </View>
               <Text variant="h2">How would you like to meet?</Text>
               <Segmented
                 value={type}

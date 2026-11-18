@@ -25,6 +25,7 @@ type Visit = {
   payment_status: string | null;
   amount_paid: number | null;
   has_prescription?: boolean;
+  booked_for?: { name: string; relation: string | null } | null;
   doctor_profiles: { id: string; specialty: string; consultation_fee: number | null; profiles: { full_name: string } | null } | null;
 };
 type Response = { appointments: Visit[]; paymentsEnabled: boolean };
@@ -181,6 +182,7 @@ function VisitCard({
           <PaymentTag state={payment} />
         </div>
 
+        {visit.booked_for && <p className="tiny">For {visit.booked_for.name}{visit.booked_for.relation ? ` (${visit.booked_for.relation})` : ""}</p>}
         {visit.chief_complaint && <p className="vrow-reason">“{visit.chief_complaint}”</p>}
         {status === "completed" && visit.notes && <p className="vrow-notes"><ClipboardList size={13} /> {visit.notes}</p>}
 

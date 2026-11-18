@@ -267,6 +267,18 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
       </div>
       <dl className="dr-stats">
         <div><dt>When</dt><dd>{when}</dd></div>
+        {isDoctor && data.visit.intake?.booked_for && (
+          <div>
+            <dt>Visit is for</dt>
+            <dd className="pt-wrap">
+              {data.visit.intake.booked_for.full_name}
+              {data.visit.intake.booked_for.relation ? ` (${data.visit.intake.booked_for.relation} of ${data.patient?.full_name ?? "the account holder"})` : ""}
+              {[data.visit.intake.booked_for.gender, data.visit.intake.booked_for.blood_type && `Blood ${data.visit.intake.booked_for.blood_type}`].filter(Boolean).length > 0 && (
+                <span className="tiny"> · {[data.visit.intake.booked_for.gender, data.visit.intake.booked_for.blood_type && `Blood ${data.visit.intake.booked_for.blood_type}`].filter(Boolean).join(" · ")}</span>
+              )}
+            </dd>
+          </div>
+        )}
         {data.visit.reason && <div><dt>Reason</dt><dd className="pt-wrap">{data.visit.reason}</dd></div>}
         {isDoctor && allergies && <div><dt>Allergies</dt><dd className="pt-wrap">{allergies}</dd></div>}
       </dl>

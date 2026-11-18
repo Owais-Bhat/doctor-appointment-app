@@ -19,6 +19,8 @@ export function normalizeRole(role: unknown): Role {
 export type PrescriptionItem = { name: string; dose: string; frequency: string; duration: string; note: string };
 export type Prescription = { items: PrescriptionItem[]; advice: string };
 
+export type FamilyMember = { id: string; full_name: string; relation: string | null; date_of_birth: string | null; gender: string | null; blood_type: string | null };
+
 export type Doctor = {
   id: string;
   profile_id: string | null;
@@ -51,6 +53,8 @@ export type Appointment = {
   payment_status: 'unpaid' | 'paid' | 'refund_pending' | 'refunded' | 'waived';
   /** The doctor wrote a prescription for this visit */
   has_prescription?: boolean;
+  /** The visit is for a family member rather than the account holder */
+  booked_for?: { name: string; relation: string | null } | null;
   /** This patient already rated the visit */
   reviewed?: boolean;
   /** Smallest currency unit (paise), once paid */
@@ -107,7 +111,14 @@ export const doctorName = (d: Pick<Doctor, 'profiles'>) => one(d.profiles)?.full
 
 /* ── Doctor portal ───────────────────────────────────────────────────── */
 
-export type Intake = { duration?: string | null; severity?: string | null; medications?: string | null; allergies?: string | null };
+export type Intake = {
+  duration?: string | null;
+  severity?: string | null;
+  medications?: string | null;
+  allergies?: string | null;
+  /** Set when the account holder booked for a family member */
+  booked_for?: { full_name: string; relation?: string | null; date_of_birth?: string | null; gender?: string | null; blood_type?: string | null } | null;
+};
 
 export type PatientBrief = { id: string; full_name: string; phone: string | null; date_of_birth: string | null; blood_type: string | null };
 
