@@ -4,6 +4,7 @@ import { LegalShell, type Section } from "@/components/legal/LegalShell";
 import { ContactBlock } from "@/components/legal/ContactBlock";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/refunds" },
   title: "Cancellations and refunds · MedFlow",
   description: "When you can cancel a MedFlow visit and how refunds work.",
 };

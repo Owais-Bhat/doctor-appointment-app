@@ -6,6 +6,7 @@ import { ContactBlock } from "@/components/legal/ContactBlock";
 import { LEGAL } from "@/lib/legal";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/contact" },
   title: "Contact us · MedFlow",
   description: "How to reach MedFlow for help with visits, payments, refunds or your data.",
 };

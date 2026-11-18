@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { LegalShell, type Section } from "@/components/legal/LegalShell";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/shipping" },
   title: "Service delivery · MedFlow",
   description: "How MedFlow visits are delivered. MedFlow does not ship physical goods.",
 };

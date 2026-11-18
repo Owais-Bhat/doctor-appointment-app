@@ -4,6 +4,7 @@ import { LegalShell, type Section } from "@/components/legal/LegalShell";
 import { RUN_BY } from "@/lib/legal";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/about" },
   title: "About us · MedFlow",
   description: "MedFlow helps people find verified doctors and book in-person, phone and video visits.",
 };

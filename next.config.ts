@@ -25,9 +25,33 @@ const nextConfig: NextConfig = {
     // "Make doctor" moved from Settings to the Users page
     return [{ source: "/super-admin/settings", destination: "/super-admin/users", permanent: false }];
   },
+  async rewrites() {
+    // An agent asking the homepage for Markdown gets the short Markdown version instead of HTML
+    return {
+      beforeFiles: [{ source: "/", has: [{ type: "header", key: "accept", value: ".*text/markdown.*" }], destination: "/api/agent/markdown" }],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // RFC 8288 Link header: where an agent finds the machine-readable versions of the homepage
+      {
+        source: "/",
+        headers: [
+          { key: "Vary", value: "Accept" },
+          {
+            key: "Link",
+            value: [
+              '</llms.txt>; rel="describedby"; type="text/plain"',
+              '</api/agent/markdown>; rel="alternate"; type="text/markdown"',
+              '</sitemap.xml>; rel="sitemap"; type="application/xml"',
+              '</.well-known/mcp/server-card.json>; rel="mcp-server-card"; type="application/json"',
+            ].join(", "),
+          },
+        ],
+      },
       // API responses carry patient data: never cache them
       { source: "/api/:path*", headers: [{ key: "Cache-Control", value: "no-store" }] },
     ];

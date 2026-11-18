@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { LegalShell, type Section } from "@/components/legal/LegalShell";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/pricing" },
   title: "Pricing · MedFlow",
   description: "What it costs to use MedFlow: free for patients, you pay only the doctor's consultation fee.",
 };

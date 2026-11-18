@@ -5,6 +5,7 @@ import { ContactBlock } from "@/components/legal/ContactBlock";
 import { LEGAL, RUN_BY } from "@/lib/legal";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/terms" },
   title: "Terms of use · MedFlow",
   description: "The rules for using MedFlow to book and attend doctor visits.",
 };

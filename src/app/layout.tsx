@@ -5,8 +5,12 @@ import { AuthProvider } from '@/context/AuthContext';
 import { AIBot } from '@/components/shared/AIBot';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { RealtimeStatusProvider } from '@/components/shared/RealtimeStatusProvider';
+import { WebMcp } from '@/components/shared/WebMcp';
+import { SITE } from '@/lib/site';
 
 export const metadata = {
+  // Relative canonical and social URLs resolve against the real site address
+  metadataBase: new URL(SITE.url),
   title: "MedFlow - Healthcare Platform",
   description: "Connect with healthcare providers, book appointments, and manage your health journey",
 };
@@ -49,6 +53,7 @@ export default function RootLayout({
             <RealtimeStatusProvider>
               {children}
               <AIBot />
+              <WebMcp />
             </RealtimeStatusProvider>
           </AuthProvider>
         </ErrorBoundary>

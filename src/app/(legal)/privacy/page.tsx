@@ -5,6 +5,7 @@ import { ContactBlock } from "@/components/legal/ContactBlock";
 import { LEGAL, RUN_BY } from "@/lib/legal";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/privacy" },
   title: "Privacy policy · MedFlow",
   description: "What personal and health data MedFlow collects, why, who it is shared with, and your rights.",
 };
