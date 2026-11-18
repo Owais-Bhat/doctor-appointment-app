@@ -9,7 +9,7 @@ import { useAuth } from "@/context/AuthContext";
  * token, which a plain link cannot send, so the file is fetched first and
  * shown from a temporary browser URL.
  */
-export function ReportLink({ id, title, mime }: { id: string; title: string; mime: string }) {
+export function ReportLink({ id, title, mime, path }: { id: string; title: string; mime: string; /** Where the file is served from; patient reports by default. */ path?: string }) {
   const { getToken } = useAuth();
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const Icon = mime === "application/pdf" ? FileText : FileImage;
@@ -20,7 +20,7 @@ export function ReportLink({ id, title, mime }: { id: string; title: string; mim
     setState("loading");
     try {
       const token = await getToken();
-      const res = await fetch(`/api/reports/${id}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(path ?? `/api/reports/${id}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error(String(res.status));
       const url = URL.createObjectURL(await res.blob());
       if (tab) tab.location.href = url;

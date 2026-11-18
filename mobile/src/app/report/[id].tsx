@@ -7,11 +7,11 @@ import { Reveal } from '@/components/ui/Reveal';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { authHeaders } from '@/lib/api';
-import { reportUrl } from '@/lib/files';
+import { fileUrl } from '@/lib/files';
 
 /** A report photo, loaded with the sign-in header the server needs. */
 export default function ReportViewer() {
-  const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
+  const { id, title, path } = useLocalSearchParams<{ id: string; title?: string; path?: string }>();
   const [headers, setHeaders] = useState<Record<string, string> | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -38,7 +38,7 @@ export default function ReportViewer() {
         </View>
       ) : (
         <Image
-          source={{ uri: reportUrl(id), headers }}
+          source={{ uri: fileUrl(id, path), headers }}
           style={{ width: '100%', aspectRatio: 0.75, borderRadius: 20 }}
           resizeMode="contain"
           onError={() => setFailed(true)}

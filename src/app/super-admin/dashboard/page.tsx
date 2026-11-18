@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { DoctorReviewRow, type AdminDoctor } from "@/components/admin/DoctorReviewRow";
+import { ExportButtons } from "@/components/admin/ExportButtons";
 import { useApi } from "@/lib/use-api";
 import { auditLabel, auditTone, timeAgo } from "@/lib/audit-labels";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,7 @@ export default function AdminOverview() {
               : "No doctors are waiting for verification."}
           </p>
         </div>
+        <ExportButtons />
       </header>
 
       <dl className="ad-tiles">

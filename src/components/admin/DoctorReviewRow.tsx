@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { BadgeCheck, EyeOff, Star } from "lucide-react";
+import { BadgeCheck, EyeOff, FileCheck2, Star } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
-import { useAuthedFetch } from "@/lib/use-api";
+import { ReportLink } from "@/components/shared/ReportLink";
+import { useApi, useAuthedFetch } from "@/lib/use-api";
 import { doctorName, formatFee, nameHue } from "@/lib/format";
 
 export type AdminDoctor = {
@@ -27,6 +28,8 @@ export function DoctorReviewRow({ doctor, onChanged }: { doctor: AdminDoctor; on
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
+  const [showDocs, setShowDocs] = useState(false);
+  const docs = useApi<{ documents: { id: string; title: string; mime_type: string }[] }>(showDocs ? `/api/super-admin/doctors/${doctor.id}/documents` : null);
   const name = doctorName(doctor.profiles?.full_name);
   const suspended = doctor.profiles?.is_active === false;
 
@@ -63,6 +66,22 @@ export function DoctorReviewRow({ doctor, onChanged }: { doctor: AdminDoctor; on
             ? `Reg. no. ${doctor.registration_number}${doctor.registration_council ? ` · ${doctor.registration_council}` : ""} — check it on the council’s register before verifying`
             : "No medical registration number yet"}
         </span>
+        <button type="button" className="vrow-link" style={{ alignSelf: "flex-start" }} onClick={() => setShowDocs((v) => !v)} aria-expanded={showDocs}>
+          <FileCheck2 size={13} /> {showDocs ? "Hide documents" : "Verification documents"}
+        </button>
+        {showDocs && (
+          <div className="col gap-1" aria-live="polite">
+            {docs.loading ? (
+              <span className="tiny">Loading…</span>
+            ) : docs.error ? (
+              <span className="tiny sc-bad">{docs.error}</span>
+            ) : (docs.data?.documents.length ?? 0) === 0 ? (
+              <span className="tiny">This doctor has not uploaded any documents.</span>
+            ) : (
+              docs.data?.documents.map((d) => <ReportLink key={d.id} id={d.id} title={d.title} mime={d.mime_type} path={`/api/super-admin/documents/${d.id}`} />)
+            )}
+          </div>
+        )}
         {error && <span className="small sc-bad" role="alert">{error}</span>}
       </div>
       <div className="ad-actions">

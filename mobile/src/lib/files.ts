@@ -45,20 +45,36 @@ export const shareReportWith = (id: string, appointmentId: string | null) => api
 
 export const deleteReport = (id: string) => api(`/api/patient/reports/${id}`, { method: 'DELETE' });
 
-/** Where a report's file is served from (needs the sign-in header). */
-export const reportUrl = (id: string) => `${API_URL}/api/reports/${id}`;
+/** Where a file is served from (needs the sign-in header). Patient reports by default. */
+export const fileUrl = (id: string, path?: string) => `${API_URL}${path ?? `/api/reports/${id}`}`;
+export const reportUrl = (id: string) => fileUrl(id);
 
-/** Photos open in the app; PDFs are downloaded and handed to a viewer app. */
-export async function openReport(r: Pick<Report, 'id' | 'title' | 'mime_type'>): Promise<void> {
+type Openable = Pick<Report, 'id' | 'title' | 'mime_type'> & { path?: string };
+
+/** Photos open in the app; PDFs are downloaded and handed to a viewer app. `path` is for files that are not patient reports. */
+export async function openReport(r: Openable): Promise<void> {
   if (isImage(r.mime_type)) {
-    router.push({ pathname: '/report/[id]', params: { id: r.id, title: r.title } });
+    router.push({ pathname: '/report/[id]', params: { id: r.id, title: r.title, ...(r.path ? { path: r.path } : {}) } });
     return;
   }
   const dir = FileSystem.cacheDirectory;
   if (!dir) throw new ApiError('This phone cannot open files here.', 0);
   const target = `${dir}report-${r.id}.pdf`;
-  const res = await FileSystem.downloadAsync(reportUrl(r.id), target, { headers: await authHeaders() });
+  const res = await FileSystem.downloadAsync(fileUrl(r.id, r.path), target, { headers: await authHeaders() });
   if (res.status !== 200) throw new ApiError('Could not open this report.', res.status);
   if (!(await Sharing.isAvailableAsync())) throw new ApiError('This phone has no app that can open PDFs.', 0);
   await Sharing.shareAsync(res.uri, { mimeType: 'application/pdf', dialogTitle: r.title });
 }
+
+/** Download a CSV (or any file) from the API and offer it to the share sheet: save to Files, send, open in a spreadsheet app. */
+export async function downloadAndShare(path: string, fileName: string, mimeType: string): Promise<void> {
+  const dir = FileSystem.cacheDirectory;
+  if (!dir) throw new ApiError('This phone cannot save files here.', 0);
+  const res = await FileSystem.downloadAsync(`${API_URL}${path}`, `${dir}${fileName}`, { headers: await authHeaders() });
+  if (res.status !== 200) throw new ApiError('Could not download the file.', res.status);
+  if (!(await Sharing.isAvailableAsync())) throw new ApiError('This phone cannot share files.', 0);
+  await Sharing.shareAsync(res.uri, { mimeType, dialogTitle: fileName });
+}
+
+export const uploadDoctorDocument = (file: Picked, title: string) =>
+  api<{ document: { id: string } }>('/api/doctor/documents', { method: 'POST', body: { title: title.trim() || undefined, fileName: file.name, data: file.base64 } });

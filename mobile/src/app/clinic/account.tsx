@@ -191,6 +191,7 @@ export default function Account() {
         <AppearanceCard />
       </Reveal>
       <Reveal index={5} style={{ gap: 10 }}>
+        <Button title="Verification documents" icon="shield" variant="soft" onPress={() => router.push('/my-documents')} />
         <Button title="Notifications" icon="bell" variant="soft" onPress={() => router.push('/notifications')} />
         <Button title="Sign out" icon="logout" variant="danger" onPress={signOut} />
       </Reveal>
