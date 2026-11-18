@@ -4,7 +4,7 @@ import { Suspense, useCallback, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Building2, CalendarPlus, Check, ClipboardList, CreditCard, Phone, Star, Video, X } from "lucide-react";
+import { Building2, CalendarPlus, Check, ClipboardList, CreditCard, Phone, Pill, Star, Video, X } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
 import { PaymentTag, paymentState } from "@/components/shared/PaymentTag";
 import { useApi, useAuthedFetch } from "@/lib/use-api";
@@ -24,6 +24,7 @@ type Visit = {
   notes: string | null;
   payment_status: string | null;
   amount_paid: number | null;
+  has_prescription?: boolean;
   doctor_profiles: { id: string; specialty: string; consultation_fee: number | null; profiles: { full_name: string } | null } | null;
 };
 type Response = { appointments: Visit[]; paymentsEnabled: boolean };
@@ -182,6 +183,9 @@ function VisitCard({
               </Link>
               {canCancel && <button type="button" className="vrow-link" onClick={() => setMode("cancel")}><X size={13} /> Cancel visit</button>}
             </>
+          )}
+          {visit.has_prescription && (
+            <Link className="btn btn-ghost btn-sm" href={`/client/visit/${visit.id}`}><Pill size={14} /> View prescription</Link>
           )}
           {status === "completed" && !reviewed && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode("review")}><Star size={14} /> Rate visit</button>

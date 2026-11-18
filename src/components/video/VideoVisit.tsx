@@ -21,6 +21,8 @@ import { useApi, useAuthedFetch } from "@/lib/use-api";
 import { doctorName, formatDay, formatFee, formatTime, nameHue } from "@/lib/format";
 import { usePayVisit } from "@/lib/use-pay-visit";
 import { IntakeFacts, type IntakeData } from "@/components/shared/IntakeFacts";
+import { PrescriptionPanel } from "@/components/shared/PrescriptionPanel";
+import type { Prescription } from "@/lib/prescription";
 import { cn } from "@/lib/utils";
 
 type JoinState = { ok: true } | { ok: false; reason: "not_video" | "not_confirmed" | "too_early" | "ended" | "unpaid"; opensAt?: string };
@@ -28,7 +30,7 @@ type VisitResponse = {
   role: "patient" | "doctor";
   provider: "daily" | "jitsi";
   join: JoinState;
-  visit: { id: string; date: string; time: string; status: string; type: string; reason: string | null; notes?: string | null; intake?: IntakeData };
+  visit: { id: string; date: string; time: string; status: string; type: string; reason: string | null; notes?: string | null; intake?: IntakeData; prescription: Prescription | null; followUpDate: string | null };
   doctor: { name: string; specialty: string | null; fee?: number | null };
   patient: { full_name: string; date_of_birth?: string | null; blood_type?: string | null; phone?: string | null; health_stats?: Record<string, unknown> | null } | null;
 };
@@ -273,6 +275,34 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
     </aside>
   );
 
+  const prescriptionPanel = (
+    <PrescriptionPanel
+      visitId={data.visit.id}
+      role={data.role}
+      status={data.visit.status}
+      date={data.visit.date}
+      doctorName={doctorName(data.doctor.name)}
+      prescription={data.visit.prescription}
+      followUpDate={data.visit.followUpDate}
+      onSaved={reload}
+    />
+  );
+
+  // In-person and phone visits have no video room: show the visit and its prescription only
+  if (data.visit.type !== "video") {
+    return (
+      <div className="vv">
+        <header className="vv-head">
+          <Link href={back} className="bk-back"><ArrowLeft size={15} /> Visits</Link>
+          <h1 className="h-2">Visit with {other}</h1>
+          <p className="small"><CalendarClock size={14} style={{ display: "inline", verticalAlign: -2 }} /> {when}</p>
+        </header>
+        {panel}
+        {prescriptionPanel}
+      </div>
+    );
+  }
+
   return (
     <div className="vv">
       <header className="vv-head">
@@ -370,6 +400,7 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
           </motion.div>
         )}
       </AnimatePresence>
+      {prescriptionPanel}
     </div>
   );
 }
