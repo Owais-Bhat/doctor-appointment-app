@@ -203,3 +203,46 @@ export async function markRefunded(paymentId: string, refundId: string) {
     .eq('razorpay_payment_id', paymentId)
     .in('payment_status', ['paid', 'refund_pending'])
 }
+
+/**
+ * Admin: try again a refund that did not go through (it is still refund_pending
+ * and has no Razorpay refund id). Returns what happened, for the admin screen.
+ */
+export async function retryRefund(appointmentId: string): Promise<'refunded' | 'pending' | 'failed' | 'manual' | 'not_retryable'> {
+  const { data: appt } = await supabaseAdmin
+    .from('appointments')
+    .select('id, patient_id, payment_status, razorpay_payment_id, razorpay_refund_id, amount_paid')
+    .eq('id', appointmentId)
+    .maybeSingle()
+  if (!appt || appt.payment_status !== 'refund_pending' || appt.razorpay_refund_id) return 'not_retryable'
+  // Without Razorpay keys or a payment id there is nothing the app can do: refund it in the Razorpay dashboard
+  if (!paymentsEnabled() || !appt.razorpay_payment_id) return 'manual'
+
+  type Refund = { id?: string; status?: string; error?: { description?: string } }
+  try {
+    const res = await razorpay<Refund>(`/payments/${appt.razorpay_payment_id}/refund`, {
+      amount: appt.amount_paid ?? undefined,
+      notes: { appointmentId, reason: 'Retried by an admin' },
+    })
+    if (!res.ok || !res.data.id) throw new Error(res.data.error?.description ?? `status ${res.status}`)
+    const done = res.data.status === 'processed'
+    await supabaseAdmin
+      .from('appointments')
+      .update({ razorpay_refund_id: res.data.id, ...(done ? { payment_status: 'refunded', refunded_at: new Date().toISOString() } : {}) })
+      .eq('id', appointmentId)
+      .eq('payment_status', 'refund_pending')
+    if (appt.patient_id) {
+      await notify({
+        user_id: appt.patient_id,
+        title: 'Refund started',
+        message: 'Your payment is being refunded. Banks usually take 5–7 working days.',
+        type: 'info',
+        related_appointment_id: appointmentId,
+      })
+    }
+    return done ? 'refunded' : 'pending'
+  } catch (e) {
+    console.error('Refund retry failed for', appointmentId, e)
+    return 'failed'
+  }
+}

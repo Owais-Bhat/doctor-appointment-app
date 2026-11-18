@@ -1972,3 +1972,26 @@ body:has(.lp) .chat-widget{ display: none; }
 .lg-callout svg{ display: inline-block; vertical-align: -3px; margin: 0 6px 0 0; }
 .lg-article .lg-updated{ margin-top: 12px; }
 .lg-article .lg-intro p{ margin-top: 20px; }
+
+/* ── Prescription ───────────────────────────────────────────────────── */
+.vv-rx{ display: flex; flex-direction: column; gap: 14px; padding: 22px; border-radius: 24px; }
+.rx-item{ display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.rx-item:first-of-type{ border-top: 0; padding-top: 0; }
+.rx-grid{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rx-sheet{ display: flex; flex-direction: column; gap: 10px; }
+.rx-head{ display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.rx-list{ margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+@media (max-width: 640px) { .rx-grid{ grid-template-columns: 1fr; } }
+/* Printing (or "Save as PDF") shows only the prescription sheet, on white */
+@media print {
+  body *{ visibility: hidden !important; }
+  .rx-sheet, .rx-sheet *{ visibility: visible !important; }
+  .rx-sheet{ position: absolute; left: 0; top: 0; width: 100%; padding: 24px; color: #000; background: #fff; }
+  .rx-noprint{ display: none !important; }
+}
+
+/* Favourite heart on a doctor card */
+.dl-card{ position: relative; }
+.dl-fav{ position: absolute; top: 12px; right: 12px; z-index: 1; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--glass); color: var(--ink-3); transition: color .15s ease, transform .15s ease; }
+.dl-fav:hover{ color: var(--ink); transform: scale(1.06); }
+.dl-fav.on{ color: #e5484d; border-color: color-mix(in oklab, #e5484d 40%, var(--line)); }

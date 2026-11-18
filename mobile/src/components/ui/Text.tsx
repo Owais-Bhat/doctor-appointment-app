@@ -2,6 +2,7 @@ import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTr } from '@/lib/i18n';
 
 const VARIANTS = {
   display: { fontSize: 34, lineHeight: 40, fontWeight: '700', letterSpacing: -0.9 },
@@ -17,8 +18,14 @@ export type TextVariant = keyof typeof VARIANTS;
 
 type Props = RNTextProps & { variant?: TextVariant; tone?: 'ink' | 'ink2' | 'ink3' | 'accent' | 'good' | 'bad' | 'warn' | 'onAccent' };
 
-export function Text({ variant = 'body', tone = 'ink', style, ...rest }: Props) {
+export function Text({ variant = 'body', tone = 'ink', style, children, ...rest }: Props) {
   const t = useTheme();
+  const tr = useTr();
   const color = tone === 'onAccent' ? t.accentInk : t[tone];
-  return <RNText {...rest} style={[{ fontFamily: Fonts.sans, color }, VARIANTS[variant], style]} />;
+  // Fixed words are shown in the chosen language; anything with a name or number in it stays as written
+  return (
+    <RNText {...rest} style={[{ fontFamily: Fonts.sans, color }, VARIANTS[variant], style]}>
+      {typeof children === 'string' ? tr(children) : children}
+    </RNText>
+  );
 }

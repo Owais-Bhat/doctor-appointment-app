@@ -73,6 +73,12 @@ export function AppointmentCard({ appointment: a, payment, cancellable = false, 
             <Text variant="small" tone="ink2" numberOfLines={1}>
               {doctor?.specialty}
             </Text>
+            {a.booked_for ? (
+              <Text variant="small" tone="accent" numberOfLines={1} style={{ fontWeight: '700' }}>
+                For {a.booked_for.name}
+                {a.booked_for.relation ? ` (${a.booked_for.relation})` : ''}
+              </Text>
+            ) : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                 <Icon name="clock" size={14} color={t.ink2} />
@@ -119,6 +125,15 @@ export function AppointmentCard({ appointment: a, payment, cancellable = false, 
 
         {cancellable && (showPay || showJoin || onCancel) ? (
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
+            {onCancel && doctor?.id ? (
+              <Button
+                size="sm"
+                variant="soft"
+                icon="calendar"
+                title="Reschedule"
+                onPress={() => router.push({ pathname: '/reschedule/[id]', params: { id: a.id, doctorId: doctor.id, date: a.appointment_date, time: a.appointment_time } })}
+              />
+            ) : null}
             {onCancel ? (
               <Button
                 size="sm"

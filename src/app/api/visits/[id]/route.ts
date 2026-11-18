@@ -23,6 +23,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       .eq('id', visit.patient_id)
       .maybeSingle(),
   ])
+  // Reports the patient attached to this visit (no file bytes: the app opens /api/reports/:id)
+  const { data: reports } = await supabaseAdmin
+    .from('medical_reports')
+    .select('id, title, mime_type, size_bytes, created_at')
+    .eq('appointment_id', visit.id)
+    .order('created_at', { ascending: true })
+
   const { data: doctorProfile } = doctorRow?.profile_id
     ? await supabaseAdmin.from('profiles').select('full_name').eq('id', doctorRow.profile_id).maybeSingle()
     : { data: null }
@@ -45,6 +52,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       prescription: parsePrescription(visit.prescription),
       followUpDate: visit.follow_up_date ? String(visit.follow_up_date).substring(0, 10) : null,
     },
+    reports: reports ?? [],
     doctor: { name: doctorProfile?.full_name ?? 'Your doctor', specialty: doctorRow?.specialty ?? null, fee: doctorRow?.consultation_fee ?? null },
     patient,
   })

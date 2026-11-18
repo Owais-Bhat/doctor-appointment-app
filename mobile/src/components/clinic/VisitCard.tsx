@@ -83,6 +83,13 @@ export function VisitCard({ visit: v, withDate, onChanged, onJoin, joining }: Pr
           <StatusBadge status={v.status} />
         </View>
 
+        {v.intake?.booked_for ? (
+          <Text variant="small" tone="accent" style={{ fontWeight: '700' }}>
+            Visit is for {v.intake.booked_for.full_name}
+            {v.intake.booked_for.relation ? ` (${v.intake.booked_for.relation})` : ''}
+          </Text>
+        ) : null}
+
         {v.chief_complaint ? (
           <Text variant="small" tone="ink2" numberOfLines={2}>
             “{v.chief_complaint}”

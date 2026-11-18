@@ -20,7 +20,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 1,
+      "permissions": []
     },
     "web": {
       "output": "single",
@@ -47,7 +49,20 @@
           "defaultChannel": "default"
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MedFlow reads a photo only when you choose one, to attach a report to a visit.",
+          "cameraPermission": "MedFlow uses the camera only when you take a photo of a report."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Unlock MedFlow with Face ID."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

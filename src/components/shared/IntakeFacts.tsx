@@ -1,7 +1,7 @@
 import { Clock3, Pill, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type IntakeData = { duration?: string | null; severity?: string | null; medications?: string | null; allergies?: string | null } | null | undefined;
+export type IntakeData = { duration?: string | null; severity?: string | null; medications?: string | null; allergies?: string | null; booked_for?: { full_name: string; relation?: string | null; date_of_birth?: string | null; gender?: string | null; blood_type?: string | null } | null } | null | undefined;
 
 const SEVERITY_LABEL: Record<string, string> = { mild: "Mild", moderate: "Moderate", severe: "Severe" };
 

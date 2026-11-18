@@ -86,7 +86,8 @@ export default function Doctors() {
                         {d.registration_number ? `Reg. ${d.registration_number}${d.registration_council ? ` · ${d.registration_council}` : ''}` : 'No registration number — can’t be verified yet'}
                       </Text>
                     </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+                      <Button size="sm" variant="soft" icon="fileText" title="Documents" disabled={!!busy} onPress={() => router.push({ pathname: '/doctor-docs/[id]', params: { id: d.id, name: pr?.full_name ?? '' } })} />
                       {d.is_verified ? (
                         <Button size="sm" variant="danger" icon="ban" title="Hide from search" loading={busy === d.id} disabled={!!busy} onPress={() => setVerified(d, false)} />
                       ) : (

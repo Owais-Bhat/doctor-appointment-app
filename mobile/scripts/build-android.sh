@@ -60,10 +60,20 @@ printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
 sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx5g -XX:MaxMetaspaceSize=1g/' android/gradle.properties
 
 echo "==> Building (the first build downloads a lot and takes 10-25 minutes)"
-(cd android && ./gradlew assembleRelease -PreactNativeArchitectures="${ARCHS:-arm64-v8a}" --no-daemon --console=plain)
+# AAB=1 builds the Play Store bundle (all phone architectures) instead of an APK
+if [ "${AAB:-0}" = "1" ]; then
+  (cd android && ./gradlew bundleRelease -PreactNativeArchitectures="${ARCHS:-armeabi-v7a,arm64-v8a,x86,x86_64}" --no-daemon --console=plain)
+else
+  (cd android && ./gradlew assembleRelease -PreactNativeArchitectures="${ARCHS:-arm64-v8a}" --no-daemon --console=plain)
+fi
 
 VERSION="$(python3 -c "import json; print(json.load(open('app.json'))['expo']['version'])")"
 mkdir -p dist
+if [ "${AAB:-0}" = "1" ]; then
+  cp android/app/build/outputs/bundle/release/app-release.aab "dist/MedFlow-$VERSION.aab"
+  echo "==> Done: dist/MedFlow-$VERSION.aab"
+  exit 0
+fi
 cp android/app/build/outputs/apk/release/app-release.apk "dist/MedFlow-$VERSION.apk"
 echo "==> Done: dist/MedFlow-$VERSION.apk"
 "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "dist/MedFlow-$VERSION.apk" | grep -E "Signer #1 certificate (DN|SHA-1)" || true

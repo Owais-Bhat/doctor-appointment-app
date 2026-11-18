@@ -1,6 +1,7 @@
 import { supabaseAdmin } from './supabase-admin'
 import { clinicInstant } from './clinic-time'
 import { notify, type Notice } from './notify'
+import { loadFamilyMember } from './family'
 
 export type ConsultationType = 'video' | 'phone' | 'in_person'
 export const CONSULTATION_TYPES: ConsultationType[] = ['video', 'phone', 'in_person']
@@ -67,6 +68,8 @@ export type BookingInput = {
   time: string
   consultationType?: string
   chiefComplaint?: string | null
+  /** Book for one of the account's family members instead of the account holder. */
+  familyMemberId?: string | null
 }
 
 export type BookingResult =
@@ -104,6 +107,10 @@ export async function bookAppointment(input: BookingInput): Promise<BookingResul
     return { ok: false, status: 400, error: 'You cannot book an appointment with yourself' }
   }
 
+  // Who the visit is for: the account holder, or one of their family members
+  const member = input.familyMemberId ? await loadFamilyMember(patientId, input.familyMemberId) : null
+  if (input.familyMemberId && !member) return { ok: false, status: 404, error: 'That family member was not found' }
+
   const slots = await getAvailableSlots(doctorId, date)
   if (!slots.includes(hhmm(time))) {
     return { ok: false, status: 409, error: 'This time slot is not available' }
@@ -119,6 +126,7 @@ export async function bookAppointment(input: BookingInput): Promise<BookingResul
       status: 'pending',
       consultation_type: consultationType,
       chief_complaint: input.chiefComplaint ?? null,
+      ...(member ? { intake: { booked_for: member } } : {}),
     })
     .select()
     .single()
@@ -138,7 +146,9 @@ export async function bookAppointment(input: BookingInput): Promise<BookingResul
   const doctorProfile = doctor.profiles as { full_name?: string } | { full_name?: string }[] | null
   const doctorName =
     (Array.isArray(doctorProfile) ? doctorProfile[0]?.full_name : doctorProfile?.full_name) ?? 'your doctor'
-  const patientName = patient?.full_name ?? 'A patient'
+  const holderName = patient?.full_name ?? 'A patient'
+  // The doctor should know when the visit is for someone else
+  const patientName = member ? `${member.full_name}${member.relation ? ` (${member.relation} of ${holderName})` : ` (booked by ${holderName})`}` : holderName
   const when = `${date} at ${hhmm(time)}`
 
   const notifications: Notice[] = [
@@ -162,6 +172,92 @@ export async function bookAppointment(input: BookingInput): Promise<BookingResul
 
   const { error: notifyError } = await notify(notifications)
   if (notifyError) console.error('Error creating notifications:', notifyError)
+
+  return { ok: true, appointment: data }
+}
+
+export type RescheduleResult =
+  | { ok: true; appointment: Record<string, unknown> }
+  | { ok: false; status: number; error: string }
+
+/**
+ * Move a patient's own pending or confirmed visit to another open slot of the
+ * same doctor. The status and any payment stay as they are; the reminders
+ * start over for the new time. The slot is claimed by the same unique key a
+ * new booking uses, so two people can never end up in one slot.
+ */
+export async function rescheduleAppointment(input: { patientId: string; id: string; date: string; time: string }): Promise<RescheduleResult> {
+  const { patientId, id, date, time } = input
+  if (!DATE_RE.test(date)) return { ok: false, status: 400, error: 'Invalid date format. Use YYYY-MM-DD' }
+  if (!TIME_RE.test(time)) return { ok: false, status: 400, error: 'Invalid time format. Use HH:MM' }
+  const newTime = hhmm(time)
+  if (clinicInstant(date, newTime) <= new Date()) return { ok: false, status: 400, error: 'Pick a time in the future' }
+
+  const { data: appt } = await supabaseAdmin
+    .from('appointments')
+    .select('id, status, doctor_id, appointment_date, appointment_time')
+    .eq('id', id)
+    .eq('patient_id', patientId)
+    .maybeSingle()
+  if (!appt) return { ok: false, status: 404, error: 'Appointment not found' }
+  if (!['pending', 'confirmed'].includes(appt.status)) {
+    return { ok: false, status: 400, error: `A ${appt.status} visit can’t be rescheduled` }
+  }
+  const oldTime = hhmm(String(appt.appointment_time))
+  if (clinicInstant(appt.appointment_date, oldTime) <= new Date()) {
+    return { ok: false, status: 409, error: 'This visit has already started, so it can’t be moved.' }
+  }
+  if (appt.appointment_date === date && oldTime === newTime) {
+    return { ok: false, status: 400, error: 'That is the time you already have. Pick a different one.' }
+  }
+
+  const slots = await getAvailableSlots(appt.doctor_id, date)
+  if (!slots.includes(newTime)) return { ok: false, status: 409, error: 'This time slot is not available' }
+
+  const { data, error } = await supabaseAdmin
+    .from('appointments')
+    .update({
+      appointment_date: date,
+      appointment_time: newTime,
+      reminder_24h_sent_at: null,
+      reminder_1h_sent_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('patient_id', patientId)
+    .eq('status', appt.status) // ignore if the doctor changed the visit meanwhile
+    .select()
+    .maybeSingle()
+
+  if (error) {
+    // 23505 = unique violation: someone took the slot between the check and the update
+    if (error.code === '23505') return { ok: false, status: 409, error: 'This time slot was just booked' }
+    return { ok: false, status: 500, error: 'Could not move the appointment' }
+  }
+  if (!data) return { ok: false, status: 409, error: 'This visit was just changed. Refresh and try again.' }
+
+  const [{ data: doctor }, { data: patient }] = await Promise.all([
+    supabaseAdmin.from('doctor_profiles').select('profile_id').eq('id', appt.doctor_id).maybeSingle(),
+    supabaseAdmin.from('profiles').select('full_name').eq('id', patientId).maybeSingle(),
+  ])
+  if (doctor?.profile_id) {
+    const { error: notifyError } = await notify({
+      user_id: doctor.profile_id,
+      title: 'Appointment rescheduled',
+      message: `${patient?.full_name ?? 'A patient'} moved their visit from ${appt.appointment_date} ${oldTime} to ${date} ${newTime}.`,
+      type: 'info',
+      related_appointment_id: id,
+    })
+    if (notifyError) console.error('Notify doctor of reschedule failed:', notifyError)
+  }
+
+  await supabaseAdmin.from('audit_logs').insert({
+    actor_id: patientId,
+    action: 'appointment_rescheduled',
+    target_table: 'appointments',
+    target_id: id,
+    metadata: { from: `${appt.appointment_date} ${oldTime}`, to: `${date} ${newTime}` },
+  })
 
   return { ok: true, appointment: data }
 }

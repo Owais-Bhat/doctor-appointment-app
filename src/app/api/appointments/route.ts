@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     time: String(body.time ?? ''),
     consultationType: body.consultationType ? String(body.consultationType) : undefined,
     chiefComplaint: body.chiefComplaint ? String(body.chiefComplaint).slice(0, 2000) : null,
+    familyMemberId: body.familyMemberId ? String(body.familyMemberId) : null,
   })
 
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })

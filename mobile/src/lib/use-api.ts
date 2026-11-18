@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, ApiError } from './api';
+import { cacheGet, cacheSet } from './offline';
 
 type State<T> = { data: T | null; error: string | null; loading: boolean; refreshing: boolean };
 
@@ -19,8 +20,17 @@ export function useApi<T>(path: string | null, { auth = true }: { auth?: boolean
       setState((s) => ({ ...s, error: null, loading: mode === 'initial', refreshing: mode === 'refresh' }));
       try {
         const data = await api<T>(path, { auth });
+        void cacheSet(path, data);
         if (id === seq.current) setState({ data, error: null, loading: false, refreshing: false });
       } catch (e) {
+        // No connection: show the last answer this phone saw, if it kept one
+        if (e instanceof ApiError && e.status === 0) {
+          const saved = await cacheGet<T>(path);
+          if (saved && id === seq.current) {
+            setState({ data: saved.data, error: null, loading: false, refreshing: false });
+            return;
+          }
+        }
         if (id === seq.current) {
           setState((s) => ({ ...s, error: e instanceof ApiError ? e.message : 'Something went wrong.', loading: false, refreshing: false }));
         }

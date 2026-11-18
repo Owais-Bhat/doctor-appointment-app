@@ -360,9 +360,33 @@ function TimeStep({
 }
 
 /* ── Step 3: confirm ─────────────────────────────────────────── */
-function ConfirmStep({ reason, setReason }: { reason: string; setReason: (r: string) => void }) {
+function ConfirmStep({
+  reason,
+  setReason,
+  members,
+  memberId,
+  setMemberId,
+}: {
+  reason: string;
+  setReason: (r: string) => void;
+  members: { id: string; full_name: string; relation: string | null }[];
+  memberId: string;
+  setMemberId: (id: string) => void;
+}) {
   return (
     <section className="col gap-5" aria-labelledby="bk-step-title">
+      <div className="col gap-2">
+        <span className="mf-label">Who is this visit for?</span>
+        <div className="bk-chips" role="radiogroup" aria-label="Who is this visit for">
+          <button type="button" role="radio" aria-checked={!memberId} className={cn("bk-chip", !memberId && "on")} onClick={() => setMemberId("")}>Me</button>
+          {members.map((m) => (
+            <button key={m.id} type="button" role="radio" aria-checked={memberId === m.id} className={cn("bk-chip", memberId === m.id && "on")} onClick={() => setMemberId(m.id)}>
+              {m.full_name}{m.relation ? ` · ${m.relation}` : ""}
+            </button>
+          ))}
+          <Link href="/client/family" className="bk-chip">+ Add a family member</Link>
+        </div>
+      </div>
       <div className="col gap-2">
         <h2 id="bk-step-title" className="h-3">Anything the doctor should know?</h2>
         <p className="small">Optional. A sentence about your symptoms helps the doctor prepare.</p>
@@ -521,6 +545,8 @@ export function BookingFlow() {
   const [slot, setSlot] = useState<string | null>(null);
   const [visitType, setVisitType] = useState<VisitType>("video");
   const [reason, setReason] = useState("");
+  const [memberId, setMemberId] = useState("");
+  const family = useApi<{ members: { id: string; full_name: string; relation: string | null }[] }>("/api/patient/family");
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [done, setDone] = useState<{ id: string | null } | null>(null);
@@ -566,6 +592,7 @@ export function BookingFlow() {
           time: slot,
           consultationType: visitType,
           chiefComplaint: reason.trim() || null,
+          familyMemberId: memberId || null,
         }),
       });
       setDone({ id: res.appointment?.id ?? null });
@@ -630,7 +657,7 @@ export function BookingFlow() {
               setVisitType={setVisitType}
             />
           )}
-          {step === 3 && <ConfirmStep reason={reason} setReason={setReason} />}
+          {step === 3 && <ConfirmStep reason={reason} setReason={setReason} members={family.data?.members ?? []} memberId={memberId} setMemberId={setMemberId} />}
         </div>
 
         <Summary

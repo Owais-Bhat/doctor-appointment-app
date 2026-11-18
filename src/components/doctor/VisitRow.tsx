@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, Check, NotebookPen, Phone, Video, X } from "lucide-react";
+import { Building2, Check, NotebookPen, Phone, Pill, Video, X } from "lucide-react";
 import { Headshot } from "@/components/medflow/Prototype";
 import { useAuthedFetch } from "@/lib/use-api";
 import { STATUS_LABEL, VISIT_TYPE_LABEL, formatTime, nameHue, toISODate } from "@/lib/format";
@@ -212,6 +212,9 @@ export function VisitRow({
                   <Video size={14} /> Start video
                 </Link>
               )}
+              <Link className="btn btn-ghost btn-sm" href={`/admin/visit/${visit.id}`}>
+                <Pill size={14} /> Prescription
+              </Link>
               {isPastOrToday && (
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode("complete")}>
                   <Check size={14} /> Complete
@@ -227,6 +230,11 @@ export function VisitRow({
                 </button>
               )}
             </>
+          )}
+          {status === "completed" && (
+            <Link className="btn btn-ghost btn-sm" href={`/admin/visit/${visit.id}`}>
+              <Pill size={14} /> Prescription
+            </Link>
           )}
           {(status === "completed" || status === "no_show") && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode("notes")}>

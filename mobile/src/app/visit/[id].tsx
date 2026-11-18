@@ -1,5 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { Linking, Share, View } from 'react-native';
 
 import { PrescriptionEditor } from '@/components/clinic/PrescriptionEditor';
@@ -16,9 +18,10 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError } from '@/lib/api';
+import { openReport } from '@/lib/files';
 import { savePrescription, saveVisitNotes, setVisitStatus, type NextStatus } from '@/lib/clinic';
 import { ageFromDob, formatDate, formatDateLong, formatTime } from '@/lib/format';
-import { itemLine, prescriptionText } from '@/lib/prescription';
+import { itemLine, prescriptionHtml, prescriptionText } from '@/lib/prescription';
 import { withDr, type AppointmentStatus, type Intake, type Prescription } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 import { joinVideoVisit } from '@/lib/video';
@@ -28,10 +31,12 @@ type Visit = {
   join: { ok: boolean; reason?: string };
   visit: { id: string; date: string; time: string; status: AppointmentStatus; paymentStatus: string; type: 'video' | 'phone' | 'in_person'; reason: string | null; notes?: string | null; intake?: Intake | null; prescription: Prescription | null; followUpDate: string | null };
   doctor?: { name: string; specialty: string | null };
+  reports?: { id: string; title: string; mime_type: string }[];
   patient: { full_name: string; date_of_birth?: string | null; blood_type?: string | null; phone?: string | null } | null;
 };
 
-const INTAKE_LABEL: Record<keyof Intake, string> = { duration: 'How long', severity: 'How bad', medications: 'Taking', allergies: 'Allergies' };
+type IntakeKey = 'duration' | 'severity' | 'medications' | 'allergies';
+const INTAKE_LABEL: Record<IntakeKey, string> = { duration: 'How long', severity: 'How bad', medications: 'Taking', allergies: 'Allergies' };
 
 /** One visit for the doctor: the patient, what they told us, notes, and the next step. */
 export default function VisitScreen() {
@@ -123,6 +128,19 @@ export default function VisitScreen() {
             </GlassCard>
           </Reveal>
 
+          {v.intake?.booked_for ? (
+            <Reveal index={2}>
+              <GlassCard padding={18}>
+                <View style={{ gap: 4 }}>
+                  <Text variant="bodyStrong">Visit is for {v.intake.booked_for.full_name}</Text>
+                  <Text variant="small" tone="ink2">
+                    {[v.intake.booked_for.relation ? `${v.intake.booked_for.relation} of ${patient?.full_name ?? 'the account holder'}` : `Booked by ${patient?.full_name ?? 'the account holder'}`, v.intake.booked_for.date_of_birth, v.intake.booked_for.gender, v.intake.booked_for.blood_type ? `Blood ${v.intake.booked_for.blood_type}` : null].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+              </GlassCard>
+            </Reveal>
+          ) : null}
+
           {v.reason || v.intake ? (
             <Reveal index={2}>
               <GlassCard padding={18}>
@@ -130,7 +148,7 @@ export default function VisitScreen() {
                   <Text variant="bodyStrong">What the patient said</Text>
                   {v.reason ? <Text tone="ink2">“{v.reason}”</Text> : null}
                   {v.intake
-                    ? (Object.keys(INTAKE_LABEL) as (keyof Intake)[])
+                    ? (Object.keys(INTAKE_LABEL) as IntakeKey[])
                         .filter((k) => v.intake?.[k])
                         .map((k) => (
                           <View key={k} style={{ flexDirection: 'row', gap: 10 }}>
@@ -143,6 +161,19 @@ export default function VisitScreen() {
                           </View>
                         ))
                     : null}
+                </View>
+              </GlassCard>
+            </Reveal>
+          ) : null}
+
+          {data?.reports?.length ? (
+            <Reveal index={3}>
+              <GlassCard padding={18}>
+                <View style={{ gap: 10 }}>
+                  <Text variant="bodyStrong">Reports shared by the patient</Text>
+                  {data.reports.map((r) => (
+                    <Button key={r.id} size="sm" variant="soft" icon="fileText" title={r.title} disabled={!!busy} onPress={() => void openReport(r).catch((e: unknown) => setMessage({ ok: false, text: e instanceof Error ? e.message : 'Could not open this report.' }))} style={{ alignSelf: 'flex-start' }} />
+                  ))}
                 </View>
               </GlassCard>
             </Reveal>
@@ -207,6 +238,23 @@ function PatientVisit({ data }: { data: Visit }) {
   const { visit: v, doctor } = data;
   const rx = v.prescription;
   const doctorName = withDr(doctor?.name ?? 'your doctor');
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  async function sharePdf() {
+    if (!rx) return;
+    setPdfBusy(true);
+    setPdfError(null);
+    try {
+      const { uri } = await Print.printToFileAsync({ html: prescriptionHtml({ doctor: doctorName, specialty: doctor?.specialty, date: v.date, rx, followUp: v.followUpDate }) });
+      if (!(await Sharing.isAvailableAsync())) throw new Error('This phone cannot share files.');
+      await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Prescription' });
+    } catch (e) {
+      setPdfError(e instanceof Error ? e.message : 'Could not make the PDF.');
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   return (
     <Screen>
@@ -271,8 +319,14 @@ function PatientVisit({ data }: { data: Visit }) {
                   </Text>
                 </View>
               ) : null}
+              {pdfError ? (
+                <Text tone="bad" style={{ fontWeight: '600' }}>
+                  {pdfError}
+                </Text>
+              ) : null}
+              <Button title="Save or share as PDF" icon="fileText" loading={pdfBusy} disabled={pdfBusy} onPress={() => void sharePdf()} />
               <Button
-                title="Share prescription"
+                title="Share as text"
                 icon="fileText"
                 variant="soft"
                 onPress={() => void Share.share({ message: prescriptionText({ doctor: doctorName, specialty: doctor?.specialty, date: v.date, rx, followUp: v.followUpDate }) })}

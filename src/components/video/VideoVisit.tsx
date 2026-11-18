@@ -21,6 +21,9 @@ import { useApi, useAuthedFetch } from "@/lib/use-api";
 import { doctorName, formatDay, formatFee, formatTime, nameHue } from "@/lib/format";
 import { usePayVisit } from "@/lib/use-pay-visit";
 import { IntakeFacts, type IntakeData } from "@/components/shared/IntakeFacts";
+import { PrescriptionPanel } from "@/components/shared/PrescriptionPanel";
+import { ReportLink } from "@/components/shared/ReportLink";
+import type { Prescription } from "@/lib/prescription";
 import { cn } from "@/lib/utils";
 
 type JoinState = { ok: true } | { ok: false; reason: "not_video" | "not_confirmed" | "too_early" | "ended" | "unpaid"; opensAt?: string };
@@ -28,7 +31,8 @@ type VisitResponse = {
   role: "patient" | "doctor";
   provider: "daily" | "jitsi";
   join: JoinState;
-  visit: { id: string; date: string; time: string; status: string; type: string; reason: string | null; notes?: string | null; intake?: IntakeData };
+  visit: { id: string; date: string; time: string; status: string; type: string; reason: string | null; notes?: string | null; intake?: IntakeData; prescription: Prescription | null; followUpDate: string | null };
+  reports?: { id: string; title: string; mime_type: string }[];
   doctor: { name: string; specialty: string | null; fee?: number | null };
   patient: { full_name: string; date_of_birth?: string | null; blood_type?: string | null; phone?: string | null; health_stats?: Record<string, unknown> | null } | null;
 };
@@ -263,15 +267,63 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
       </div>
       <dl className="dr-stats">
         <div><dt>When</dt><dd>{when}</dd></div>
+        {isDoctor && data.visit.intake?.booked_for && (
+          <div>
+            <dt>Visit is for</dt>
+            <dd className="pt-wrap">
+              {data.visit.intake.booked_for.full_name}
+              {data.visit.intake.booked_for.relation ? ` (${data.visit.intake.booked_for.relation} of ${data.patient?.full_name ?? "the account holder"})` : ""}
+              {[data.visit.intake.booked_for.gender, data.visit.intake.booked_for.blood_type && `Blood ${data.visit.intake.booked_for.blood_type}`].filter(Boolean).length > 0 && (
+                <span className="tiny"> · {[data.visit.intake.booked_for.gender, data.visit.intake.booked_for.blood_type && `Blood ${data.visit.intake.booked_for.blood_type}`].filter(Boolean).join(" · ")}</span>
+              )}
+            </dd>
+          </div>
+        )}
         {data.visit.reason && <div><dt>Reason</dt><dd className="pt-wrap">{data.visit.reason}</dd></div>}
         {isDoctor && allergies && <div><dt>Allergies</dt><dd className="pt-wrap">{allergies}</dd></div>}
       </dl>
       {isDoctor && <IntakeFacts intake={data.visit.intake} hideAllergies={!!allergies} />}
+      {(data.reports?.length ?? 0) > 0 && (
+        <div className="col gap-2">
+          <span className="mf-label">{isDoctor ? "Reports shared by the patient" : "Reports shared with your doctor"}</span>
+          {data.reports?.map((r) => (
+            <ReportLink key={r.id} id={r.id} title={r.title} mime={r.mime_type} />
+          ))}
+        </div>
+      )}
       {isDoctor && stage === "call" && (
         <DoctorNotes visitId={data.visit.id} initial={data.visit.notes ?? ""} onCompleted={() => setStage("completed")} />
       )}
     </aside>
   );
+
+  const prescriptionPanel = (
+    <PrescriptionPanel
+      visitId={data.visit.id}
+      role={data.role}
+      status={data.visit.status}
+      date={data.visit.date}
+      doctorName={doctorName(data.doctor.name)}
+      prescription={data.visit.prescription}
+      followUpDate={data.visit.followUpDate}
+      onSaved={reload}
+    />
+  );
+
+  // In-person and phone visits have no video room: show the visit and its prescription only
+  if (data.visit.type !== "video") {
+    return (
+      <div className="vv">
+        <header className="vv-head">
+          <Link href={back} className="bk-back"><ArrowLeft size={15} /> Visits</Link>
+          <h1 className="h-2">Visit with {other}</h1>
+          <p className="small"><CalendarClock size={14} style={{ display: "inline", verticalAlign: -2 }} /> {when}</p>
+        </header>
+        {panel}
+        {prescriptionPanel}
+      </div>
+    );
+  }
 
   return (
     <div className="vv">
@@ -370,6 +422,7 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
           </motion.div>
         )}
       </AnimatePresence>
+      {prescriptionPanel}
     </div>
   );
 }

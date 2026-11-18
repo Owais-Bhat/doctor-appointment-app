@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 
 import { AppearanceCard } from '@/components/AppearanceCard';
+import { LanguageCard } from '@/components/LanguageCard';
+import { SecurityCard } from '@/components/SecurityCard';
 import { Header } from '@/components/Header';
 import { Icon } from '@/components/icons/Icon';
 import type { IconName } from '@/components/icons/paths';
@@ -80,12 +82,16 @@ export default function Profile() {
         )}
       </Reveal>
 
-      <Reveal index={3}>
+      <Reveal index={3} style={{ gap: 12 }}>
         <AppearanceCard />
+        <LanguageCard />
+        <SecurityCard />
       </Reveal>
 
       <Reveal index={4} style={{ gap: 10 }}>
         <Button title="Edit health details" icon="edit" onPress={() => router.push('/edit-profile')} />
+        <Button title="Family members" icon="users" variant="soft" onPress={() => router.push('/family')} />
+        <Button title="My reports" icon="fileText" variant="soft" onPress={() => router.push('/reports')} />
         <Button title="Notifications" icon="bell" variant="soft" onPress={() => router.push('/notifications')} />
         <Button title="Sign out" icon="logout" variant="danger" onPress={signOut} />
       </Reveal>

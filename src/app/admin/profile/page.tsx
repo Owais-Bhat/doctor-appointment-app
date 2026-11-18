@@ -1,5 +1,6 @@
 "use client";
 
+import { DoctorDocuments } from "@/components/doctor/DoctorDocuments";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BadgeCheck, Building2, ShieldCheck, CalendarPlus, Clock, GraduationCap, Languages, MapPin, Star, UserRound } from "lucide-react";
@@ -270,6 +271,8 @@ export default function DoctorProfilePage() {
           <p className="tiny">{p.profiles?.email}</p>
         </aside>
       </div>
+
+      <DoctorDocuments />
 
       <SaveBar
         dirty={dirty}

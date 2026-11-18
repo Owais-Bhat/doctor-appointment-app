@@ -13,6 +13,10 @@ export const AUDIT_LABEL: Record<string, string> = {
   appointment_completed: 'completed a visit',
   appointment_no_show: 'marked a patient as not attending',
   payment_completed: 'paid for a visit',
+  data_export: 'downloaded a data export',
+  refund_retried: 'retried a refund',
+  doctor_document_uploaded: 'uploaded a verification document',
+  appointment_rescheduled: 'rescheduled a visit',
   refund_failed: 'refund failed — refund from the Razorpay dashboard',
 }
 

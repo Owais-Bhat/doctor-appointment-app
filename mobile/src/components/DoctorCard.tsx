@@ -9,9 +9,12 @@ import { Icon } from './icons/Icon';
 import { specialtyIcon } from './icons/paths';
 import { Avatar } from './ui/Avatar';
 import { GlassCard } from './ui/GlassCard';
+import { Tap } from './ui/Tap';
 import { Text } from './ui/Text';
 
-export function DoctorCard({ doctor, compact = false }: { doctor: Doctor; compact?: boolean }) {
+type Props = { doctor: Doctor; compact?: boolean; favorite?: boolean; onToggleFavorite?: () => void };
+
+export function DoctorCard({ doctor, compact = false, favorite, onToggleFavorite }: Props) {
   const t = useTheme();
   const name = doctorName(doctor);
   const avatar = one(doctor.profiles)?.avatar_url;
@@ -47,6 +50,11 @@ export function DoctorCard({ doctor, compact = false }: { doctor: Doctor; compac
             </Text>
           </View>
         </View>
+        {onToggleFavorite ? (
+          <Tap onPress={onToggleFavorite} label={favorite ? `Remove ${name} from favourites` : `Add ${name} to favourites`} hitSlop={10} scaleTo={0.8}>
+            <Icon name="heart" size={24} color={favorite ? t.bad : t.ink3} accent={favorite ? t.bad : t.ink3} />
+          </Tap>
+        ) : null}
         {!compact ? <Icon name="chevronRight" size={20} color={t.ink3} /> : null}
       </View>
     </GlassCard>
