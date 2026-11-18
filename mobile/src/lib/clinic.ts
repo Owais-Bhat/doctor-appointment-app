@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { Prescription } from './types';
 
 export type NextStatus = 'confirmed' | 'cancelled' | 'completed' | 'no_show';
 
@@ -11,6 +12,10 @@ export const NEXT_STATUS: Record<string, NextStatus[]> = {
 export const setVisitStatus = (id: string, status: NextStatus) => api(`/api/doctor/appointments/${id}`, { method: 'PATCH', body: { status } });
 
 export const saveVisitNotes = (id: string, notes: string) => api(`/api/doctor/appointments/${id}`, { method: 'PATCH', body: { notes } });
+
+/** Save (or, with null, clear) the prescription and follow-up date of a confirmed or completed visit. */
+export const savePrescription = (id: string, prescription: Prescription | null, followUpDate: string | null) =>
+  api(`/api/doctor/appointments/${id}`, { method: 'PATCH', body: { prescription, followUpDate } });
 
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 export const SHORT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;

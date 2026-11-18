@@ -11,6 +11,8 @@ export type VisitRecord = {
   consultation_type: string
   chief_complaint: string | null
   notes: string | null
+  prescription?: string | null
+  follow_up_date?: string | null
   intake?: { duration?: string | null; severity?: string | null; medications?: string | null; allergies?: string | null } | null
   payment_status?: string
   patient_id: string
@@ -24,7 +26,7 @@ export type VisitRecord = {
 export async function loadVisitFor(id: string, uid: string): Promise<{ visit: VisitRecord; role: VisitRole } | null> {
   const { data: visit } = await supabaseAdmin
     .from('appointments')
-    .select('id, appointment_date, appointment_time, status, consultation_type, chief_complaint, notes, intake, payment_status, patient_id, doctor_id')
+    .select('id, appointment_date, appointment_time, status, consultation_type, chief_complaint, notes, prescription, follow_up_date, intake, payment_status, patient_id, doctor_id')
     .eq('id', id)
     .maybeSingle()
   if (!visit) return null

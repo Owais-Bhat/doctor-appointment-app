@@ -1,7 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Share, View } from 'react-native';
 
+import { PrescriptionEditor } from '@/components/clinic/PrescriptionEditor';
 import { Header } from '@/components/Header';
 import { Icon } from '@/components/icons/Icon';
 import { EmptyState, ErrorNote, ListSkeleton } from '@/components/States';
@@ -15,16 +16,18 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError } from '@/lib/api';
-import { saveVisitNotes, setVisitStatus, type NextStatus } from '@/lib/clinic';
-import { ageFromDob, formatDate, formatTime } from '@/lib/format';
-import type { AppointmentStatus, Intake } from '@/lib/types';
+import { savePrescription, saveVisitNotes, setVisitStatus, type NextStatus } from '@/lib/clinic';
+import { ageFromDob, formatDate, formatDateLong, formatTime } from '@/lib/format';
+import { itemLine, prescriptionText } from '@/lib/prescription';
+import { withDr, type AppointmentStatus, type Intake, type Prescription } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 import { joinVideoVisit } from '@/lib/video';
 
 type Visit = {
   role: 'doctor' | 'patient';
   join: { ok: boolean; reason?: string };
-  visit: { id: string; date: string; time: string; status: AppointmentStatus; paymentStatus: string; type: 'video' | 'phone' | 'in_person'; reason: string | null; notes?: string | null; intake?: Intake | null };
+  visit: { id: string; date: string; time: string; status: AppointmentStatus; paymentStatus: string; type: 'video' | 'phone' | 'in_person'; reason: string | null; notes?: string | null; intake?: Intake | null; prescription: Prescription | null; followUpDate: string | null };
+  doctor?: { name: string; specialty: string | null };
   patient: { full_name: string; date_of_birth?: string | null; blood_type?: string | null; phone?: string | null } | null;
 };
 
@@ -68,6 +71,11 @@ export default function VisitScreen() {
       if (status === 'completed' && notes.trim() !== (v?.notes ?? '').trim()) await saveVisitNotes(id, notes.trim());
       await setVisitStatus(id, status);
     }, ok);
+
+  // The patient sees their own prescription, not the doctor's working screen
+  if (data?.role === 'patient') return <PatientVisit data={data} />;
+
+  const canPrescribe = v?.status === 'confirmed' || v?.status === 'completed';
 
   return (
     <Screen>
@@ -149,6 +157,17 @@ export default function VisitScreen() {
             </GlassCard>
           </Reveal>
 
+          {canPrescribe ? (
+            <Reveal index={4}>
+              <PrescriptionEditor
+                saved={v.prescription}
+                savedFollowUp={v.followUpDate}
+                saving={busy === 'rx'}
+                onSave={(rx, followUp) => void run('rx', () => savePrescription(id, rx, followUp), rx ? 'Prescription saved. The patient can see it now.' : 'Prescription cleared.')}
+              />
+            </Reveal>
+          ) : null}
+
           {message ? (
             <Text tone={message.ok ? 'good' : 'bad'} style={{ fontWeight: '600' }}>
               {message.text}
@@ -177,6 +196,92 @@ export default function VisitScreen() {
             </Reveal>
           ) : null}
         </>
+      )}
+    </Screen>
+  );
+}
+
+/** A patient's view of one visit: who saw them, and the prescription. */
+function PatientVisit({ data }: { data: Visit }) {
+  const t = useTheme();
+  const { visit: v, doctor } = data;
+  const rx = v.prescription;
+  const doctorName = withDr(doctor?.name ?? 'your doctor');
+
+  return (
+    <Screen>
+      <Reveal>
+        <Header title="Your visit" back />
+      </Reveal>
+      <Reveal index={1}>
+        <GlassCard padding={18}>
+          <View style={{ gap: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <Avatar name={doctor?.name ?? 'Doctor'} size={54} />
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text variant="h2" numberOfLines={1}>
+                  {doctorName}
+                </Text>
+                <Text variant="small" tone="ink2">
+                  {[doctor?.specialty, `${formatDate(v.date)} · ${formatTime(v.time)}`].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+              <StatusBadge status={v.status} />
+            </View>
+          </View>
+        </GlassCard>
+      </Reveal>
+
+      {rx ? (
+        <Reveal index={2}>
+          <GlassCard padding={18}>
+            <View style={{ gap: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Icon name="pill" size={22} color={t.accent} accent={t.accent} />
+                <Text variant="bodyStrong">Prescription</Text>
+              </View>
+              {rx.items.map((i, n) => (
+                <View key={n} style={{ flexDirection: 'row', gap: 12 }}>
+                  <Text variant="bodyStrong" tone="accent" style={{ width: 22 }}>
+                    {n + 1}.
+                  </Text>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text variant="bodyStrong">{itemLine(i)}</Text>
+                    {i.note ? (
+                      <Text variant="small" tone="ink2">
+                        {i.note}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
+              {rx.advice ? (
+                <View style={{ gap: 4 }}>
+                  <Text variant="small" tone="ink3" style={{ fontWeight: '700' }}>
+                    Advice
+                  </Text>
+                  <Text>{rx.advice}</Text>
+                </View>
+              ) : null}
+              {v.followUpDate ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Icon name="calendar" size={18} color={t.accent} accent={t.accent} />
+                  <Text variant="small" style={{ fontWeight: '700' }}>
+                    Follow-up: {formatDateLong(v.followUpDate)}
+                  </Text>
+                </View>
+              ) : null}
+              <Button
+                title="Share prescription"
+                icon="fileText"
+                variant="soft"
+                onPress={() => void Share.share({ message: prescriptionText({ doctor: doctorName, specialty: doctor?.specialty, date: v.date, rx, followUp: v.followUpDate }) })}
+              />
+            </View>
+          </GlassCard>
+        </Reveal>
+      ) : (
+        <EmptyState icon="pill" title="No prescription yet" body="If your doctor writes one after the visit, it appears here and you get a notification." />
       )}
     </Screen>
   );

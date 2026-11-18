@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireUser } from '@/lib/api-auth'
 import { paymentsEnabled } from '@/lib/payments'
+import { parsePrescription } from '@/lib/prescription'
 
 export async function GET(request: Request) {
   // requireUser also refuses suspended accounts
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
         chief_complaint,
         notes,
         follow_up_date,
+        prescription,
         created_at,
         payment_status,
         amount_paid,
@@ -45,7 +47,10 @@ export async function GET(request: Request) {
     }
 
     // Filter out appointments with invalid doctor data
-    const validAppointments = (data ?? []).filter(apt => apt.doctor_profiles !== null)
+    // The list only needs to know a prescription exists; the visit screen loads it
+    const validAppointments = (data ?? [])
+      .filter(apt => apt.doctor_profiles !== null)
+      .map(({ prescription, ...apt }) => ({ ...apt, has_prescription: !!parsePrescription(prescription) }))
 
     return NextResponse.json({ appointments: validAppointments, paymentsEnabled: paymentsEnabled() })
   } catch (err) {

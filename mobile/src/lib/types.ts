@@ -16,6 +16,9 @@ export function normalizeRole(role: unknown): Role {
   return 'patient';
 }
 
+export type PrescriptionItem = { name: string; dose: string; frequency: string; duration: string; note: string };
+export type Prescription = { items: PrescriptionItem[]; advice: string };
+
 export type Doctor = {
   id: string;
   profile_id: string | null;
@@ -46,6 +49,8 @@ export type Appointment = {
   chief_complaint: string | null;
   notes: string | null;
   payment_status: 'unpaid' | 'paid' | 'refund_pending' | 'refunded' | 'waived';
+  /** The doctor wrote a prescription for this visit */
+  has_prescription?: boolean;
   /** Smallest currency unit (paise), once paid */
   amount_paid?: number | null;
   doctor_profiles: {

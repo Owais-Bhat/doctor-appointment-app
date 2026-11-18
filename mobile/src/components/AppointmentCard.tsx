@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
@@ -103,6 +104,12 @@ export function AppointmentCard({ appointment: a, payment, cancellable = false, 
           <Text variant="small" tone="bad" style={{ fontWeight: '600' }}>
             {error}
           </Text>
+        ) : null}
+
+        {a.has_prescription ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+            <Button size="sm" icon="pill" variant="soft" title="View prescription" onPress={() => router.push({ pathname: '/visit/[id]', params: { id: a.id } })} />
+          </View>
         ) : null}
 
         {cancellable && (showPay || showJoin || onCancel) ? (

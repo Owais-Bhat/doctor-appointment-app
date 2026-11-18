@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/api-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { joinState, loadVisitFor } from '@/lib/visit-access'
 import { videoProvider } from '@/lib/video-provider'
+import { parsePrescription } from '@/lib/prescription'
 
 /** GET /api/visits/:id — the visit as seen by its patient or doctor. */
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -41,6 +42,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       // visit notes are the doctor's working notes
       notes: role === 'doctor' ? visit.notes : undefined,
       intake: role === 'doctor' ? visit.intake ?? null : undefined,
+      prescription: parsePrescription(visit.prescription),
+      followUpDate: visit.follow_up_date ? String(visit.follow_up_date).substring(0, 10) : null,
     },
     doctor: { name: doctorProfile?.full_name ?? 'Your doctor', specialty: doctorRow?.specialty ?? null, fee: doctorRow?.consultation_fee ?? null },
     patient,
