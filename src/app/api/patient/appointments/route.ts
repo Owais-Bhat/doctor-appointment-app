@@ -47,10 +47,14 @@ export async function GET(request: Request) {
     }
 
     // Filter out appointments with invalid doctor data
+    // Which visits already have this patient's review, so the app can offer "Rate" on the others
+    const { data: mine } = await supabaseAdmin.from('reviews').select('appointment_id').eq('patient_id', uid)
+    const reviewed = new Set((mine ?? []).map(r => r.appointment_id))
+
     // The list only needs to know a prescription exists; the visit screen loads it
     const validAppointments = (data ?? [])
       .filter(apt => apt.doctor_profiles !== null)
-      .map(({ prescription, ...apt }) => ({ ...apt, has_prescription: !!parsePrescription(prescription) }))
+      .map(({ prescription, ...apt }) => ({ ...apt, has_prescription: !!parsePrescription(prescription), reviewed: reviewed.has(apt.id) }))
 
     return NextResponse.json({ appointments: validAppointments, paymentsEnabled: paymentsEnabled() })
   } catch (err) {

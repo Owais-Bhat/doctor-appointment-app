@@ -32,6 +32,8 @@ export default function Profile() {
     { icon: 'calendar', label: 'Date of birth', value: p?.date_of_birth ? formatDateLong(p.date_of_birth) : null },
     { icon: 'user', label: 'Gender', value: p?.gender },
     { icon: 'pin', label: 'Address', value: p?.address },
+    { icon: 'alert', label: 'Allergies', value: p?.health_stats?.allergies },
+    { icon: 'heart', label: 'Conditions', value: p?.health_stats?.chronic_conditions },
   ];
 
   return (
@@ -83,11 +85,9 @@ export default function Profile() {
       </Reveal>
 
       <Reveal index={4} style={{ gap: 10 }}>
+        <Button title="Edit health details" icon="edit" onPress={() => router.push('/edit-profile')} />
         <Button title="Notifications" icon="bell" variant="soft" onPress={() => router.push('/notifications')} />
         <Button title="Sign out" icon="logout" variant="danger" onPress={signOut} />
-        <Text variant="small" tone="ink3" style={{ textAlign: 'center', marginTop: 4 }}>
-          To change your health details, open MedFlow on the web for now.
-        </Text>
       </Reveal>
     </Screen>
   );

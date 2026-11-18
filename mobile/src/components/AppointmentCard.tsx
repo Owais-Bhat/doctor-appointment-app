@@ -106,9 +106,14 @@ export function AppointmentCard({ appointment: a, payment, cancellable = false, 
           </Text>
         ) : null}
 
-        {a.has_prescription ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-            <Button size="sm" icon="pill" variant="soft" title="View prescription" onPress={() => router.push({ pathname: '/visit/[id]', params: { id: a.id } })} />
+        {a.has_prescription || (a.status === 'completed' && !a.reviewed) ? (
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {a.status === 'completed' && !a.reviewed ? (
+              <Button size="sm" icon="star" variant="ghost" title="Rate visit" onPress={() => router.push({ pathname: '/rate/[id]', params: { id: a.id } })} />
+            ) : null}
+            {a.has_prescription ? (
+              <Button size="sm" icon="pill" variant="soft" title="View prescription" onPress={() => router.push({ pathname: '/visit/[id]', params: { id: a.id } })} />
+            ) : null}
           </View>
         ) : null}
 

@@ -20,7 +20,7 @@ Until the Firebase values are set, the login screen says so instead of failing s
 
 **Everyone:** sign in with Google or email, create an account (with the consent tick), reset a password, notifications, and an **Auto / Light / Dark** theme switch (on the sign-in screens and on each "Me" tab). The choice is remembered.
 
-**Patient** (`/home`, `/visits`, `/book`, `/doctors`, `/profile`) — next visit, specialty picker, doctor search, slot booking, visits with cancel, pay online and join video visits, **prescriptions** (View prescription on a visit, share as text), health profile.
+**Patient** (`/home`, `/visits`, `/book`, `/doctors`, `/profile`) — next visit, specialty picker, doctor search, slot booking, visits with cancel, pay online and join video visits, **prescriptions** (View prescription on a visit, share as text), health details (edit phone, birth date, blood type, allergies, conditions, medicines, height/weight, emergency contact), **rate a completed visit** (stars + comment).
 
 **Doctor** (`/clinic/*`) — *Today* (stats, requests waiting, today's visits), *Visits* (requests / upcoming / today / past with confirm, decline, complete, video join), *Hours* (weekly hours, minutes per visit, days off), *Patients*, *Me* (edit profile, 6-month chart). Visit detail has the patient's intake and notes, and a **prescription** editor (medicines with dose, how often and for how long, advice, follow-up date) for confirmed and completed visits.
 
@@ -112,7 +112,7 @@ Push notifications need an Expo project id and so do not run in a build made thi
 
 ## Not built yet
 
-- Editing the patient health profile and medical records (report uploads)
+- Medical records (report uploads)
 - Prescription as a PDF (today it is shared as text)
 - Optional: Razorpay's native SDK and Daily's native SDK for a store build
 

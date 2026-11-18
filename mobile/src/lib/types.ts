@@ -51,6 +51,8 @@ export type Appointment = {
   payment_status: 'unpaid' | 'paid' | 'refund_pending' | 'refunded' | 'waived';
   /** The doctor wrote a prescription for this visit */
   has_prescription?: boolean;
+  /** This patient already rated the visit */
+  reviewed?: boolean;
   /** Smallest currency unit (paise), once paid */
   amount_paid?: number | null;
   doctor_profiles: {
@@ -79,6 +81,17 @@ export type PatientProfile = {
   date_of_birth: string | null;
   gender: string | null;
   address: string | null;
+  health_stats?: HealthStats | null;
+};
+
+export type HealthStats = {
+  allergies?: string | null;
+  chronic_conditions?: string | null;
+  medications?: string | null;
+  weight?: number | null;
+  height?: number | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
 };
 
 /** The embed may come back as an object or a one-item array. */

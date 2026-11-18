@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { AppointmentCard } from '@/components/AppointmentCard';
@@ -26,6 +26,14 @@ export default function Visits() {
   const t = useTheme();
   const { data, loading, error, refreshing, refresh, reload } = useApi<{ appointments: Appointment[]; paymentsEnabled?: boolean }>('/api/patient/appointments');
   const [tab, setTab] = useState<Tab>('upcoming');
+  // Coming back from a visit, a rating or a prescription: show what changed (the first focus already loads)
+  const seen = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (seen.current) void refresh();
+      seen.current = true;
+    }, [refresh]),
+  );
   const [notice, setNotice] = useState<string | null>(null);
   const [paidId, setPaidId] = useState<string | null>(null);
   const [joining, setJoining] = useState<string | null>(null);
