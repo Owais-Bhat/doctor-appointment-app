@@ -18,6 +18,13 @@ export function setTokenGetter(fn: TokenGetter) {
   getToken = fn;
 }
 
+/** The Authorization header for requests made outside api() (image previews, file downloads). */
+export async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getToken();
+  if (!token) throw new ApiError('Please sign in again.', 401);
+  return { Authorization: `Bearer ${token}` };
+}
+
 type Options = { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; auth?: boolean; signal?: AbortSignal };
 
 /**

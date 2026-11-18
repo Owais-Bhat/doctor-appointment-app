@@ -16,6 +16,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError } from '@/lib/api';
+import { openReport } from '@/lib/files';
 import { savePrescription, saveVisitNotes, setVisitStatus, type NextStatus } from '@/lib/clinic';
 import { ageFromDob, formatDate, formatDateLong, formatTime } from '@/lib/format';
 import { itemLine, prescriptionText } from '@/lib/prescription';
@@ -28,6 +29,7 @@ type Visit = {
   join: { ok: boolean; reason?: string };
   visit: { id: string; date: string; time: string; status: AppointmentStatus; paymentStatus: string; type: 'video' | 'phone' | 'in_person'; reason: string | null; notes?: string | null; intake?: Intake | null; prescription: Prescription | null; followUpDate: string | null };
   doctor?: { name: string; specialty: string | null };
+  reports?: { id: string; title: string; mime_type: string }[];
   patient: { full_name: string; date_of_birth?: string | null; blood_type?: string | null; phone?: string | null } | null;
 };
 
@@ -143,6 +145,19 @@ export default function VisitScreen() {
                           </View>
                         ))
                     : null}
+                </View>
+              </GlassCard>
+            </Reveal>
+          ) : null}
+
+          {data?.reports?.length ? (
+            <Reveal index={3}>
+              <GlassCard padding={18}>
+                <View style={{ gap: 10 }}>
+                  <Text variant="bodyStrong">Reports shared by the patient</Text>
+                  {data.reports.map((r) => (
+                    <Button key={r.id} size="sm" variant="soft" icon="fileText" title={r.title} disabled={!!busy} onPress={() => void openReport(r).catch((e: unknown) => setMessage({ ok: false, text: e instanceof Error ? e.message : 'Could not open this report.' }))} style={{ alignSelf: 'flex-start' }} />
+                  ))}
                 </View>
               </GlassCard>
             </Reveal>

@@ -22,6 +22,7 @@ import { doctorName, formatDay, formatFee, formatTime, nameHue } from "@/lib/for
 import { usePayVisit } from "@/lib/use-pay-visit";
 import { IntakeFacts, type IntakeData } from "@/components/shared/IntakeFacts";
 import { PrescriptionPanel } from "@/components/shared/PrescriptionPanel";
+import { ReportLink } from "@/components/shared/ReportLink";
 import type { Prescription } from "@/lib/prescription";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ type VisitResponse = {
   provider: "daily" | "jitsi";
   join: JoinState;
   visit: { id: string; date: string; time: string; status: string; type: string; reason: string | null; notes?: string | null; intake?: IntakeData; prescription: Prescription | null; followUpDate: string | null };
+  reports?: { id: string; title: string; mime_type: string }[];
   doctor: { name: string; specialty: string | null; fee?: number | null };
   patient: { full_name: string; date_of_birth?: string | null; blood_type?: string | null; phone?: string | null; health_stats?: Record<string, unknown> | null } | null;
 };
@@ -269,6 +271,14 @@ export function VideoVisit({ id, portal }: { id: string; portal: "patient" | "do
         {isDoctor && allergies && <div><dt>Allergies</dt><dd className="pt-wrap">{allergies}</dd></div>}
       </dl>
       {isDoctor && <IntakeFacts intake={data.visit.intake} hideAllergies={!!allergies} />}
+      {(data.reports?.length ?? 0) > 0 && (
+        <div className="col gap-2">
+          <span className="mf-label">{isDoctor ? "Reports shared by the patient" : "Reports shared with your doctor"}</span>
+          {data.reports?.map((r) => (
+            <ReportLink key={r.id} id={r.id} title={r.title} mime={r.mime_type} />
+          ))}
+        </div>
+      )}
       {isDoctor && stage === "call" && (
         <DoctorNotes visitId={data.visit.id} initial={data.visit.notes ?? ""} onCompleted={() => setStage("completed")} />
       )}

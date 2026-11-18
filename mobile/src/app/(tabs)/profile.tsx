@@ -86,6 +86,7 @@ export default function Profile() {
 
       <Reveal index={4} style={{ gap: 10 }}>
         <Button title="Edit health details" icon="edit" onPress={() => router.push('/edit-profile')} />
+        <Button title="My reports" icon="fileText" variant="soft" onPress={() => router.push('/reports')} />
         <Button title="Notifications" icon="bell" variant="soft" onPress={() => router.push('/notifications')} />
         <Button title="Sign out" icon="logout" variant="danger" onPress={signOut} />
       </Reveal>
