@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE TABLE IF NOT EXISTS push_tokens (
   id             CHAR(36)     CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   user_id        VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-  token          VARCHAR(200) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,  -- ExponentPushToken[...]
+  token          VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,  -- Firebase (FCM) device token or ExponentPushToken[...]
   platform       VARCHAR(10)  NULL,                                            -- android, ios
   last_ticket_id VARCHAR(64)  NULL,
   last_ticket_at DATETIME(3)  NULL,

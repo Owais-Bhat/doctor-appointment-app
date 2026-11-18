@@ -6,10 +6,12 @@ import { api } from './api';
 /**
  * Push notifications (iOS and Android; the web build uses push.web.ts).
  *
- * The phone gets an Expo push token and hands it to the server
- * (POST /api/push/register); the server then pushes every in-app notification
- * to it. Needs a development or store build with an EAS project id — Expo Go
- * cannot receive remote pushes on Android, so there this module does nothing.
+ * The phone hands a push token to the server (POST /api/push/register); the
+ * server then pushes every in-app notification to it.
+ *  - Android: the Firebase (FCM) device token. Needs only google-services.json
+ *    in the build, no Expo account or project id.
+ *  - iOS: an Expo push token, which needs an EAS project id.
+ * Expo Go cannot receive remote pushes on Android, so there this module does nothing.
  */
 
 export type PushStatus = 'unavailable' | 'undetermined' | 'granted' | 'denied';
@@ -18,7 +20,7 @@ const projectId: string | undefined = Constants.expoConfig?.extra?.eas?.projectI
 const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 /** Whether this build can receive pushes at all. */
-export const pushAvailable = !inExpoGo && !!projectId;
+export const pushAvailable = !inExpoGo && (Platform.OS === 'android' || !!projectId);
 
 /** Loaded only when needed: importing it inside Expo Go on Android logs an error. */
 const notifications = () => import('expo-notifications');
@@ -66,7 +68,8 @@ export async function registerPhone(): Promise<void> {
   try {
     const N = await notifications();
     await ensureChannel(N);
-    const { data: token } = await N.getExpoPushTokenAsync({ projectId });
+    // Android: Firebase's own token. Elsewhere: Expo's, which forwards to Apple
+    const token = Platform.OS === 'android' ? String((await N.getDevicePushTokenAsync()).data) : (await N.getExpoPushTokenAsync({ projectId })).data;
     await api('/api/push/register', { method: 'POST', body: { token, platform: Platform.OS } });
     registered = token;
   } catch {

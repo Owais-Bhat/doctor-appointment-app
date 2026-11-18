@@ -1,8 +1,13 @@
 /**
- * Push notifications for the mobile app, sent through Expo's push service
- * (which forwards to Android FCM and Apple APNs).
+ * Push notifications for the mobile app. A phone registers one of two kinds of
+ * token (POST /api/push/register):
+ *  - a Firebase (FCM) device token, which the Android app uses. Sent straight
+ *    through Firebase with the site's own service account (lib/fcm.ts); no
+ *    Expo account is involved.
+ *  - an Expo push token, for builds made with an Expo project (and iOS). Sent
+ *    through Expo's push service, which forwards to FCM and Apple APNs.
  *
- * Each phone registers an Expo push token (POST /api/push/register). When the
+ * When the
  * app creates an in-app notification (lib/notify.ts) the same title and
  * message are pushed to that person's phones.
  *
@@ -15,6 +20,7 @@
  * on for the Expo project. EXPO_PUSH_URL points at a different push service
  * (used by tests).
  */
+import { fcmMessage, isFcmToken, MAX_TOKEN_LENGTH, sendFcm } from './fcm'
 import { supabaseAdmin } from './supabase-admin'
 
 const PUSH_API = process.env.EXPO_PUSH_URL || 'https://exp.host/--/api/v2/push'
@@ -34,9 +40,10 @@ export type PushNotice = {
 type TokenRow = { id: string; user_id: string; token: string }
 type Ticket = { status?: string; id?: string; message?: string; details?: { error?: string } }
 
-export function isPushToken(value: unknown): value is string {
-  return typeof value === 'string' && TOKEN_RE.test(value)
-}
+export const isExpoToken = (value: unknown): value is string => typeof value === 'string' && value.length <= MAX_TOKEN_LENGTH && TOKEN_RE.test(value)
+
+/** Either kind of phone token is accepted. */
+export const isPushToken = (value: unknown): value is string => isExpoToken(value) || isFcmToken(value)
 
 async function expo<T>(path: string, body: unknown): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' }
@@ -94,23 +101,38 @@ export async function pushToPhones(notices: PushNotice[]): Promise<void> {
         .filter((p) => p.user_id === n.user_id)
         .map((p) => ({
           phone: p,
-          message: {
-            to: p.token,
-            title: n.title,
-            body: n.message,
-            sound: 'default',
-            channelId: 'default',
-            // Opened by the app when the notification is tapped
-            data: { url: n.related_appointment_id ? '/visits' : '/notifications' },
-          },
+          // Opened by the app when the notification is tapped
+          url: n.related_appointment_id ? '/visits' : '/notifications',
+          notice: n,
         })),
     )
+    const viaFirebase = outbox.filter((o) => isFcmToken(o.phone.token))
+    const viaExpo = outbox.filter((o) => !isFcmToken(o.phone.token))
 
     const gone: string[] = []
+
+    // Firebase: no tickets, the answer comes straight back
+    if (viaFirebase.length) {
+      try {
+        const results = await sendFcm(viaFirebase.map((o) => fcmMessage(o.phone.token, { title: o.notice.title, body: o.notice.message, url: o.url })))
+        results.forEach((r, j) => {
+          if (r.ok) return
+          if (r.dead) gone.push(viaFirebase[j].phone.id)
+          else console.error('Firebase push not accepted:', r.error ?? 'unknown error')
+        })
+      } catch (e) {
+        console.error('Firebase push failed:', e instanceof Error ? e.message : e)
+      }
+    }
+
+    // Expo
     const ticketByPhone = new Map<string, string>()
-    for (let i = 0; i < outbox.length; i += BATCH) {
-      const batch = outbox.slice(i, i + BATCH)
-      const tickets = await expo<Ticket[]>('/send', batch.map((o) => o.message))
+    for (let i = 0; i < viaExpo.length; i += BATCH) {
+      const batch = viaExpo.slice(i, i + BATCH)
+      const tickets = await expo<Ticket[]>(
+        '/send',
+        batch.map((o) => ({ to: o.phone.token, title: o.notice.title, body: o.notice.message, sound: 'default', channelId: 'default', data: { url: o.url } })),
+      )
       tickets.forEach((ticket, j) => {
         const phone = batch[j]?.phone
         if (!phone) return

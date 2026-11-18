@@ -53,39 +53,18 @@ Test payments with Razorpay **test keys** (`rzp_test_…`) on the server before 
 
 ## Push notifications
 
-Every in-app notification (booking request, doctor confirmed, payment received, reminders…) is
-also pushed to the phone. Tapping it opens Visits or Notifications. The patient is asked once,
-from a card on Home; signing out stops pushes to that phone.
+Every in-app notification (booking request, doctor confirmed, payment received, prescription ready, reminders…) is also pushed to the phone. Tapping it opens Visits or Notifications. The patient is asked once, from a card on Home; signing out stops pushes to that phone.
 
-Pushes need a **development or store build** (Expo Go cannot receive them on Android) and this
-one-time setup:
+**Android goes straight through Firebase** (FCM) — no Expo account. The phone gives the server its Firebase device token and the server sends with the same service account the site already uses to verify sign-ins (`FIREBASE_ADMIN_*`, `src/lib/fcm.ts`). It needs:
 
-1. **Server table** — nothing to do on MySQL: the web app creates `push_tokens` on first use.
-2. **Expo project** — creates `extra.eas.projectId` in `app.json`; commit that change.
-   ```bash
-   npx eas-cli@latest login
-   npx eas-cli@latest init
-   ```
-3. **Android (Firebase Cloud Messaging)** — `google-services.json` for package
-   `in.nestfy.medflow` is already in `mobile/` and referenced from `app.json`. What remains: in the
-   Firebase console → Project settings → *Service accounts* → Generate new private key, and upload
-   that JSON at expo.dev → project → Credentials → Android → *FCM V1 service account key*.
-   **Never commit this file.**
-4. **Firebase values for the build** — already filled in `eas.json` (the same public values the
-   website ships). `.env` is git-ignored, so cloud builds read them from there instead.
-5. **Build and install**
-   ```bash
-   npx eas-cli@latest build --profile preview --platform android
-   ```
-   `preview` gives an APK that runs on its own; `development` gives one that loads the code from
-   `npx expo start` on your computer. Install it, sign in, tap **Turn on** on Home. To test, book
-   a visit or send one from https://expo.dev/notifications.
+1. `google-services.json` in `mobile/` (already there) — it is what lets the app get a token.
+2. The **Firebase Cloud Messaging API (V1)** enabled for the Firebase project (Project settings → Cloud Messaging; it is on by default).
+3. The site's Firebase service account (`FIREBASE_ADMIN_CLIENT_EMAIL` / `FIREBASE_ADMIN_PRIVATE_KEY`) set on the server — the same one sign-in uses. If the `push_tokens` table already exists, run `mysql/migrations/002_push_tokens_fcm.sql` once (Firebase tokens are longer).
+4. Install the APK, sign in, tap **Turn on** on Home and allow notifications.
 
-iOS additionally needs a paid Apple Developer account; `eas build --platform ios` sets up the
-push key when it asks.
+Expo Go cannot receive pushes. iOS additionally needs an Expo project (`npx eas-cli@latest init`), an Apple Developer account and an Expo push token; the server sends those through Expo's push service (`EXPO_ACCESS_TOKEN` only if "enhanced push security" is on).
 
-Code: `src/lib/push.ts` (phone side), `src/lib/use-push.ts`, and on the server `src/lib/push.ts`,
-`src/lib/notify.ts`, `/api/push/register`.
+Code: `src/lib/push.ts` (phone side), `src/lib/use-push.ts`, and on the server `src/lib/push.ts`, `src/lib/fcm.ts`, `src/lib/notify.ts`, `/api/push/register`.
 
 ## Google sign-in
 
@@ -108,7 +87,6 @@ export ANDROID_HOME=$HOME/android-sdk MEDFLOW_KEYSTORE=$PWD/medflow-release.jks 
 
 The first build takes 10–25 minutes; the APK lands in `dist/`. **Keep the keystore and its password safe and out of git** — every update must be signed with the same key, and Google sign-in is tied to its SHA-1.
 
-Push notifications need an Expo project id and so do not run in a build made this way (the card is hidden); everything else works.
 
 ## Not built yet
 

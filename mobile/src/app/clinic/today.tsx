@@ -6,6 +6,7 @@ import { GlassIconButton, Header } from '@/components/Header';
 import { AnimatedIcon } from '@/components/icons/Icon';
 import { VisitCard } from '@/components/clinic/VisitCard';
 import { EmptyState, ErrorNote, ListSkeleton } from '@/components/States';
+import { PushCard } from '@/components/PushCard';
 import { StatTile } from '@/components/StatTile';
 import { Reveal } from '@/components/ui/Reveal';
 import { Screen } from '@/components/ui/Screen';
@@ -62,6 +63,10 @@ export default function Today() {
             </GlassIconButton>
           }
         />
+      </Reveal>
+
+      <Reveal index={1}>
+        <PushCard body="Get a ping the moment a patient asks for a visit." />
       </Reveal>
 
       {stats.error ? (
