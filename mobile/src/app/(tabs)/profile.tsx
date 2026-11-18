@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 
 import { AppearanceCard } from '@/components/AppearanceCard';
+import { LanguageCard } from '@/components/LanguageCard';
+import { SecurityCard } from '@/components/SecurityCard';
 import { Header } from '@/components/Header';
 import { Icon } from '@/components/icons/Icon';
 import type { IconName } from '@/components/icons/paths';
@@ -80,8 +82,10 @@ export default function Profile() {
         )}
       </Reveal>
 
-      <Reveal index={3}>
+      <Reveal index={3} style={{ gap: 12 }}>
         <AppearanceCard />
+        <LanguageCard />
+        <SecurityCard />
       </Reveal>
 
       <Reveal index={4} style={{ gap: 10 }}>

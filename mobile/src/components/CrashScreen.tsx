@@ -1,6 +1,8 @@
 import { signOut } from 'firebase/auth';
+import { useEffect } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { reportError } from '@/lib/diagnostics';
 import { getFirebaseAuth } from '@/lib/firebase';
 
 type Props = { error: Error; retry: () => Promise<void> };
@@ -13,6 +15,11 @@ type Props = { error: Error; retry: () => Promise<void> };
  */
 export function ErrorBoundary({ error, retry }: Props) {
   const lines = (error?.stack ?? '').split('\n').slice(0, 14).join('\n');
+
+  // A crash is reported once, so it can be found in the server log
+  useEffect(() => {
+    reportError(error, 'render');
+  }, [error]);
 
   async function reset() {
     try {

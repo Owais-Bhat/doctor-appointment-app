@@ -9,7 +9,7 @@ import { GlassChip } from '@/components/ui/GlassChip';
 import { Tap } from '@/components/ui/Tap';
 import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/hooks/use-theme';
-import { emptyItem, FREQUENCIES } from '@/lib/prescription';
+import { emptyItem, FREQUENCIES, inDays } from '@/lib/prescription';
 import type { Prescription, PrescriptionItem } from '@/lib/types';
 
 type Props = {
@@ -93,6 +93,12 @@ export function PrescriptionEditor({ saved, savedFollowUp, saving, onSave }: Pro
         <Button title="Add another medicine" icon="plus" variant="ghost" size="sm" onPress={() => edit({ items: [...current.items, emptyItem()] })} style={{ alignSelf: 'flex-start' }} />
 
         <Field label="Advice" icon="fileText" value={current.advice} onChangeText={(v) => edit({ advice: v })} multiline maxLength={4000} placeholder="Rest, fluids, what to watch for…" />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <GlassChip label="In 1 week" height={36} selected={current.followUp === inDays(7)} onPress={() => edit({ followUp: inDays(7) })} />
+          <GlassChip label="In 2 weeks" height={36} selected={current.followUp === inDays(14)} onPress={() => edit({ followUp: inDays(14) })} />
+          <GlassChip label="In 1 month" height={36} selected={current.followUp === inDays(30)} onPress={() => edit({ followUp: inDays(30) })} />
+          {current.followUp ? <GlassChip label="No follow-up" height={36} onPress={() => edit({ followUp: '' })} /> : null}
+        </View>
         <Field label="Follow-up date (optional)" icon="calendar" value={current.followUp} onChangeText={(v) => edit({ followUp: v })} placeholder="2026-12-31" maxLength={10} keyboardType="numbers-and-punctuation" error={followUpBad ? 'Write it like 2026-12-31' : null} />
 
         <Button title={saved ? 'Update prescription' : 'Save prescription'} icon="check" loading={saving} disabled={saving || draft === null || followUpBad} onPress={save} />

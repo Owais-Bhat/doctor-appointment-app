@@ -11,6 +11,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, setTokenGetter } from '@/lib/api';
 import { firebaseConfigured, getFirebaseAuth } from '@/lib/firebase';
 import { GoogleSignInError, googleSignIn } from '@/lib/google';
+import { clearCache, setCacheScope } from '@/lib/offline';
 import { unregisterPhone } from '@/lib/push';
 import { normalizeRole, type Profile } from '@/lib/types';
 
@@ -66,6 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenGetter(async (forceRefresh) => (auth.currentUser ? auth.currentUser.getIdToken(forceRefresh) : null));
 
     return onAuthStateChanged(auth, async (user: User | null) => {
+      // What this phone remembers offline belongs to whoever is signed in
+      setCacheScope(user?.uid ?? null);
       if (!user) {
         setProfile(null);
         setStatus('signedOut');
@@ -124,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     // While still signed in: this phone stops getting the account's notifications
     await unregisterPhone();
+    await clearCache();
     const auth = getFirebaseAuth();
     if (auth) await firebaseSignOut(auth);
     setProfile(null);

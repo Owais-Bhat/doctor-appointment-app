@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 
 import { Fonts, Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTr } from '@/lib/i18n';
 
 import { Icon } from '../icons/Icon';
 import type { IconName } from '../icons/paths';
@@ -16,6 +17,7 @@ type Props = TextInputProps & { label: string; icon?: IconName; error?: string |
 /** Glass text field with an icon; an accent ring glows in while it has focus. */
 export function Field({ label, icon, error, secure, style, onFocus, onBlur, multiline, ...rest }: Props) {
   const t = useTheme();
+  const tr = useTr();
   const [hidden, setHidden] = useState(!!secure);
   const focus = useSharedValue(0);
   const ring = useAnimatedStyle(() => ({ opacity: focus.get() }));
@@ -34,6 +36,7 @@ export function Field({ label, icon, error, secure, style, onFocus, onBlur, mult
             accessibilityLabel={label}
             secureTextEntry={secure ? hidden : rest.secureTextEntry}
             placeholderTextColor={t.ink3}
+            placeholder={rest.placeholder ? tr(rest.placeholder) : undefined}
             onFocus={(e) => {
               focus.set(withTiming(1, { duration: 180 }));
               onFocus?.(e);

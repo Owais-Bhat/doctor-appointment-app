@@ -1,4 +1,5 @@
 import { API_URL } from './config';
+import { setOffline } from './offline';
 
 export class ApiError extends Error {
   constructor(
@@ -51,8 +52,10 @@ export async function api<T>(path: string, { method = 'GET', body, auth = true, 
     });
   } catch (e) {
     if ((e as Error)?.name === 'AbortError') throw e;
+    setOffline(true);
     throw new ApiError('No connection. Check your internet and try again.', 0);
   }
+  setOffline(false);
 
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {

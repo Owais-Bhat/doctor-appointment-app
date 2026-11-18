@@ -18,13 +18,13 @@ Until the Firebase values are set, the login screen says so instead of failing s
 
 ## What is in the app
 
-**Everyone:** sign in with Google or email, create an account (with the consent tick), reset a password, notifications, and an **Auto / Light / Dark** theme switch (on the sign-in screens and on each "Me" tab). The choice is remembered.
+**Everyone:** sign in with Google or email, create an account (with the consent tick), reset a password, notifications, an **Auto / Light / Dark** theme switch, a **language** switch (English, हिन्दी, اردو — the fixed words of every screen; sentences with names or numbers stay in English), and an optional **app lock** (fingerprint, face or screen lock) on each "Me" tab. Choices are remembered on the phone. With no connection the app shows the last visits, doctors and clinic day it saw (kept only in the app's private storage, per person, wiped at sign-out), under a "No connection" notice.
 
-**Patient** (`/home`, `/visits`, `/book`, `/doctors`, `/profile`) — next visit, specialty picker, doctor search, slot booking, visits with cancel, pay online and join video visits, **prescriptions** (View prescription on a visit, share as text), health details (edit phone, birth date, blood type, allergies, conditions, medicines, height/weight, emergency contact), **rate a completed visit** (stars + comment).
+**Patient** (`/home`, `/visits`, `/book`, `/doctors`, `/profile`) — next visit, specialty picker, doctor search, slot booking, visits with cancel, pay online and join video visits, **prescriptions** (View prescription on a visit, share as text), family members (book for parents or children), favourite doctors, **reschedule** a visit, **reports** (upload photos or PDFs up to 3 MB and share them with a visit's doctor), health details (edit phone, birth date, blood type, allergies, conditions, medicines, height/weight, emergency contact), **rate a completed visit** (stars + comment).
 
 **Doctor** (`/clinic/*`) — *Today* (stats, requests waiting, today's visits), *Visits* (requests / upcoming / today / past with confirm, decline, complete, video join), *Hours* (weekly hours, minutes per visit, days off), *Patients*, *Me* (edit profile, 6-month chart). Visit detail has the patient's intake and notes, and a **prescription** editor (medicines with dose, how often and for how long, advice, follow-up date) for confirmed and completed visits.
 
-**Platform admin** (`/admin/*`) — *Overview* (numbers and charts), *Doctors* (verify or hide, add a doctor), *Users* (search, suspend, make doctor, back to patient), *Activity* (paged audit log).
+**Platform admin** (`/admin/*`) — *Overview* (numbers and charts), *Doctors* (verify or hide, add a doctor, view the documents a doctor uploaded), *Users* (search, suspend, make doctor, back to patient), *Activity* (paged audit log), and on *Me*: *Refunds* (retry a refund that did not go through) and CSV exports of users, visits and payments.
 
 ## Design: Liquid Glass
 
@@ -77,6 +77,8 @@ New Google accounts become patients, like on the web. An account that already ha
 
 ## Build without Expo
 
+For Google Play see `PLAY_STORE.md` (`AAB=1 ./scripts/build-android.sh` makes the `.aab`).
+
 `scripts/build-android.sh` makes a signed release APK on your own machine; no Expo account or cloud build is involved (Expo's open-source tooling still generates the native project). You need JDK 17, the Android SDK (platform 37, build-tools 37.0.0, NDK 27.1.12297006, CMake 3.22.1) and a release keystore:
 
 ```bash
@@ -90,9 +92,9 @@ The first build takes 10–25 minutes; the APK lands in `dist/`. **Keep the keys
 
 ## Not built yet
 
-- Medical records (report uploads)
-- Prescription as a PDF (today it is shared as text)
-- Optional: Razorpay's native SDK and Daily's native SDK for a store build
+- Razorpay's native SDK and Daily's native SDK for a store build (payments and video use the web checkout and room today)
+- Right-to-left layout for Urdu (the words are translated; the screens stay left-to-right)
+- iOS: push needs an Expo project and an Apple Developer account; the other features are written for both platforms but only Android has been built
 
 ## Layout
 

@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { AppearanceCard } from '@/components/AppearanceCard';
+import { LanguageCard } from '@/components/LanguageCard';
+import { SecurityCard } from '@/components/SecurityCard';
 import { Header } from '@/components/Header';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -51,8 +53,10 @@ export default function AdminAccount() {
           </View>
         </GlassCard>
       </Reveal>
-      <Reveal index={2}>
+      <Reveal index={2} style={{ gap: 12 }}>
         <AppearanceCard />
+        <LanguageCard />
+        <SecurityCard />
       </Reveal>
       <Reveal index={3} style={{ gap: 10 }}>
         <Button title="Refunds" icon="wallet" variant="soft" onPress={() => router.push('/refunds')} />

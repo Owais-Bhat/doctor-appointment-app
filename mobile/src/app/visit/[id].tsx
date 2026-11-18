@@ -1,5 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { Linking, Share, View } from 'react-native';
 
 import { PrescriptionEditor } from '@/components/clinic/PrescriptionEditor';
@@ -19,7 +21,7 @@ import { ApiError } from '@/lib/api';
 import { openReport } from '@/lib/files';
 import { savePrescription, saveVisitNotes, setVisitStatus, type NextStatus } from '@/lib/clinic';
 import { ageFromDob, formatDate, formatDateLong, formatTime } from '@/lib/format';
-import { itemLine, prescriptionText } from '@/lib/prescription';
+import { itemLine, prescriptionHtml, prescriptionText } from '@/lib/prescription';
 import { withDr, type AppointmentStatus, type Intake, type Prescription } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 import { joinVideoVisit } from '@/lib/video';
@@ -236,6 +238,23 @@ function PatientVisit({ data }: { data: Visit }) {
   const { visit: v, doctor } = data;
   const rx = v.prescription;
   const doctorName = withDr(doctor?.name ?? 'your doctor');
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  async function sharePdf() {
+    if (!rx) return;
+    setPdfBusy(true);
+    setPdfError(null);
+    try {
+      const { uri } = await Print.printToFileAsync({ html: prescriptionHtml({ doctor: doctorName, specialty: doctor?.specialty, date: v.date, rx, followUp: v.followUpDate }) });
+      if (!(await Sharing.isAvailableAsync())) throw new Error('This phone cannot share files.');
+      await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Prescription' });
+    } catch (e) {
+      setPdfError(e instanceof Error ? e.message : 'Could not make the PDF.');
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   return (
     <Screen>
@@ -300,8 +319,14 @@ function PatientVisit({ data }: { data: Visit }) {
                   </Text>
                 </View>
               ) : null}
+              {pdfError ? (
+                <Text tone="bad" style={{ fontWeight: '600' }}>
+                  {pdfError}
+                </Text>
+              ) : null}
+              <Button title="Save or share as PDF" icon="fileText" loading={pdfBusy} disabled={pdfBusy} onPress={() => void sharePdf()} />
               <Button
-                title="Share prescription"
+                title="Share as text"
                 icon="fileText"
                 variant="soft"
                 onPress={() => void Share.share({ message: prescriptionText({ doctor: doctorName, specialty: doctor?.specialty, date: v.date, rx, followUp: v.followUpDate }) })}

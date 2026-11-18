@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { AppearanceCard } from '@/components/AppearanceCard';
+import { LanguageCard } from '@/components/LanguageCard';
+import { SecurityCard } from '@/components/SecurityCard';
 import { BarChart } from '@/components/charts/BarChart';
 import { Header } from '@/components/Header';
 import { ErrorNote } from '@/components/States';
@@ -187,8 +189,10 @@ export default function Account() {
         ) : null}
       </Reveal>
 
-      <Reveal index={4}>
+      <Reveal index={4} style={{ gap: 12 }}>
         <AppearanceCard />
+        <LanguageCard />
+        <SecurityCard />
       </Reveal>
       <Reveal index={5} style={{ gap: 10 }}>
         <Button title="Verification documents" icon="shield" variant="soft" onPress={() => router.push('/my-documents')} />
